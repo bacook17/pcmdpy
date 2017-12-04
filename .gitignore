@@ -7,3 +7,6 @@ pcmdpy/isoc_csv/
 pcmdpy/isoc_MIST_v0.29_x5FEWER/
 pcmdpy/isoc_MIST_v1.0/
 pcmdpy/isoc_MIST_v1.1/*.pdf
+build/*
+dist/*
+pcmdpy.egg-info/*
