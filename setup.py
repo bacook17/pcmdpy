@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #To use: python setup.py install
+#        python setup.py clean
 
 import os
 import sys
