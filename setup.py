@@ -71,7 +71,7 @@ setup(
     license='LICENSE',
     description="""Tools for modelling crowded-field photometry using the
        Pixel Color-Magnitude Diagram technique""",
-    package_data={'pcmdpy': ['isoc_MIST_v1.1/*.iso.cmd', 'psf/*.psf']},
+    package_data={'pcmdpy': ['isoc_MIST_v1.1/*', 'psf/*.psf']},
     include_package_data=True,
     cmdclass={'clean': CleanCommand, 'install': CustomInstall},
     install_requires=['numpy', 'scipy', 'pandas', 'matplotlib', 'dynesty'],
