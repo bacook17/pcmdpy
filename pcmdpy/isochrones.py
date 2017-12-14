@@ -3,6 +3,7 @@
 
 """Define the Isocrhone_Model class"""
 
+from pcmdpy import install_path
 import numpy as np
 import pandas as pd
 import os, glob
@@ -125,7 +126,7 @@ class Isochrone_Model:
             try:
                 MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.1/')
             except:
-                MIST_path = '/n/home01/bcook/pixcmd/pcmdpy/isoc_MIST_v1.1/'
+                MIST_path = install_path() + '/isoc_MIST_v1.1/'
         
         #Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()

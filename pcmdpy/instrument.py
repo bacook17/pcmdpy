@@ -3,6 +3,7 @@
 
 """Define classes for Filters and other similar objects"""
 
+from pcmdpy import install_path
 import numpy as np
 import utils
 from gpu_utils import gpu_log10
@@ -214,8 +215,8 @@ class ACS_WFC_F435W(Filter):
         try:
             psf_path = resource_filename('pcmdpy', 'psf/')
         except:
-            psf_path = '/n/home01/bcook/pixcmd/pcmdpy/psf/'
-        psf_file = psf_path +'f435w_%d%d.psf'
+            psf_path = install_path() + 'psf/'
+        psf_file = psf_path + 'f435w_%d%d.psf'
         psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
         kwargs = {}
         kwargs['name'] = "F435W"
@@ -244,8 +245,8 @@ class ACS_WFC_F475W(Filter):
         try:
             psf_path = resource_filename('pcmdpy', 'psf/')
         except:
-            psf_path = '/n/home01/bcook/pixcmd/pcmdpy/psf/'
-        psf_file = psf_path +'f475w_%d%d.psf'
+            psf_path = install_path() + 'psf/'
+        psf_file = psf_path + 'f475w_%d%d.psf'
         psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
         kwargs = {}
         kwargs['name'] = "F475W"
