@@ -1,11 +1,9 @@
-default: pcmdpy
-
-pcmdpy: 
+default:
 	$(MAKE) pcmdpy_gpu || $(MAKE) pcmdpy_cpu
 
 pcmdpy_gpu:
-	pip install .[GPU]
+	pip install .[GPU] --process-dependency-links
 
 pcmdpy_cpu:
-	pip install .
+	pip install . --process-dependency-links
 
