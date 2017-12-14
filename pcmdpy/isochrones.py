@@ -146,7 +146,7 @@ class Isochrone_Model:
             try:
                 z_str = MIST_doc.split('feh_')[-1][:5]
                 z = _z_from_str(z_str)
-                new_df = pd.read_table(MIST_doc, names=self.colnames, comment='#', delim_whitespace=True, dtype=float)
+                new_df = pd.read_table(MIST_doc, names=self.colnames, comment='#', delim_whitespace=True)
                 new_df['z'] = z
                 self.MIST_df = self.MIST_df.append([new_df], ignore_index=True)
                 _z_arr.append(_z_from_str(z_str))
