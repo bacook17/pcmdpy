@@ -1,8 +1,8 @@
 import numpy as np
 import warnings, os
 import multiprocessing
-#from reikna import cluda
-#from reikna.fft import FFT
+# from reikna import cluda
+# from reikna.fft import FFT
 
 try:
     import pycuda
