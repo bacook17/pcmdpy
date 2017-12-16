@@ -74,7 +74,10 @@ setup(
     package_data={'pcmdpy': ['isoc_MIST_v1.1/*', 'psf/*.psf']},
     include_package_data=True,
     cmdclass={'clean': CleanCommand, 'install': CustomInstall},
-    install_requires=['numpy', 'scipy', 'pandas', 'matplotlib', 'dynesty'],
-    dependency_links=['git+https://github.com/joshspeagle/dynesty.git@master#egg=dynesty-0'],
+    install_requires=['astropy', 'dynesty', 'scipy', 'pandas', 'matplotlib',
+                      'numpy', 'astropy'],
+    dependency_links=[
+        'git+https://github.com/joshspeagle/dynesty.git@master#egg=dynesty-0'
+    ],
     extras_require={"GPU": ['pycuda']},
 )

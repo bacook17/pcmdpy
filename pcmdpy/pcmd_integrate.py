@@ -42,7 +42,7 @@ if __name__ == "__main__":
     args['N_points'] = config.N_points
     try:
         args['N_batch'] = config.N_batch
-    except KeyError:
+    except AttributeError:
         pass
 
     # optional key-word arguments
@@ -55,40 +55,40 @@ if __name__ == "__main__":
     args['small_prior'] = config.small_prior
     try:
         args['lum_cut'] = config.lum_cut
-    except KeyError:
+    except AttributeError:
         pass
     try:
         args['dlogz'] = config.dlogz
-    except KeyError:
+    except AttributeError:
         pass
     try:
         args['use_dynesty'] = config.use_dynesty
-    except KeyError:
+    except AttributeError:
         args['use_dynesty'] = False
 
     try:
         args['dynamic'] = config.dynamic
-    except KeyError:
+    except AttributeError:
         args['dynamic'] = False
 
     try:
         args['prior_trans'] = config.prior_trans
-    except KeyError:
+    except AttributeError:
         args['prior_trans'] = None
 
     try:
         args['lnprior_func'] = config.lnprior_func
-    except KeyError:
+    except AttributeError:
         args['lnprior_func'] = None
 
     try:
         args['bound_method'] = config.bound_method
-    except KeyError:
+    except AttributeError:
         args['bound_method'] = 'multi'
         
     try:
         args['sample_method'] = config.sample_method
-    except KeyError:
+    except AttributeError:
         args['sample_method'] = 'unif'
 
     args['iso_model'] = config.iso_model
