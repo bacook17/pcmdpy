@@ -75,7 +75,7 @@ setup(
     include_package_data=True,
     cmdclass={'clean': CleanCommand, 'install': CustomInstall},
     install_requires=[
-        'astropy>=2.0.2', 'dynesty==0.8.2', 'scipy==0.19.1',
+        'astropy==2.0.2', 'dynesty', 'scipy==0.19.1',
         'pandas==0.20.3', 'matplotlib==2.0.2', 'numpy==1.13.1',
     ],
     dependency_links=[
