@@ -189,7 +189,7 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10, param_names=Non
     return ncall, dt
 
 def nested_integrate(pcmd, filters, im_scale, N_points, method='multi', max_call=100000, gal_class=gal.Galaxy_Model, gpu=True, iso_model=None,
-                     bins=None, verbose=False, small_prior=False, dlogz=None, dynamic=False, N_batch=0, save_live=Fals,
+                     bins=None, verbose=False, small_prior=False, dlogz=None, dynamic=False, N_batch=0, save_live=False,
                      pool=None, out_df=None, out_file=None, save_every=100, param_names=None, prior_trans=None, lnprior_func=None, **kwargs):
     print('-initializing models')
     n_filters = len(filters)
