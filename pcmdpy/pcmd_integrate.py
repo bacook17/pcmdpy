@@ -91,6 +91,11 @@ if __name__ == "__main__":
     except AttributeError:
         args['sample_method'] = 'unif'
 
+    try:
+        args['save_live'] = config.save_live
+    except AttributeError:
+        args['save_live'] = False
+
     args['iso_model'] = config.iso_model
     args['gal_class'] = config.model_class
     args['verbose'] = config.verbose
