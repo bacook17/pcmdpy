@@ -11,7 +11,7 @@ error_exit () {
 
 # Usage info
 show_help() {
-error_exit <<EOF
+error_exit "
 Usage: ${BASENAME} [-h] --config-file CONFIG_FILE --run-name RUN_NAME [--data-file DATA_FILE] [--use-s3] [--clobber] [--mock]
 Run pcmdpy analysis, intialized with options in CONFIG_FILE. If --data-file not provided, must be a mock run.
 Results will be saved to RUN_NAME.csv, stdout copied to RUN_NAME.out, and stderr redirected to RUN_NAME.err.
@@ -21,7 +21,7 @@ Unless --clobber is given, will exit if RUN_NAME.csv, RUN_NAME.out, or RUN_NAME.
      --use-s3      if given, download CONFIG_FILE and DATA_FILE from AWS s3, and upload results/logs to s3
      --clobber     if given, overwrite any output files that may exist
      --mock        ignore --data-file, and assume a mock run
-EOF
+"
 }
 
 USE_S3=false
@@ -86,14 +86,14 @@ done
 
 # Check all required variables were set
 if [ -z "$CONFIG_FILE" ]; then
-    error_exit
+    show_help
 fi
 if [ -z "$RUN_NAME" ]; then
-    error_Exit
+    show_help
 fi     
 if [ -z "$DATA_FILE" ]; then
     if ! $MOCK_RUN; then
-	error_exit
+	show_help
     fi
 fi
 
@@ -129,13 +129,17 @@ fi
 if $MOCK_RUN; then
     python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
 	   --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
+    CODE=$?
 else
     python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
 	   --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
+    CODE=$?
 fi
 
+echo $CODE
+
 # Check if completed successfully
-if [ $? -eq 0 ]; then
+if [ $CODE -eq 0 ]; then
     echo "pcmdpy completed successfully"
     if $USE_S3; then
 	echo "Uploading results to s3://pcmdpy/results/${RESULTS_FILE}"
@@ -153,3 +157,4 @@ if $USE_S3; then
     aws s3 cp $STDOUT_FILE "s3://pcmdpy/logs/${STDOUT_FILE}" || error_exit "Unable to save stdout file to s3://pcmdpy/logs/${STDOUT_FILE}"
     echo "Uploading STDERR logs to s3://pcmdpy/logs/${STDERR_FILE}"
     aws s3 cp $STDERR_FILE "s3://pcmdpy/logs/${STDERR_FILE}" || error_exit "Unable to save stderr file to s3://pcmdpy/logs/${STDERR_FILE}"
+fi

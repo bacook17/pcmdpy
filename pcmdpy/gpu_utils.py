@@ -1,6 +1,8 @@
 import numpy as np
 import warnings, os
 import multiprocessing
+import sys
+from pcmdpy.utils import my_assert
 # from reikna import cluda
 # from reikna.fft import FFT
 
@@ -82,7 +84,7 @@ def initialize_gpu(n=None):
     This function makes pycuda use GPU number n in the system. If no n is provided, will use the current
     multiprocessing process number
     """
-    assert(_GPU_AVAIL)
+    my_assert(_GPU_AVAIL)
     if n is None:
         n = multiprocessing.current_process()._identity[0] - 1
         print('for process id: %d'%n)
@@ -130,7 +132,7 @@ def draw_image(expected_nums, fluxes, N_scale, gpu=_GPU_ACTIVE, cudac=_CUDAC_AVA
     return func(expected_nums, fluxes, N_scale, fixed_seed=fixed_seed, **kwargs)
 
 def seed_getter_fixed(N, value=None):
-    assert(_GPU_AVAIL & _GPU_ACTIVE)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
     result = pycuda.gpuarray.empty([N], np.int32)
     if value is None:
         #This will draw the same number every time
@@ -140,10 +142,10 @@ def seed_getter_fixed(N, value=None):
         return result.fill(value)
         
 def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, my_shuffle=False, **kwargs):
-    assert(_GPU_AVAIL & _GPU_ACTIVE)
-    assert(_CUDAC_AVAIL)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
+    my_assert(_CUDAC_AVAIL)
 
-    assert(len(expected_nums) == fluxes.shape[1])
+    my_assert(len(expected_nums) == fluxes.shape[1])
 
     """
     upper_lim = tolerance**-2.
@@ -186,11 +188,11 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     return result
 
 def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
-    assert(_GPU_AVAIL & _GPU_ACTIVE)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
 
     N_bins = len(expected_nums)
     N_bands = fluxes.shape[0]
-    assert(N_bins == fluxes.shape[1])
+    my_assert(N_bins == fluxes.shape[1])
     if (tolerance < 0.):
         upper_lim = np.inf
     else:
@@ -219,7 +221,7 @@ def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, toleran
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
-    assert(N_bins == fluxes.shape[1])
+    my_assert(N_bins == fluxes.shape[1])
     if (tolerance < 0.):
         upper_lim = np.inf
     else:
@@ -269,7 +271,7 @@ def gpu_log10(array_in, verbose=False, **kwargs):
 #        self.psf_shape = np.array(psf_shape)
 #        self.ndim = len(self.psf_shape)
 #        try:
-#            assert(len(self.image_shape) == self.ndim)
+#            my_assert(len(self.image_shape) == self.ndim)
 #        except:
 #            raise AssertionError('Input images must have same number of dimensions')
 #        
@@ -328,7 +330,7 @@ def gpu_log10(array_in, verbose=False, **kwargs):
 #    @classmethod
 #    def inflate_sizes(cls, shape1, shape2):
 #        try:
-#            assert(len(shape1) == len(shape2))
+#            my_assert(len(shape1) == len(shape2))
 #        except:
 #            raise AssertionError('Input images must have same number of dimensions')
 #        return np.array([cls.next_power2(shape1[i] + shape2[i] - 1) for i in range(len(shape1))]) 
@@ -344,8 +346,8 @@ def gpu_log10(array_in, verbose=False, **kwargs):
 #        #Pad zeros to the end of each dimension of array "a" until it is shape "new_shape"
 #        #In 2D, this results in zeros to the bottom and right of the matrix
 #        new_shape = tuple(new_shape)
-#        assert(a.ndim == len(new_shape))
-#        assert(a.shape <= new_shape)
+#        my_assert(a.ndim == len(new_shape))
+#        my_assert(a.shape <= new_shape)
 #        s_temp = np.array(a.shape)
 #        return np.pad(a, [(0, new_shape[i] - s_temp[i]) for i in range(a.ndim)], 'constant')
 #

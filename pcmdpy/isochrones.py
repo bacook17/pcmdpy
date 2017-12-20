@@ -6,6 +6,7 @@
 from pcmdpy import install_path
 import numpy as np
 import pandas as pd
+import utils
 import os, glob
 from warnings import warn
 try:
@@ -40,7 +41,7 @@ def _interp_arrays(arr1, arr2, f):
     f -- linear interpolation fraction (float between 0 and 1)
     Output: interpolated array (len max(N1,N2) or max(N1,N2)xD)
     """
-    assert(arr1.ndim == arr2.ndim)
+    utils.my_assert(arr1.ndim == arr2.ndim)
     
     l1,l2 = len(arr1), len(arr2)
     #If arrays are unequal length, extrapolate shorter using trend of longer

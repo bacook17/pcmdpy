@@ -193,7 +193,7 @@ def nested_integrate(pcmd, filters, im_scale, N_points, method='multi', max_call
                      pool=None, out_df=None, out_file=None, save_every=100, param_names=None, prior_trans=None, lnprior_func=None, **kwargs):
     print('-initializing models')
     n_filters = len(filters)
-    assert(pcmd.shape[0] == n_filters)
+    utils.my_assert(pcmd.shape[0] == n_filters)
     n_dim = gal_class._num_params
     if pool is None:
         nprocs = 1
@@ -204,7 +204,7 @@ def nested_integrate(pcmd, filters, im_scale, N_points, method='multi', max_call
         iso_model = iso.Isochrone_Model(filters)
     driv = driver.Driver(iso_model, gpu=gpu)
     if bins is None:
-        assert(n_filters == 2)
+        utils.my_assert(n_filters == 2)
         xbins = np.arange(-1.5, 4.6, 0.05)
         ybins = np.arange(-12, 15.6, 0.05)
         bins = np.array([xbins,ybins])
@@ -279,13 +279,13 @@ def nested_integrate(pcmd, filters, im_scale, N_points, method='multi', max_call
 #
 #    print('-initializing models')
 #    N_filters = len(filters)
-#    assert(pcmd.shape[0] == N_filters)
+#    utils.my_assert(pcmd.shape[0] == N_filters)
 #    N_dim = gal_class._num_params
 #    
 #    iso_model = iso.Isochrone_Model(filters)
 #    driv = driver.Driver(iso_model, gpu=gpu)
 #    if bins is None:
-#        assert(N_filters == 2)
+#        utils.my_assert(N_filters == 2)
 #        xbins = np.arange(-1.5, 4.6, 0.05)
 #        ybins = np.arange(-12, 15.6, 0.05)
 #        bins = np.array([xbins,ybins])
@@ -319,7 +319,7 @@ def nested_integrate(pcmd, filters, im_scale, N_points, method='multi', max_call
 #            np.random.seed(0)
 #            age0 = np.random.uniform(6, 10.3, N_walkers)
 #            p0 = np.array([z0, dust0, npix0, age0]).T
-#    assert(p0.shape == (N_walkers, N_dim))
+#    utils.my_assert(p0.shape == (N_walkers, N_dim))
 #
 #    if N_burn > 0:
 #        print('-emcee burn-in')

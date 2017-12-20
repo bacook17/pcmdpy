@@ -2,6 +2,7 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 import numpy as np
 from pcmdpy import fit_model
+import sys
 import argparse
 import pandas as pd
 
@@ -32,12 +33,12 @@ if __name__ == "__main__":
     data_file = args.data
     if len(data_file) == 0:
         try:
-            assert(config.data_is_mock)
-            data_pcmd = config.data_pcmd
-        except AssertionError:
+            if config.data_is_mock:
+                data_pcmd = config.data_pcmd
+        except AttributeError:
             print("No --data option provided, but %s does not have "
                   "data_is_mock set to True" % (config_file))
-            raise
+            sys.exit(1)
     else:
         data_pcmd = np.loadtxt(data_file, unpack=True)
     

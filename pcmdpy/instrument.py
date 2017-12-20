@@ -67,10 +67,8 @@ class Filter:
         if (psf.shape[-2] != psf.shape[-1]) or (psf.dtype != float):
             raise TypeError('The fifth argument (psf) must be a square array (or 2D-array of square arrays) of floats')
         else:
-            try:
-                assert((psf.ndim == 2) or (psf.ndim == 4))
-            except:
-                raise TypeError('The fifth argument (psf) must be 2 or 4-dimensional (square array, or 2D-array of square arrays)')
+            utils.my_assert((psf.ndim == 2) or (psf.ndim == 4),
+                            fail_message='The fifth argument (psf) must be 2 or 4-dimensional (square array, or 2D-array of square arrays)')
             if (psf.ndim == 2):
                 psf /= np.sum(psf)
             else:
@@ -142,9 +140,9 @@ class Filter:
                 message = 'each psf must be a square array'
                 raise NotImplementedError(message)
             if multi_psf:
-                assert(self._psf.ndim == 4)
+                utils.my_assert(self._psf.ndim == 4)
                 d_sub = self._psf.shape[0]
-                assert(d_sub == self._psf.shape[1])
+                utils.my_assert(d_sub == self._psf.shape[1])
                 #add border and subdivide
                 sub_im_matrix = utils.subdivide_image(image, d_sub, w_border=p-1)
                 convolved_matrix = np.array([[fftconvolve(sub_im_matrix[i,j], self._psf[i,j], mode='valid') for j in range(d_sub)] for i in range(d_sub)])
@@ -167,7 +165,7 @@ class Filter:
             im_convolved = convolve_func(image, self._psf, **kwargs)
 
         try:
-            assert(im_convolved.shape == image.shape)
+            utils.my_assert(im_convolved.shape == image.shape)
         except:
             print('Image shape has changed: ')
             print(image.shape)
@@ -203,10 +201,10 @@ class ACS_WFC_F435W(Filter):
     Output: Filter with default F435W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
@@ -233,10 +231,10 @@ class ACS_WFC_F475W(Filter):
     Output: Filter with default F475W attributes
     """
     def __init__(self, d_mpc, exposure=3620.):
-        assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
@@ -263,10 +261,10 @@ class ACS_WFC_F555W(Filter):
     Output: Filter with default F555W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
@@ -293,10 +291,10 @@ class ACS_WFC_F814W(Filter):
     Output: Filter with default F814W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
