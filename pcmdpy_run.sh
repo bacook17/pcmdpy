@@ -13,7 +13,7 @@ error_exit () {
 show_help() {
 error_exit <<EOF
 Usage: ${BASENAME} [-h] --config-file CONFIG_FILE --run-name RUN_NAME [--data-file DATA_FILE] [--use-s3] [--clobber] [--mock]
-Run pcmdpy analysis, intialized with options in CONFIG_FILE. If --data-file not provided, assume a mock run.
+Run pcmdpy analysis, intialized with options in CONFIG_FILE. If --data-file not provided, must be a mock run.
 Results will be saved to RUN_NAME.csv, stdout copied to RUN_NAME.out, and stderr redirected to RUN_NAME.err.
 Unless --clobber is given, will exit if RUN_NAME.csv, RUN_NAME.out, or RUN_NAME.err exist.
 
@@ -76,9 +76,9 @@ while :; do
 	# Should output files be overwritten?
 	--clobber)
 	    CLOBBER=true
-	\?)
-	    echo "Invalid option: $1"
 	    ;;
+	*)
+	    break
     esac
 
     shift
