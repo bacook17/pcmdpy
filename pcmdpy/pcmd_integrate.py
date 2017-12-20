@@ -15,8 +15,9 @@ if __name__ == "__main__":
     parser.add_argument("--config",
                         help="Name of the configuration file (.py)", type=str,
                         required=True)
-    parser.add_argument("--data", help="Name of the PCMD data file (.dat)",
-                        type=str, required=True)
+    parser.add_argument("--data", help=("Name of the PCMD data file (.dat). "
+                                        "If not given, assume a mock run."),
+                        type=str, default="")
     parser.add_argument("--results", help="Name of the results file (.csv)",
                         type=str, required=True)
     args = parser.parse_args()
@@ -29,7 +30,16 @@ if __name__ == "__main__":
 
     # external data file
     data_file = args.data
-    data_pcmd = np.loadtxt(data_file, unpack=True)
+    if len(data_file) == 0:
+        try:
+            assert(config.data_is_mock)
+            data_pcmd = config.data_pcmd
+        except AssertionError:
+            print("No --data option provided, but %s does not have "
+                  "data_is_mock set to True" % (config_file))
+            raise
+    else:
+        data_pcmd = np.loadtxt(data_file, unpack=True)
     
     # where to save results
     results_file = args.results
