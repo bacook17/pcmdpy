@@ -92,15 +92,15 @@ if [ -z "$RUN_NAME" ]; then
     error_Exit
 fi     
 if [ -z "$DATA_FILE" ]; then
-    if [ ! $MOCK_RUN ]; then
+    if ! $MOCK_RUN; then
 	error_exit
     fi
 fi
 
-if [ $USE_S3 ]; then
+if $USE_S3; then
    echo "Loading files from AWS S3"
    aws s3 cp "s3://pcmdpy/config_files/${CONFIG_FILE}" $CONFIG_FILE || error_exit "Unable to find config file: s3://pcmdpy/config_files/${CONFIG_FILE}"
-   if [ ! $MOCK_RUN ]; then
+   if ! $MOCK_RUN; then
        aws s3 cp "s3://pcmdpy/data/${DATA_FILE}" $DATA_FILE || error_exit "Unable to find data file: s3://pcmdpy/data/${DATA_FILE}"
    fi
 fi
@@ -110,7 +110,7 @@ STDOUT_FILE="$RUN_NAME.out"
 STDERR_FILE="$RUN_NAME.err"
 
 # If clobber mode not activated, check if any output files exist
-if [ ! $CLOBBER ]; then
+if ! $CLOBBER; then
     if [ -f $RESULTS_FILE ]; then
 	error_exit "$RESULTS_FILE exists, and --clobber not activated"
     fi
@@ -126,7 +126,7 @@ fi
 # and !COPIES! stdout to STDOUT_FILE
 
 # If a mock run
-if [ $MOCK_RUN ]; then
+if $MOCK_RUN; then
     python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
 	   --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
 else
@@ -137,7 +137,7 @@ fi
 # Check if completed successfully
 if [ $? -eq 0 ]; then
     echo "pcmdpy completed successfully"
-    if [ $USE_S3 ]; then
+    if $USE_S3; then
 	echo "Uploading results to s3://pcmdpy/results/${RESULTS_FILE}"
 	aws s3 cp $RESULTS_FILE "s3://pcmdpy/results/${RESULTS_FILE}" || echo "Unable to save results file to s3://pcmdpy/logs/${RESULTS_FILE}"
     fi
@@ -148,7 +148,7 @@ else
 fi
 
 # Save stdout and stderr regardless
-if [ $USE_S3 ]; then
+if $USE_S3; then
     echo "Uploading STDOUT logs to s3://pcmdpy/logs/${STDOUT_FILE}"
     aws s3 cp $STDOUT_FILE "s3://pcmdpy/logs/${STDOUT_FILE}" || error_exit "Unable to save stdout file to s3://pcmdpy/logs/${STDOUT_FILE}"
     echo "Uploading STDERR logs to s3://pcmdpy/logs/${STDERR_FILE}"
