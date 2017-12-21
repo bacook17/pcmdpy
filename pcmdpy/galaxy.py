@@ -24,7 +24,7 @@ class Galaxy_Model:
            2... -- log SFH in age bin
         """
         self.ages = self.age_arr
-        utils.my_assert(len(gal_params) == self._num_params)
+        my_assert(len(gal_params) == self._num_params)
 
         self.z = gal_params[0]
         self.dust = 10.**gal_params[1]
@@ -45,7 +45,7 @@ class Constant_SFR(Galaxy_Model):
            2 -- log Npix
         """
         self.ages = self.age_arr
-        utils.my_assert(len(gal_params) == 3)
+        my_assert(len(gal_params) == 3)
 
         self.z = gal_params[0]
         self.dust = 10.**gal_params[1]
@@ -69,7 +69,7 @@ class Tau_Model(Galaxy_Model):
         """
 
         self.ages = self.age_arr
-        utils.my_assert(len(gal_params) == 4)
+        my_assert(len(gal_params) == 4)
 
         self.z = gal_params[0]
         self.dust = 10.**gal_params[1]
@@ -95,7 +95,7 @@ class Rising_Tau(Galaxy_Model):
         """
 
         self.ages = self.age_arr
-        utils.my_assert(len(gal_params) == 4)
+        my_assert(len(gal_params) == 4)
 
         self.z = gal_params[0]
         self.dust = 10.**gal_params[1]
@@ -120,7 +120,7 @@ class Galaxy_SSP:
            2 -- log Npix
            3 -- log age (in yrs)
         """
-        utils.my_assert(len(gal_params) == self._num_params)
+        my_assert(len(gal_params) == self._num_params)
         self._params = gal_params
         self.z = gal_params[0]
         self.dust = 10.**gal_params[1]
