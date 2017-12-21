@@ -14,6 +14,8 @@ except ImportError:
     pass
 
 
+
+
 class Filter:
     """Models observations in a single band
     
@@ -323,3 +325,5 @@ class ACS_WFC_F814W(Filter):
         kwargs['MIST_column_alt'] = "imag"
         Filter.__init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf, **kwargs)
 
+
+_standard_filters = [ACS_WFC_F475W(1.0), ACS_WFC_F814W(1.0)]
