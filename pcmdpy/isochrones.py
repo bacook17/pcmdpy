@@ -245,13 +245,9 @@ class Isochrone_Model:
         delta_t_iso = np.diff(10.**iso_bins)
         # time elapsed in SFH bin
         delta_t_sfh = np.diff(10.**galaxy.age_edges)
+        # Compute the SFH of each isochrone (constant SFR/bin)
         iso_weights = galaxy.SFH[iso_sfh_bin] * delta_t_iso
         iso_weights /= delta_t_sfh[iso_sfh_bin]
-        # Compute the SFH of each isochrone (constant SFR, and sum=1)
-        iso_weights = np.diff(10.**iso_bins)
-        iso_weights /= np.sum(iso_weights)
-        # Multiply by the parametrized SFH weight of each bin
-        iso_weights *= galaxy.SFH[iso_sfh_bin]
         
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
