@@ -5,15 +5,16 @@ import numpy as np
 import warnings
 import sys
 
+
 # A module to create various utility functions
 def my_assert(bool_statement, fail_message=None):
-    try:
-        assert(bool_statement)
-    except AssertionError as e:
-        if fail_message is None:
-            print(e.message)
-        else:
+    if bool_statement:
+        return
+    else:
+        if fail_message is not None:
             print(fail_message)
+        else:
+            print("custom assertion failed")
         sys.exit(1)
 
 def make_pcmd(data):
@@ -53,7 +54,8 @@ def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     return counts, hess, err
 
 def wrap_image(image, w_border):
-    my_assert(image.ndim == 2)
+    my_assert(image.ndim == 2,
+              "images must be 2-dimensional")
     Nx, Ny = image.shape
     if (w_border >= Nx) or (w_border >= Ny):
         message = "wrap_image is not implemented for cases where border is wider than existing image"
@@ -66,7 +68,8 @@ def wrap_image(image, w_border):
     return im_temp[:Nx+w_border, :Ny+w_border]
 
 def subdivide_image(image, d_sub, w_border=0):
-    my_assert(image.ndim == 2)
+    my_assert(image.ndim == 2,
+              "images must be 2-dimensional")
     Nx, Ny = image.shape
     if (Nx != Ny):
         message = "image must be square"

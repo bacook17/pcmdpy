@@ -10,7 +10,8 @@ __all__ = ['FlatPrior', 'SSPFlatPrior', 'ConstFlatPrior', 'TauFlatPrior',
            'FullFlatPrior']
 
 import numpy as np
-from scipy.stats import dirichlet    # , gamma
+from pcmdpy import galaxy
+# from scipy.stats import dirichlet    # , gamma
 
 
 class FlatPrior(object):
@@ -332,29 +333,9 @@ class FullFlatPrior(FlatPrior):
         FlatPrior.__init__(self, bounds)
 
 
-# class FullDirichletPrior(FlatPrior):
-#     def __init__(self, z_bound=[-2., 0.5], dust_bound=[-3., 0.5],
-#                  alpha=[5e-4, 5e-3, 1e-2, 4e-2, 1e-1, 4e-1, 3e-3],
-#                  npix_bound=[-1., 8.]):
-#         self.lower_bounds = np.array([z_bound[0], dust_bound[0],
-#                                       npix_bound[0]])
-#         self.upper_bounds = np.array([z_bound[1], dust_bound[1],
-#                                       npix_bound[1]])
-#         self.widths = self.upper_bounds - self.lower_bounds
-#         self.alpha = np.array(alpha)
-#         self.alpha /= np.sum(alpha)
-#         self.ndim = 9
-#         
-#     def ln_prior(self, params):
-#         logz, logdust = params[0], params[1]
-#         sfh = 10.**params[2:]
-#         log_npix = np.log10(sfh.sum())
-#         sfh_norm = sfh / sfh.sum()
-#         p = np.array([logz, logdust, log_npix])
-#         if np.any(p < self.lower_bounds) or np.any(p > self.upper_bounds):
-#             return -np.inf
-#         else:
-#             return dirichlet.logpdf(sfh_norm, self.alpha)
-# 
-#     def prior_transform(self, normed_params):
-#         raise NotImplementedError
+default_prior = {}
+default_prior[galaxy.Galaxy_Model] = FullFlatPrior()
+default_prior[galaxy.Constant_SFR] = ConstFlatPrior()
+default_prior[galaxy.Tau_Model] = TauFlatPrior()
+default_prior[galaxy.Rising_Tau] = TauFlatPrior()
+default_prior[galaxy.Galaxy_SSP] = SSPFlatPrior()

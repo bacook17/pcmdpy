@@ -6,7 +6,7 @@ import sys
 import argparse
 import pandas as pd
 
-import imp
+from importlib import import_module
 
 if __name__ == "__main__":
 
@@ -27,15 +27,17 @@ if __name__ == "__main__":
     config_file = args.config
     config_mod = config_file.strip('.py').rpartition('/')[-1]
     print('Loading Setup File: %s' % config_file)
-    config = imp.load_source(config_mod, config_file)
+    config = import_module(config_mod, package=config_file)
 
     # external data file
     data_file = args.data
     if len(data_file) == 0:
         try:
-            if config.data_is_mock:
-                data_pcmd = config.data_pcmd
-        except AttributeError:
+            if config.params['data_is_mock']:
+                data_pcmd = config.params['data_pcmd']
+            else:
+                raise ValueError
+        except KeyError, ValueError:
             print("No --data option provided, but %s does not have "
                   "data_is_mock set to True" % (config_file))
             sys.exit(1)
@@ -45,79 +47,30 @@ if __name__ == "__main__":
     # where to save results
     results_file = args.results
     
-    # arguments
+    # These are the required arguments. If any remain None after import,
+    # this will fail
     args = {}
     args['pcmd'] = data_pcmd
-    args['filters'] = config.filters
-    args['im_scale'] = config.N_scale
-    args['N_points'] = config.N_points
-    try:
-        args['N_batch'] = config.N_batch
-    except AttributeError:
-        pass
 
-    # optional key-word arguments
-    # (defaults are set by fit_model.nested_integrate)
-    args['pool'] = config.pool
-    args['max_call'] = config.N_max
-    args['gpu'] = config.use_gpu
-    args['fixed_seed'] = config.fixed_seed
-    args['like_mode'] = config.like_mode
-    args['small_prior'] = config.small_prior
-    try:
-        args['lum_cut'] = config.lum_cut
-    except AttributeError:
-        pass
-    try:
-        args['dlogz'] = config.dlogz
-    except AttributeError:
-        pass
-    try:
-        args['use_dynesty'] = config.use_dynesty
-    except AttributeError:
-        args['use_dynesty'] = False
+    required_keys = ['filters', 'N_im', 'N_live']
+    
+    # Load all parameters from configuration file
+    # defaults are set by fit_model.nested_integrate
+    for k, v in config.params.iteritems():
+        args[k] = v
 
-    try:
-        args['dynamic'] = config.dynamic
-    except AttributeError:
-        args['dynamic'] = False
+    for key in required_keys:
+        if key not in args.keys():
+            print("Config file %s doesn\'t set required parameter %s" %
+                  (config_file, key))
+            sys.exit(1)
 
-    try:
-        args['prior_trans'] = config.prior_trans
-    except AttributeError:
-        args['prior_trans'] = None
-
-    try:
-        args['lnprior_func'] = config.lnprior_func
-    except AttributeError:
-        args['lnprior_func'] = None
-
-    try:
-        args['bound_method'] = config.bound_method
-    except AttributeError:
-        args['bound_method'] = 'multi'
-        
-    try:
-        args['sample_method'] = config.sample_method
-    except AttributeError:
-        args['sample_method'] = 'unif'
-
-    try:
-        args['save_live'] = config.save_live
-    except AttributeError:
-        args['save_live'] = False
-
-    args['iso_model'] = config.iso_model
-    args['gal_class'] = config.model_class
-    args['verbose'] = config.verbose
-
+    # The default dynesty result values
     results_cols = ['nlive', 'niter', 'ncall', 'eff',
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
-    param_names = config.model_class._param_names
-    param_names[0] = 'logzh'
+    param_names = config.gal_class._param_names
     N_params = len(param_names)
-    out_file = config.output_file
 
     for pname in param_names:
         results_cols.append(pname)
@@ -130,20 +83,4 @@ if __name__ == "__main__":
 
     print('Running Nested Sampling')
     results = fit_model.nested_integrate(**args)
-
-    #print('Nested Sampling Complete, saving results')
-    #Used for saving output
-
-    ##Save results
-    #out_df = pd.DataFrame(columns=results_cols)
-    #for d in range(N_params):
-    #    out_df[param_names[d]] = results.samples[:,d]
-    ########Fix nomenclature
-    #for col in results_cols:
-    #    try:
-    #        out_df[col] = getattr(results, col)
-    #    except:
-    #        if col not in param_names:
-    #            print('%s not found among result keys'%(col))
-    #
-    #out_df.to_csv(out_file, index=False, float_format='%.3e', compression='gzip')
+    

@@ -5,13 +5,14 @@
 
 from pcmdpy import install_path
 import numpy as np
-import utils
-from gpu_utils import gpu_log10
-from scipy.signal import fftconvolve, convolve2d, gaussian
+from pcmdpy import utils
+from pcmdpy.gpu_utils import gpu_log10
+from scipy.signal import fftconvolve, gaussian
 try:
     from pkg_resources import resource_filename
 except ImportError:
     pass
+
 
 class Filter:
     """Models observations in a single band
@@ -140,9 +141,11 @@ class Filter:
                 message = 'each psf must be a square array'
                 raise NotImplementedError(message)
             if multi_psf:
-                utils.my_assert(self._psf.ndim == 4)
+                utils.my_assert(self._psf.ndim == 4,
+                                "psf must have 4 dimensions for multi_psf")
                 d_sub = self._psf.shape[0]
-                utils.my_assert(d_sub == self._psf.shape[1])
+                utils.my_assert(d_sub == self._psf.shape[1],
+                                "psfs are not square")
                 #add border and subdivide
                 sub_im_matrix = utils.subdivide_image(image, d_sub, w_border=p-1)
                 convolved_matrix = np.array([[fftconvolve(sub_im_matrix[i,j], self._psf[i,j], mode='valid') for j in range(d_sub)] for i in range(d_sub)])
@@ -164,14 +167,9 @@ class Filter:
         else:
             im_convolved = convolve_func(image, self._psf, **kwargs)
 
-        try:
-            utils.my_assert(im_convolved.shape == image.shape)
-        except:
-            print('Image shape has changed: ')
-            print(image.shape)
-            print('to ')
-            print(im_convolved.shape)
-            
+        utils.my_assert(im_convolved.shape == image.shape,
+                        "Image shape has changed: %s to %s" %
+                        (str(image.shape), str(im_convolved.shape)))
         return im_convolved
 
     ##############################
@@ -201,14 +199,17 @@ class ACS_WFC_F435W(Filter):
     Output: Filter with default F435W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
+                        "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or
+                        isinstance(exposure, float),
+                        "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
-        zero_point = 25.767 #VEGAmag
+        zero_point = 25.767   # VEGAmag
         red_per_ebv = 3.610
         try:
             psf_path = resource_filename('pcmdpy', 'psf/')
@@ -231,10 +232,13 @@ class ACS_WFC_F475W(Filter):
     Output: Filter with default F475W attributes
     """
     def __init__(self, d_mpc, exposure=3620.):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
+                        "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or
+                        isinstance(exposure, float),
+                        "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
@@ -261,10 +265,13 @@ class ACS_WFC_F555W(Filter):
     Output: Filter with default F555W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
+                        "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or
+                        isinstance(exposure, float),
+                        "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         
@@ -291,10 +298,13 @@ class ACS_WFC_F814W(Filter):
     Output: Filter with default F814W attributes
     """
     def __init__(self, d_mpc, exposure=3235.):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float)) #d_mpc must be real number
+        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
+                        "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or isinstance(exposure, float)) #exposure must be real number
+        utils.my_assert(isinstance(exposure, int) or
+                        isinstance(exposure, float),
+                        "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
         

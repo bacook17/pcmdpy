@@ -4,7 +4,8 @@
 """Define the Galaxy_Model class"""
 
 import numpy as np
-from pcmdpy.utils import my_assert
+from pcmdpy import utils
+
 
 class Galaxy_Model:
 
@@ -12,42 +13,49 @@ class Galaxy_Model:
     age_arr = np.array([6.5, 7.5, 8.25, 8.75, 9.25, 9.75, 10.1])
     _num_ages = len(age_arr)
 
-    _param_names = ['logz', 'logdust', 'logSFH0', 'logSFH1', 'logSFH2', 'logSFH3', 'logSFH4', 'logSFH5', 'logSFH6']
+    _param_names = ['logfeh', 'logdust', 'logSFH0', 'logSFH1', 'logSFH2',
+                    'logSFH3', 'logSFH4', 'logSFH5', 'logSFH6']
     _num_params = len(_param_names)
     _meta_names = ['logNpix']
     
     def __init__(self, gal_params):
         """
         gal_params:
-           0 -- log (z / z_solar) metallicity
+           0 -- log (Fe/H) metallicity in solar units
            1 -- log E(B-V) dust extinction
            2... -- log SFH in age bin
         """
         self.ages = self.age_arr
-        my_assert(len(gal_params) == self._num_params)
+        utils.my_assert(len(gal_params) == self._num_params,
+                        "gal_params for Galaxy_Model should be length %d" %
+                        self._num_params)
 
-        self.z = gal_params[0]
+        self.feh = gal_params[0]
         self.dust = 10.**gal_params[1]
         self.SFH = 10.**gal_params[2:]
         self.Npix = np.sum(self.SFH)
         self._params = gal_params
         self._meta_params = np.array([np.log10(self.Npix)])
 
+        
 class Constant_SFR(Galaxy_Model):
 
-    _param_names = ['logz', 'logdust', 'logNpix']
+    _param_names = ['logfeh', 'logdust', 'logNpix']
     _num_params = len(_param_names)
+
     def __init__(self, gal_params):
         """
         gal_params:
-           0 -- log (z / z_solar) metallicity
+           0 -- log (Fe/H) metallicity in solar units
            1 -- log E(B-V) dust extinction
            2 -- log Npix
         """
         self.ages = self.age_arr
-        my_assert(len(gal_params) == 3)
+        utils.my_assert(len(gal_params) == self._num_params,
+                        "gal_params for Constant_SFR should be length %d" %
+                        self._num_params)
 
-        self.z = gal_params[0]
+        self.feh = gal_params[0]
         self.dust = 10.**gal_params[1]
         self.Npix = 10.**gal_params[2]
         
@@ -55,74 +63,83 @@ class Constant_SFR(Galaxy_Model):
         self.SFH = self.Npix * SFH_term / np.sum(SFH_term)
         self._params = gal_params
 
+        
 class Tau_Model(Galaxy_Model):
 
-    _param_names = ['logz', 'logdust', 'logNpix', 'tau']
+    _param_names = ['logfeh', 'logdust', 'logNpix', 'tau']
     _num_params = len(_param_names)
+
     def __init__(self, gal_params):
         """
         gal_params:
-           0 -- log (z / z_solar) metallicity
+           0 -- log (Fe/H) metallicity in solar units
            1 -- log E(B-V) dust extinction
            2 -- log Npix
            3 -- tau (SFH time-scale, in Gyr)
         """
 
         self.ages = self.age_arr
-        my_assert(len(gal_params) == 4)
-
-        self.z = gal_params[0]
+        utils.my_assert(len(gal_params) == self._num_params,
+                        "gal_params for Tau_Model should be length %d" %
+                        self._num_params)
+        self.feh = gal_params[0]
         self.dust = 10.**gal_params[1]
         self.Npix = 10.**gal_params[2]
         tau = gal_params[3]
 
-        ages_linear= 10.**(self.age_edges - 9.) #convert to Gyrs
-        SFH_term = np.exp(ages_linear[1:] / tau) - np.exp(ages_linear[:-1] / tau)
+        ages_linear = 10.**(self.age_edges - 9.)  # convert to Gyrs
+        SFH_term = np.exp(ages_linear[1:]/tau) - np.exp(ages_linear[:-1]/tau)
         self.SFH = self.Npix * SFH_term / np.sum(SFH_term)
         self._params = gal_params
 
+        
 class Rising_Tau(Galaxy_Model):
 
-    _param_names = ['logz', 'logdust', 'logNpix', 'tau']
+    _param_names = ['logfeh', 'logdust', 'logNpix', 'tau']
     _num_params = len(_param_names)
+    
     def __init__(self, gal_params):
         """
         gal_params:
-           0 -- log (z / z_solar) metallicity
+           0 -- log (Fe/H) metallicity in solar units
            1 -- log E(B-V) dust extinction
            2 -- log Npix
            3 -- tau (SFH time-scale, in Gyr)
         """
 
         self.ages = self.age_arr
-        my_assert(len(gal_params) == 4)
-
-        self.z = gal_params[0]
+        utils.my_assert(len(gal_params) == self._num_params,
+                        "gal_params for Rising_Tau should be length %d" %
+                        self._num_params)
+        self.feh = gal_params[0]
         self.dust = 10.**gal_params[1]
         self.Npix = 10.**gal_params[2]
         tau = gal_params[3]
 
-        ages_linear= 10.**(self.age_edges - 9.) #convert to Gyrs
-        base_term = (ages_linear[-1] + tau - ages_linear) * np.exp(ages_linear / tau)
+        ages_linear = 10.**(self.age_edges - 9.)  # convert to Gyrs
+        base_term = (ages_linear[-1]+tau-ages_linear) * np.exp(ages_linear/tau)
         SFH_term = base_term[:-1] - base_term[1:]
         self.SFH = self.Npix * SFH_term / np.sum(SFH_term)
         self._params = gal_params
 
+
 class Galaxy_SSP:
-    _param_names = ['logz', 'logdust', 'logNpix', 'logage']
+    _param_names = ['logfeh', 'logdust', 'logNpix', 'logage']
     _num_params = len(_param_names)
 
     def __init__(self, gal_params):
         """
         gal_params:
-           0 -- log (z / z_solar) metallicity
+           0 -- log (Fe/H) metallicity in solar units
            1 -- log E(B-V) dust extinction
            2 -- log Npix
            3 -- log age (in yrs)
         """
-        my_assert(len(gal_params) == self._num_params)
+        utils.my_assert(len(gal_params) == self._num_params,
+                        "gal_params for Galaxy_SSP should be length %d" %
+                        self._num_params)
         self._params = gal_params
-        self.z = gal_params[0]
+        self.feh = gal_params[0]
         self.dust = 10.**gal_params[1]
         Npix = 10.**gal_params[2]
         self.SFH = np.array([Npix])

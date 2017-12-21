@@ -1,7 +1,7 @@
 import numpy as np
-import warnings, os
+import warnings
+import os
 import multiprocessing
-import sys
 from pcmdpy.utils import my_assert
 # from reikna import cluda
 # from reikna.fft import FFT
@@ -84,7 +84,8 @@ def initialize_gpu(n=None):
     This function makes pycuda use GPU number n in the system. If no n is provided, will use the current
     multiprocessing process number
     """
-    my_assert(_GPU_AVAIL)
+    my_assert(_GPU_AVAIL,
+              "Can\'t initialize GPU, _GPU_AVAIL is set to False")
     if n is None:
         n = multiprocessing.current_process()._identity[0] - 1
         print('for process id: %d'%n)
@@ -132,7 +133,9 @@ def draw_image(expected_nums, fluxes, N_scale, gpu=_GPU_ACTIVE, cudac=_CUDAC_AVA
     return func(expected_nums, fluxes, N_scale, fixed_seed=fixed_seed, **kwargs)
 
 def seed_getter_fixed(N, value=None):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
+              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
+               "_GPU_ACTIVE are set to False"))
     result = pycuda.gpuarray.empty([N], np.int32)
     if value is None:
         #This will draw the same number every time
@@ -142,10 +145,14 @@ def seed_getter_fixed(N, value=None):
         return result.fill(value)
         
 def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, my_shuffle=False, **kwargs):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
-    my_assert(_CUDAC_AVAIL)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
+              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
+               "_GPU_ACTIVE are set to False"))
+    my_assert(_CUDAC_AVAIL, ("Trying to use cudac implementation, but "
+                             "_CUDAC_AVAIL set to False"))
 
-    my_assert(len(expected_nums) == fluxes.shape[1])
+    my_assert(len(expected_nums) == fluxes.shape[1],
+              "expected_nums must have same shape as fluxes")
 
     """
     upper_lim = tolerance**-2.
@@ -188,11 +195,14 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     return result
 
 def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE)
+    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
+              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
+               "_GPU_ACTIVE are set to False"))
 
     N_bins = len(expected_nums)
     N_bands = fluxes.shape[0]
-    my_assert(N_bins == fluxes.shape[1])
+    my_assert(N_bins == fluxes.shape[1],
+              "fluxes.shape[1] should match number of bins")
     if (tolerance < 0.):
         upper_lim = np.inf
     else:
@@ -221,7 +231,8 @@ def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, toleran
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
-    my_assert(N_bins == fluxes.shape[1])
+    my_assert(N_bins == fluxes.shape[1],
+              "fluxes.shape[1] should match number of bins")
     if (tolerance < 0.):
         upper_lim = np.inf
     else:
@@ -244,7 +255,7 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
 
 def gpu_log10(array_in, verbose=False, **kwargs):
     if _GPU_AVAIL:
-        return pycuda.cumath.log10(pycuda.gpuarray.to_gpu(array_in)).get()
+        return cumath.log10(pycuda.gpuarray.to_gpu(array_in)).get()
     else:
         if verbose:
             warnings.warn('gpu_log10 using cpu, because gpu not available.',RuntimeWarning)

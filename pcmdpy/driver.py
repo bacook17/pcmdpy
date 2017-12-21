@@ -2,16 +2,14 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from scipy.stats import poisson, norm
+from scipy.stats import poisson
 from scipy.misc import logsumexp
-import instrument as ins
-import isochrones as iso
-import utils
-import gpu_utils
-import galaxy as gal
+from pcmdpy import utils
+from pcmdpy import gpu_utils
 import warnings
 
 from scipy.stats import multivariate_normal
+
 
 class Driver:
 
