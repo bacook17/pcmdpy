@@ -229,25 +229,10 @@ class Isochrone_Model:
 
         return IMF[to_keep], mags[:, to_keep]
 
-    def model_galaxy(self, galaxy, lum_cut=np.inf, iso_step=0.2,
+    def model_galaxy(self, galaxy, lum_cut=np.inf,
                      **kwargs):
-        if iso_step <= 0.:
-            # Use only the (~7) age bins given by the galaxy model
-            iso_bins = galaxy.age_edges
-        else:
-            # Here we integrate over a larger number of isochrones
-            # The edges and midpoints of the true isochrone bins to simulate
-            iso_bins = np.arange(6.0, 10.3, iso_step)
-        iso_ages = 0.5 * (iso_bins[1:] + iso_bins[:-1])
-        # Which of the parametrized bins does each isochrone belong to?
-        iso_sfh_bin = np.digitize(iso_ages, galaxy.age_edges) - 1
-        # time elapsed in isochrone bin
-        delta_t_iso = np.diff(10.**iso_bins)
-        # time elapsed in SFH bin
-        delta_t_sfh = np.diff(10.**galaxy.age_edges)
-        # Compute the SFH of each isochrone (constant SFR/bin)
-        iso_weights = galaxy.SFH[iso_sfh_bin] * delta_t_iso
-        iso_weights /= delta_t_sfh[iso_sfh_bin]
+        iso_ages = galaxy.ages
+        iso_weights = galaxy.SFH
         
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
