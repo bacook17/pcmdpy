@@ -10,7 +10,7 @@ from datetime import datetime
 
 
 def lnlike(gal_params, driv, N_im, lnprior_func,
-           gal_class=galaxy.Galaxy_Model, **kwargs):
+           gal_class=galaxy.NonParam, **kwargs):
     pri = lnprior_func(gal_params)
     if np.isinf(pri):
         return -np.inf
@@ -22,7 +22,7 @@ def lnlike(gal_params, driv, N_im, lnprior_func,
     return like
 
 
-def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.Galaxy_Model,
+def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.NonParam,
            **kwargs):
     pri = lnprior_func(gal_params)
     if np.isinf(pri):
@@ -82,7 +82,7 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10,
 
     return ncall, dt
 
-def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=100000, gal_class=galaxy.Galaxy_Model, use_gpu=True, iso_model=None,
+def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=100000, gal_class=galaxy.NonParam, use_gpu=True, iso_model=None,
                      bins=None, verbose=False, dlogz=None, dynamic=False, N_batch=0, save_live=False,
                      pool=None, out_df=None, out_file=None, save_every=100, param_names=None, prior=None, **kwargs):
     print('-initializing models')

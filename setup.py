@@ -17,7 +17,7 @@ class CustomInstall(install):
     """
     def run(self):
         install.run(self)
-        create_init(self.install_lib)
+        # create_init(self.install_lib)
 
 
 class CleanCommand(Command):

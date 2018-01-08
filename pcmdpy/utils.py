@@ -17,6 +17,7 @@ def my_assert(bool_statement, fail_message=None):
             print("custom assertion failed")
         sys.exit(1)
 
+
 def make_pcmd(data):
     n_filters = data.shape[0]
     if (n_filters > 2):

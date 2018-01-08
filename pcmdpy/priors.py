@@ -334,8 +334,12 @@ class FullFlatPrior(FlatPrior):
 
 
 default_prior = {}
-default_prior[galaxy.Galaxy_Model] = FullFlatPrior()
-default_prior[galaxy.Constant_SFR] = ConstFlatPrior()
-default_prior[galaxy.Tau_Model] = TauFlatPrior()
-default_prior[galaxy.Rising_Tau] = TauFlatPrior()
-default_prior[galaxy.Galaxy_SSP] = SSPFlatPrior()
+default_prior[galaxy.NonParam] = FullFlatPrior()
+default_prior[galaxy.ConstantSFR] = ConstFlatPrior()
+default_prior[galaxy.TauModel] = TauFlatPrior()
+default_prior[galaxy.RisingTau] = TauFlatPrior()
+default_prior[galaxy.SSPModel] = SSPFlatPrior()
+default_prior[galaxy.NonParamMDF] = None
+default_prior[galaxy.ConstantSFRMDF] = None
+default_prior[galaxy.TauModelMDF] = None
+default_prior[galaxy.RisingTauMDF] = None

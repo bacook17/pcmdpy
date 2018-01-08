@@ -3,7 +3,6 @@
 
 """Define the Isocrhone_Model class"""
 
-from pcmdpy import install_path
 import numpy as np
 import pandas as pd
 from pcmdpy import utils
@@ -11,10 +10,7 @@ import os
 import glob
 import sys
 from warnings import warn
-try:
-    from pkg_resources import resource_filename
-except ImportError:
-    pass
+from pkg_resources import resource_filename
 
 ##########################
 # Useful Utilities
@@ -128,10 +124,7 @@ class Isochrone_Model:
 
         # Locate MIST files
         if MIST_path is None:
-            try:
-                MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.1/')
-            except ImportError:
-                MIST_path = install_path() + '/isoc_MIST_v1.1/'
+            MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.1/')
         
         # Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()
@@ -231,14 +224,11 @@ class Isochrone_Model:
 
     def model_galaxy(self, galaxy, lum_cut=np.inf,
                      **kwargs):
-        iso_ages = galaxy.ages
-        iso_weights = galaxy.SFH
-        
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
         # Collect the isochrones from each bin
-        for sfh, age in zip(iso_weights, iso_ages):
-            imf, m = self.get_isochrone(age, galaxy.feh, **kwargs)
+        for age, feh, sfh in galaxy.iter_SSPs():
+            imf, m = self.get_isochrone(age, feh, **kwargs)
             weights = np.append(weights, imf*sfh)
             mags = np.append(mags, m, axis=-1)
         lum = np.power(10., -0.4*mags)

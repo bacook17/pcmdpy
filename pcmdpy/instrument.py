@@ -3,16 +3,11 @@
 
 """Define classes for Filters and other similar objects"""
 
-from pcmdpy import install_path
 import numpy as np
 from pcmdpy import utils
 from pcmdpy.gpu_utils import gpu_log10
 from scipy.signal import fftconvolve, gaussian
-try:
-    from pkg_resources import resource_filename
-except ImportError:
-    pass
-
+from pkg_resources import resource_filename
 
 
 
@@ -213,10 +208,7 @@ class ACS_WFC_F435W(Filter):
         
         zero_point = 25.767   # VEGAmag
         red_per_ebv = 3.610
-        try:
-            psf_path = resource_filename('pcmdpy', 'psf/')
-        except:
-            psf_path = install_path() + 'psf/'
+        psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'f435w_%d%d.psf'
         psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
         kwargs = {}
@@ -246,10 +238,7 @@ class ACS_WFC_F475W(Filter):
         
         zero_point = 26.0593
         red_per_ebv = 3.248
-        try:
-            psf_path = resource_filename('pcmdpy', 'psf/')
-        except:
-            psf_path = install_path() + 'psf/'
+        psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'f475w_%d%d.psf'
         psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
         kwargs = {}
