@@ -88,11 +88,11 @@ def initialize_gpu(n=None):
               "Can\'t initialize GPU, _GPU_AVAIL is set to False")
     if n is None:
         n = multiprocessing.current_process()._identity[0] - 1
-        print('for process id: %d'%n)
+        print(('for process id: {0:d}'.format(n)))
     else:
-        print('using given n: %d'%n)
+        print(('using given n: {0:d}'.format(n)))
     
-    os.environ['CUDA_DEVICE'] = '%d'%n
+    os.environ['CUDA_DEVICE'] = '{0:d}'.format(n)
     import pycuda.autoinit
 
     global _GPU_ACTIVE
@@ -186,7 +186,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     result = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
     
     block_dim = (d_block, d_block,1)
-    grid_dim = (N_scale/d_block + 1, N_scale/d_block + 1)
+    grid_dim = (N_scale//d_block + 1, N_scale//d_block + 1)
     _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes), N_bands, N_bins, N_scale,
               cuda.Out(result), skip_n, num_procs, block=block_dim, grid=grid_dim)
 
@@ -327,12 +327,12 @@ def gpu_log10(array_in, verbose=False, **kwargs):
 #    def center(cls, image, newshape=None):
 #        #Center the quandrants of the image
 #        result = image.copy()
-#        #shift = 1 - (np.array(result.shape) / 2)
+#        #shift = 1 - (np.array(result.shape) // 2)
 #        #for i in range(image.ndim):
 #        #    result = np.roll(result, shift[i], axis=i)
 #        #Remove exterior border
 #        if newshape is not None:
-#            start = (np.array(result.shape) - np.array(newshape)) / 2
+#            start = (np.array(result.shape) - np.array(newshape)) // 2
 #            end = start + np.array(newshape)
 #            myslice = tuple([slice(start[k], end[k]) for k in range(len(newshape))])
 #            result = result[myslice]

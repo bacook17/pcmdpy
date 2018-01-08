@@ -35,7 +35,7 @@ def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.Galaxy_Model,
 def dynesty_run(func, out_df=None, out_file=None, save_every=10,
                 param_names=None, ncall_start=0, tstart=0., **func_kwargs):
     ncall = ncall_start
-    if 'dlogz' in func_kwargs.keys():
+    if 'dlogz' in list(func_kwargs.keys()):
         dlogz = func_kwargs['dlogz']
     else:
         dlogz = np.nan
@@ -46,7 +46,7 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10,
         row['time_elapsed'] = dt
         (worst, ustar, vstar, row['logl'], row['logvol'], row['logwt'], row['logz'], logzvar, row['h'], nc, worst_it, propidx, propiter, row['eff'], delta_logz) = results
         ncall += nc
-        ave_t = dt / ncall
+        ave_t = float(dt) / ncall
         row['ncall'] =  ncall
         row['nlive'] = 2000
         if delta_logz > 1e6:
@@ -61,7 +61,7 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10,
                 row[pname] = vstar[i]
         else:
             for i, v in enumerate(vstar):
-                row['param%d'%i] = v
+                row['param{0:d}'.format(i)] = v
                     
         if out_df is not None:
             out_df = out_df.append(row, ignore_index=True)

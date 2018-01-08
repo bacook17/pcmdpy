@@ -160,7 +160,7 @@ class Filter:
                 else:
                     im_convolved = fftconvolve(im_new, self._psf[0,0], mode='valid')
         elif (convolve_func=="gaussian"):
-            if "width" in kwargs.keys():
+            if "width" in list(kwargs.keys()):
                 width = kwargs['width']
             else:
                 width = 3.

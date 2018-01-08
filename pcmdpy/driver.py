@@ -50,7 +50,7 @@ class Driver:
         mags = np.copy(pcmd)
         mags[0] += mags[1]
         mag_factor = -0.4 * np.log(10) #convert from base 10 to base e
-        weights = 1. / mags.shape[1] #evenly weight each pixel
+        weights = float(1) / mags.shape[1] #evenly weight each pixel
         self.mean_mags_data = logsumexp(mag_factor*mags, b=weights, axis=1)
         
         counts, hess, err = utils.make_hess(pcmd, bins, charlie_err=charlie_err)
@@ -86,7 +86,7 @@ class Driver:
         mags = np.copy(pcmd)
         mags[0] += mags[1]
         mag_factor = -0.4 * np.log(10) #convert from base 10 to base e
-        weights = 1. / mags.shape[1] #evenly weight each pixel
+        weights = float(1) / mags.shape[1] #evenly weight each pixel
         mean_mags_model = logsumexp(mag_factor*mags, b=weights, axis=1)
         
         counts_model, hess_model, err_model = utils.make_hess(pcmd, self.hess_bins, charlie_err=charlie_err)
@@ -98,9 +98,9 @@ class Driver:
         
         if use_gaussian:
             #add error in quadrature
-            combined_var = (self.err_data**2 + err_model**2) 
+            combined_var = (self.err_data**2. + err_model**2.) 
             hess_diff = (self.hess_data - hess_model)
-            log_like = -np.sum(hess_diff**2 / combined_var)
+            log_like = -np.sum(hess_diff**2. / combined_var)
 
         else:
             #Poisson Likelihood
@@ -119,8 +119,8 @@ class Driver:
             color_model = mag_model - mean_mags_model[1]
             var_mag = 0.01**2
             var_color = 0.05**2
-            log_like -= (mag_data - mag_model)**2 / (2*var_mag)
-            log_like -= (color_data - color_model)**2 / (2*var_color)
+            log_like -= (mag_data - mag_model)**2. / (2.*var_mag)
+            log_like -= (color_data - color_model)**2. / (2.*var_color)
             return log_like
 
         elif like_mode==3:

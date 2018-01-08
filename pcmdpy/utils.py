@@ -61,7 +61,7 @@ def wrap_image(image, w_border):
         message = "wrap_image is not implemented for cases where border is wider than existing image"
         print(w_border)
         raise NotImplementedError(message)
-    w_roll = w_border / 2
+    w_roll = w_border // 2
     im_temp = np.tile(image, [2,2])
     im_temp = np.roll(np.roll(im_temp, w_roll, axis=0), w_roll, axis=1)
 
@@ -77,7 +77,7 @@ def subdivide_image(image, d_sub, w_border=0):
     if (Nx % d_sub != 0):
         message = "subdivide_image is only implemented if image can be cleanly subdivided"
         raise NotImplementedError(message)
-    Nx_sub, Ny_sub = Nx / d_sub , Ny / d_sub
+    Nx_sub, Ny_sub = Nx // d_sub , Ny // d_sub
 
     if w_border > 0:
         image = wrap_image(image, w_border)

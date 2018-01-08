@@ -179,7 +179,7 @@ class Isochrone_Model:
             elif c_alt in self.MIST_df.columns:
                 self._interp_cols.append(c_alt)
             else:
-                print(c, c_alt)
+                print((c, c_alt))
                 raise ValueError('Filter does not have a valid MIST_column')
         return None
     

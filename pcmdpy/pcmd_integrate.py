@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # external config file
     config_file = args.config
     config_mod = config_file.strip('.py').rpartition('/')[-1]
-    print('Loading Setup File: %s' % config_file)
+    print(('Loading Setup File: {0}'.format(config_file)))
     config = import_module(config_mod, package=config_file)
 
     # external data file
@@ -37,9 +37,9 @@ if __name__ == "__main__":
                 data_pcmd = config.params['data_pcmd']
             else:
                 raise ValueError
-        except KeyError, ValueError:
-            print("No --data option provided, but %s does not have "
-                  "data_is_mock set to True" % (config_file))
+        except (KeyError, ValueError):
+            print(("No --data option provided, but {0} does not have "
+                  "data_is_mock set to True".format(config_file)))
             sys.exit(1)
     else:
         data_pcmd = np.loadtxt(data_file, unpack=True)
@@ -56,13 +56,13 @@ if __name__ == "__main__":
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
-    for k, v in config.params.iteritems():
+    for k, v in config.params.items():
         args[k] = v
 
     for key in required_keys:
-        if key not in args.keys():
-            print("Config file %s doesn\'t set required parameter %s" %
-                  (config_file, key))
+        if key not in list(args.keys()):
+            print(("Config file %s doesn\'t set required parameter %s" %
+                  (config_file, key)))
             sys.exit(1)
 
     # The default dynesty result values
