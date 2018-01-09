@@ -1,0 +1,8 @@
+Camera |ACS - Wide Field Channel
+Chip|1
+Pixel Position|2048 1024
+Filter|F475W
+Spectrumtype|Blackbody
+Spectrumvalue|4000
+PSF diameter|3.0 [arcsec]
+Focus|0.0 [microns secondary mirror despace]
