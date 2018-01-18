@@ -15,8 +15,7 @@ def lnlike(gal_params, driv, N_im, lnprior_func,
     if np.isinf(pri):
         return -np.inf
     gal_model = gal_class(gal_params)
-    mags, _ = driv.simulate(gal_model, N_im, **kwargs)
-    pcmd = utils.make_pcmd(mags)
+    pcmd, _ = driv.simulate(gal_model, N_im, **kwargs)
     like = driv.loglike(pcmd, **kwargs)
 
     return like

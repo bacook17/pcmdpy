@@ -4,6 +4,7 @@
 """Define classes for Filters and other similar objects"""
 
 import numpy as np
+from astropy.io import fits
 from pcmdpy import utils
 from pcmdpy.gpu_utils import gpu_log10
 from scipy.signal import fftconvolve, gaussian
@@ -32,7 +33,9 @@ class Filter:
     """
 
     
-    def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf,  name="", tex_name="", MIST_column="", MIST_column_alt="", **kwargs):
+    def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf,
+                 name="", tex_name="", MIST_column="", MIST_column_alt="",
+                 tiled_psf=False, **kwargs):
         """Create a new Filter, given input properties of observation
 
         Arguments:
@@ -68,9 +71,15 @@ class Filter:
             utils.my_assert((psf.ndim == 2) or (psf.ndim == 4),
                             fail_message='The fifth argument (psf) must be 2 or 4-dimensional (square array, or 2D-array of square arrays)')
             if (psf.ndim == 2):
-                psf /= np.sum(psf)
+                # create 4x4 grid of PSFs
+                if tiled_psf:
+                    psf = utils.generate_image_dithers(psf, norm=True)
+                else:
+                    psf /= np.sum(psf)
             else:
-                psf = np.array([[psf[i,j] / np.sum(psf[i,j]) for j in range(psf.shape[1])] for i in range(psf.shape[0])])
+                psf = np.array([[psf[i, j] / np.sum(psf[i, j])
+                                 for j in range(psf.shape[1])]
+                                for i in range(psf.shape[0])])
             self._psf = psf
             
 
@@ -185,7 +194,6 @@ class Filter:
         """
         return ACS_WFC_F814W(d_mpc, **kwargs)
 
-
 ##############################
 # Pre-defined Filters
 class ACS_WFC_F435W(Filter):
@@ -209,8 +217,8 @@ class ACS_WFC_F435W(Filter):
         zero_point = 25.767   # VEGAmag
         red_per_ebv = 3.610
         psf_path = resource_filename('pcmdpy', 'psf/')
-        psf_file = psf_path + 'f435w_%d%d.psf'
-        psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
+        psf_file = psf_path + 'ACS_WFC_F435W.fits'
+        psf = fits.open(psf_file)[0].data.astype(float)
         kwargs = {}
         kwargs['name'] = "F435W"
         kwargs['tex_name'] = r"B$_{435}$"
@@ -239,8 +247,8 @@ class ACS_WFC_F475W(Filter):
         zero_point = 26.0593
         red_per_ebv = 3.248
         psf_path = resource_filename('pcmdpy', 'psf/')
-        psf_file = psf_path + 'f475w_%d%d.psf'
-        psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
+        psf_file = psf_path + 'ACS_WFC_F475W.fits'
+        psf = fits.open(psf_file)[0].data.astype(float)
         kwargs = {}
         kwargs['name'] = "F475W"
         kwargs['tex_name'] = r"g$_{475}$"
@@ -268,12 +276,9 @@ class ACS_WFC_F555W(Filter):
         
         zero_point = 25.720 #VEGAmag
         red_per_ebv = 2.792
-        try:
-            psf_path = resource_filename('pcmdpy', 'psf/')
-        except:
-            psf_path = '/n/home01/bcook/pixcmd/pcmdpy/psf/'
-        psf_file = psf_path +'f555w_%d%d.psf'
-        psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
+        psf_path = resource_filename('pcmdpy', 'psf/')
+        psf_file = psf_path + 'ACS_WFC_F555W.fits'
+        psf = fits.open(psf_file)[0].data.astype(float)
         kwargs = {}
         kwargs['name'] = "F555W"
         kwargs['tex_name'] = r"V$_{555}$"
@@ -301,12 +306,9 @@ class ACS_WFC_F814W(Filter):
         
         zero_point = 25.9433
         red_per_ebv = 1.536
-        try:
-            psf_path = resource_filename('pcmdpy', 'psf/')
-        except:
-            psf_path = '/n/home01/bcook/pixcmd/pcmdpy/psf/'
-        psf_file = psf_path +'f814w_%d%d.psf'
-        psf = np.array([[10.**np.loadtxt(psf_file%(i,j)) for i in range(0,4)] for j in range(0,4)]) #4x4x73x73
+        psf_path = resource_filename('pcmdpy', 'psf/')
+        psf_file = psf_path + 'ACS_WFC_F814W.fits'
+        psf = fits.open(psf_file)[0].data.astype(float)
         kwargs = {}
         kwargs['name'] = "F814W"
         kwargs['tex_name'] = r"I$_{814}$"

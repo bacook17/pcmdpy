@@ -240,10 +240,10 @@ class Isochrone_Model:
         if ax is None:
             import matplotlib.pyplot as plt
             fig, ax = plt.subplots()
-        for age in galaxy.ages:
-            _, mags = self.get_isochrone(age, galaxy.feh)
+        for age, feh, _ in galaxy.iter_SSPs():
+            _, mags = self.get_isochrone(age, feh)
             ax.plot(mags[0]-mags[1], mags[1], 'k-',
-                    label='age: %d' % (age), **kwargs)
+                    label='age: %d, feh: %d' % (age, feh), **kwargs)
         names = self.filter_names
         ax.set_ylabel(names[1], fontsize='x-large')
         ax.set_xlabel('%s - %s' % (names[0], names[1]), fontsize='x-large')

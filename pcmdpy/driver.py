@@ -34,9 +34,12 @@ class Driver:
         
     def initialize_data(self, pcmd, bins=None, charlie_err=False, **kwargs):
         if bins is None:
-            xbins = np.arange(-1.5, 4.6, 0.05)
-            ybins = np.arange(-12, 15.6, 0.05)
-            bins = np.array([xbins,ybins])
+            magbins = np.arange(-12, 15.6, 0.05)
+            colorbins = np.arange(-1.5, 4.6, 0.05)
+            bins = [magbins]
+            for _ in range(1, self.n_filters):
+                bins.append(colorbins)
+            bins = np.array(bins)
         self.hess_bins = bins
         self.n_data = pcmd.shape[1]
 
@@ -48,12 +51,14 @@ class Driver:
 
         #compute the mean magnitudes
         mags = np.copy(pcmd)
-        mags[0] += mags[1]
-        mag_factor = -0.4 * np.log(10) #convert from base 10 to base e
-        weights = float(1) / mags.shape[1] #evenly weight each pixel
+        for i in range(1, self.n_filters):
+            mags[i] += mags[0]
+        mag_factor = -0.4 * np.log(10)  # convert from base 10 to base e
+        weights = float(1) / mags.shape[1]  # evenly weight each pixel
         self.mean_mags_data = logsumexp(mag_factor*mags, b=weights, axis=1)
         
-        counts, hess, err = utils.make_hess(pcmd, bins, charlie_err=charlie_err)
+        counts, hess, err = utils.make_hess(pcmd, self.hess_bins,
+                                            charlie_err=charlie_err)
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
@@ -70,7 +75,7 @@ class Driver:
         self.num_calls += 1
         #print(self.num_calls)
 
-        #fit a 2D gaussian to the points
+        #fit a multi-D gaussian to the points
         means = np.mean(pcmd, axis=1)
         cov = np.cov(pcmd)
 
@@ -144,5 +149,9 @@ class Driver:
 
         mags = np.array([f.counts_to_mag(im.flatten(), E_BV=gal_model.dust, **kwargs) for f,im in zip(self.filters, images)])
 
+        pcmd = np.copy(mags)
+        for i in range(1, self.n_filters):
+            pcmd[i] = (mags[i] - mags[0]).flatten()
+        
         self.num_sims += 1
-        return mags, images
+        return pcmd, images
