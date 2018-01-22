@@ -170,11 +170,10 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
 
-    N_scale = np.int32(N_scale)
+    N_scale = N_scale
 
-    N_bins = np.int32(len(expected_nums))
-    N_bands = np.int32(fluxes.shape[0])
-    skip_n = np.int32(skip_n)
+    N_bins = len(expected_nums)
+    N_bands = fluxes.shape[0]
     
     if fixed_seed:
         seed_getter = seed_getter_fixed
@@ -182,13 +181,15 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
         seed_getter = curandom.seed_getter_uniform
 
     generator = curandom.XORWOWRandomNumberGenerator(seed_getter=seed_getter)
-    num_procs = np.int32(generator.block_count)
+    num_procs = generator.block_count
     result = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
     
-    block_dim = (d_block, d_block,1)
-    grid_dim = (N_scale//d_block + 1, N_scale//d_block + 1)
-    _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes), N_bands, N_bins, N_scale,
-              cuda.Out(result), skip_n, num_procs, block=block_dim, grid=grid_dim)
+    block_dim = (int(d_block), int(d_block), 1)
+    grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
+    _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
+          np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+          cuda.Out(result), np.int32(skip_n), np.int32(num_procs),
+          block=block_dim, grid=grid_dim)
 
     #Add on flux from fully-populated bins
     #result = np.array([result[i] + fixed_fluxes[i] for i in range(N_bands)]).astype(float)
