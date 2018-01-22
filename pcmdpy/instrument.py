@@ -11,7 +11,6 @@ from scipy.signal import fftconvolve, gaussian
 from pkg_resources import resource_filename
 
 
-
 class Filter:
     """Models observations in a single band
     

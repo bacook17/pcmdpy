@@ -242,7 +242,7 @@ class Isochrone_Model:
             fig, ax = plt.subplots()
         for age, feh, _ in galaxy.iter_SSPs():
             _, mags = self.get_isochrone(age, feh)
-            ax.plot(mags[0],mags[1]-mags[0], 'k-',
+            ax.plot(mags[1]-mags[0],mags[0], 'k-',
                     label='age: %d, feh: %d' % (age, feh), **kwargs)
         names = self.filter_names
         ax.set_ylabel(names[0], fontsize='x-large')

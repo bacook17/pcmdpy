@@ -18,18 +18,15 @@ def my_assert(bool_statement, fail_message=None):
         sys.exit(1)
 
 
-#def make_pcmd(data):
-#    n_filters = data.shape[0]
-#    if (n_filters < 2):
-#        raise IndexError("Must be at least 2 images to create a PCMD")
-#    else:
-#        mags = data[0].flatten()
-#        results = [mags]
-#        for i in range(1, n_filters):
-#            colors = (data[i] - data[0]).flatten()
-#            results.append(colors)
-#        return np.array(results)
-
+def make_pcmd(data):
+    pcmd = np.copy(data)
+    n_filters = pcmd.shape[0]
+    if (n_filters < 2):
+        raise IndexError("Must be at least 2 images to create a PCMD")
+    else:
+        for i in range(1, n_filters):
+            pcmd[i] = (data[i] - data[0]).flatten()
+    return pcmd
     
 def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     n_dim = pcmd.shape[0]

@@ -149,9 +149,7 @@ class Driver:
 
         mags = np.array([f.counts_to_mag(im.flatten(), E_BV=gal_model.dust, **kwargs) for f,im in zip(self.filters, images)])
 
-        pcmd = np.copy(mags)
-        for i in range(1, self.n_filters):
-            pcmd[i] = (mags[i] - mags[0]).flatten()
+        pcmd = utils.make_pcmd(mags)
         
         self.num_sims += 1
         return pcmd, images
