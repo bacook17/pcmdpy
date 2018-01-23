@@ -27,7 +27,7 @@ if __name__ == "__main__":
     config_file = args.config
     config_mod = config_file.strip('.py').rpartition('/')[-1]
     print(('Loading Setup File: {0}'.format(config_file)))
-    config = import_module('./'+config_mod)
+    config = import_module(config_mod)
 
     # external data file
     data_file = args.data
