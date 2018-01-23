@@ -24,10 +24,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # external config file
-    config_file = args.config
-    config_mod = config_file.strip('.py').rpartition('/')[-1]
-    print(('Loading Setup File: {0}'.format(config_file)))
-    config = import_module(config_mod)
+    try:
+        config_file = args.config
+        config_mod = config_file.strip('.py').rpartition('/')[-1]
+        print(('Loading Setup File: {0}'.format(config_file)))
+        config = import_module(config_mod, package=config_file)
+    except ModuleNotFoundError:
+        print('Unable to import module')
+        sys.exit(1)
 
     # external data file
     data_file = args.data
