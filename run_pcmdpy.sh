@@ -151,6 +151,7 @@ else
     echo "pcmdpy failed. Error logs printed below:"
     echo "---------------------------"
     cat < $STDERR_FILE
+    echo "---------------------------"
 fi
 
 # Save stdout and stderr regardless

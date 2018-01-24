@@ -6,7 +6,7 @@ import sys
 import argparse
 import pandas as pd
 from traceback import print_exc
-from importlib import import_module
+from importlib import util
 
 if __name__ == "__main__":
 
@@ -28,7 +28,9 @@ if __name__ == "__main__":
         config_file = args.config
         config_mod = config_file.strip('.py').rpartition('/')[-1]
         print(('Loading Setup File: {0}'.format(config_file)))
-        config = import_module(config_mod, package=config_file)
+        spec = util.spec_from_file_location(config_mod, config_file)
+        config = util.module_from_spec(spec)
+        spec.loader.exec_module(config)
     except ModuleNotFoundError as e:
         print_exc()
         print('Unable to import module')
