@@ -127,13 +127,17 @@ fi
 
 # If a mock run
 if $MOCK_RUN; then
+    echo "exec: python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
+--results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE"
     python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
-	   --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
-    CODE=$?
+	    --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
+    CODE=${PIPESTATUS[0]}
 else
+    echo "exec: python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
+--data $DATA_FILE --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE"
     python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
-	   --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
-    CODE=$?
+	    --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
+    CODE=${PIPESTATUS[0]}
 fi
 
 echo $CODE
@@ -148,7 +152,7 @@ if [ $CODE -eq 0 ]; then
 else
     echo "pcmdpy failed. Error logs printed below:"
     echo "---------------------------"
-    cat < $ERR_FILE
+    cat < $STDERR_FILE
 fi
 
 # Save stdout and stderr regardless

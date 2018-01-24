@@ -10,3 +10,4 @@ pcmdpy/isoc_MIST_v1.1/*.pdf
 build/*
 dist/*
 pcmdpy.egg-info/*
+__pycache__/*

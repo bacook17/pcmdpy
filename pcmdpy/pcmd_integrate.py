@@ -5,7 +5,7 @@ from pcmdpy import fit_model
 import sys
 import argparse
 import pandas as pd
-
+from traceback import print_exc
 from importlib import import_module
 
 if __name__ == "__main__":
@@ -29,8 +29,17 @@ if __name__ == "__main__":
         config_mod = config_file.strip('.py').rpartition('/')[-1]
         print(('Loading Setup File: {0}'.format(config_file)))
         config = import_module(config_mod, package=config_file)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
+        print_exc()
         print('Unable to import module')
+        print(e)
+        print('Check stderr for full traceback')
+        sys.exit(1)
+    except Exception as e:
+        print_exc()
+        print('Other error when importing')
+        print(e)
+        print('Check stderr for full traceback')
         sys.exit(1)
 
     # external data file
