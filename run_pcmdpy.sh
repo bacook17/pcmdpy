@@ -140,8 +140,6 @@ else
     CODE=${PIPESTATUS[0]}
 fi
 
-echo $CODE
-
 # Check if completed successfully
 if [ $CODE -eq 0 ]; then
     echo "pcmdpy completed successfully"
@@ -162,3 +160,5 @@ if $USE_S3; then
     echo "Uploading STDERR logs to s3://pcmdpy/logs/${STDERR_FILE}"
     aws s3 cp $STDERR_FILE "s3://pcmdpy/logs/${STDERR_FILE}" || error_exit "Unable to save stderr file to s3://pcmdpy/logs/${STDERR_FILE}"
 fi
+
+exit $CODE
