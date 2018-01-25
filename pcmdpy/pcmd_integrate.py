@@ -84,7 +84,7 @@ if __name__ == "__main__":
     results_cols = ['nlive', 'niter', 'ncall', 'eff',
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
-    param_names = config.gal_class._param_names
+    param_names = config.params['gal_class']._param_names
     N_params = len(param_names)
 
     for pname in param_names:
