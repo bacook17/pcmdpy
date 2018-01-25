@@ -277,8 +277,64 @@ class TauFlatPrior(FlatPrior):
         """
         bounds = np.array([z_bound, dust_bound, npix_bound, tau_bound])
         FlatPrior.__init__(self, bounds)
-        
 
+        
+class TauMDFFlatPrior(FlatPrior):
+    """
+    A `FlatPrior` object representing a 7-part SFH (Star Formation
+    History) that assumes a tau-model star-formation history, and has 4
+    free-parameters: metallicity (logzh), dust (log E(B-V)), log_Npix,
+    and tau (in Gyrs).
+
+    Corresponds to the `~pcmdpy.galaxy.Tau_Model` model
+
+    Methods
+    ---------
+    lnprior(params)
+        Compute log of prior for given parameters
+    prior_transform(normed_params)
+        Convert normalized parameters [0,1] to physical parameters
+        using the inverse of the prior
+
+    """
+
+    def __init__(self, z_bound=[-2., 0.5], sigz_bound=[0., 1.],
+                 dust_bound=[-3., 0.5], npix_bound=[-1., 8.],
+                 tau_bound=[.1, 20.]):
+        """
+        Yields a `TauMDFFlatPrior` object with specified bounds in each dimension.
+
+        Parameters
+        ----------
+        z_bound : array-like with shape (2,), optional
+             lower (default -2.) and upper (default 0.5) bounds of metallicity,
+             in units log_10(z/z_solar).
+        dust_bound : array-like with shape (2,), optional
+             lower (default -3.) and upper (default 0.5) bounds of dust
+             extinction, in units log_10 E(B-V).
+        npix_bound : array-like with shape (2,), optional
+             lower (default -1.) and upper (default 8.) bounds of
+             star-per-pixel, in units log_10 N_pix
+        tau_bound : array-like with shape (2,), optional
+             lower (default 0.1) and upper (default 20.) bounds of tau, the
+             star-formation timescale, in units of Gyrs
+
+        Yields
+        ------
+        `TauFlatPrior`
+             Object representing a flat prior with given bounds
+
+        Raises
+        ------
+        Value Error
+            If any key-word arguments are not array-like with length 2
+            OR if upper bounds are lesser than lower bounds in any dimension
+        """
+        bounds = np.array([z_bound, sigz_bound, dust_bound, npix_bound,
+                           tau_bound])
+        FlatPrior.__init__(self, bounds)
+
+        
 class FullFlatPrior(FlatPrior):
     """A `FlatPrior` object representing a fully non-parametric, 7-part SFH
     (Star Formation History), which has 9 free-parameters: metallicity (logzh),
