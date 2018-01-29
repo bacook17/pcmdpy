@@ -9,6 +9,15 @@ error_exit () {
     exit 1
 }
 
+# Handle external SIGINT or SIGTERM commands
+exit_script() {
+    echo "Received external command to quit"
+    trap - SIGINT SIGTERM # clear the trap
+    kill -- -$$ # sends SIGTERM to child/sub processes
+}
+
+trap exit_script SIGINT SIGTERM
+
 # Usage info
 show_help() {
 error_exit "

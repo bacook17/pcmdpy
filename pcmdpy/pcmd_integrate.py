@@ -4,14 +4,24 @@ import numpy as np
 from pcmdpy import fit_model
 import sys
 import argparse
+import signal
 import pandas as pd
 from traceback import print_exc
 from importlib import util
 import warnings
 
+
+def sigterm_handler(sig, frame):
+    # exit on sigint
+    print('Exiting due to external signal')
+    sys.exit(0)
+
 if __name__ == "__main__":
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
+    
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    signal.signal(signal.SIGINT, sigterm_handler)
     
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
