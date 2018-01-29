@@ -7,9 +7,12 @@ import argparse
 import pandas as pd
 from traceback import print_exc
 from importlib import util
+import warnings
 
 if __name__ == "__main__":
 
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+    
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

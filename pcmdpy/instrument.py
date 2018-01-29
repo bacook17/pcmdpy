@@ -32,18 +32,21 @@ class Filter:
     """
 
     
-    def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf,
+    def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, 
+                 vega_to_ab, vega_to_st, psf,
                  name="", tex_name="", MIST_column="", MIST_column_alt="",
                  tiled_psf=False, **kwargs):
         """Create a new Filter, given input properties of observation
 
         Arguments:
            exposure -- exposure time of the observation, in seconds (int or float)
-           zero_point -- apparent magnitude corresponding to 1 count / second (int or float)
+           zero_point -- apparent (VEGA) magnitude corresponding to 1 count / second (int or float)
                    this value is affected by telescope aperture, sensitivity, etc.
            d_mpc -- the assumed distance to the source in Mpc (int or float)
            red_per_ebv -- the Reddening value [A_x / E(B-V)], such as from Schlafly & Finkbeiner 2011, Table 6 (float)
            psf -- the PSF kernel, should be normalized to one (2D square array of floats)
+           vega_to_ab --
+           vega_to_st --
         Keyword Argments:
            name -- descriptive name of the filter (string)
            tex_name -- LaTeX formatted name of the filter, eg for use in plotting (string, eg: r"g$_{475}$")
@@ -57,18 +60,20 @@ class Filter:
             self._zero_point = float(zero_point)
             self._dmod = 25. + 5.*np.log10(d_mpc) #distance modulus
             self._red_per_ebv = float(red_per_ebv)
+            self._vega_to_ab = float(vega_to_ab)
+            self._vega_to_st = float(vega_to_st) 
         except TypeError:
-            print('First four arguments must each be either a float or integer')
+            print('First six arguments must each be either a float or integer')
             raise
         if np.isnan(self._dmod):
             raise ValueError('The third argument (d_mpc) must be greater than zero')
         if not isinstance(psf, np.ndarray):
             psf = np.array(psf)
         if (psf.shape[-2] != psf.shape[-1]) or (psf.dtype != float):
-            raise TypeError('The fifth argument (psf) must be a square array (or 2D-array of square arrays) of floats')
+            raise TypeError('The seventh argument (psf) must be a square array (or 2D-array of square arrays) of floats')
         else:
             utils.my_assert((psf.ndim == 2) or (psf.ndim == 4),
-                            fail_message='The fifth argument (psf) must be 2 or 4-dimensional (square array, or 2D-array of square arrays)')
+                            fail_message='The seventh argument (psf) must be 2 or 4-dimensional (square array, or 2D-array of square arrays)')
             if (psf.ndim == 2):
                 # create 4x4 grid of PSFs
                 if tiled_psf:
@@ -212,18 +217,22 @@ class ACS_WFC_F435W(Filter):
                         "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
-        
-        zero_point = 25.767   # VEGAmag
-        red_per_ebv = 3.610
+
+        args = {}
+        args['exposure'] = exposure
+        args['zero_point'] = 25.767   # VEGAmag
+        args['d_mpc'] = d_mpc
+        args['red_per_ebv'] = 3.610
+        args['vega_to_ab'] = 0.6127
+        args['vega_to_st'] = 0.1017
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F435W.fits'
-        psf = fits.open(psf_file)[0].data.astype(float)
-        kwargs = {}
-        kwargs['name'] = "F435W"
-        kwargs['tex_name'] = r"B$_{435}$"
-        kwargs['MIST_column'] = "ACS_WFC_F435W"
-        kwargs['MIST_column_alt'] = "Bmag"
-        Filter.__init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf, **kwargs)
+        args['psf'] = fits.open(psf_file)[0].data.astype(float)
+        args['name'] = "F435W"
+        args['tex_name'] = r"B$_{435}$"
+        args['MIST_column'] = "ACS_WFC_F435W"
+        args['MIST_column_alt'] = "Bmag"
+        super().__init__(**args)
 
 class ACS_WFC_F475W(Filter):
     """Return a Filter with HST F475W default params
@@ -242,18 +251,22 @@ class ACS_WFC_F475W(Filter):
                         "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
-        
-        zero_point = 26.0593
-        red_per_ebv = 3.248
+
+        args = {}
+        args['exposure'] = exposure
+        args['zero_point'] = 26.0593
+        args['d_mpc'] = d_mpc
+        args['red_per_ebv'] = 3.248
+        args['vega_to_ab'] = 0.4086
+        args['vega_to_st'] = 0.0979
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F475W.fits'
-        psf = fits.open(psf_file)[0].data.astype(float)
-        kwargs = {}
-        kwargs['name'] = "F475W"
-        kwargs['tex_name'] = r"g$_{475}$"
-        kwargs['MIST_column'] = "ACS_WFC_F475W"
-        kwargs['MIST_column_alt'] = "bmag"
-        Filter.__init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf, **kwargs)
+        args['psf'] = fits.open(psf_file)[0].data.astype(float)
+        args['name'] = "F475W"
+        args['tex_name'] = r"g$_{475}$"
+        args['MIST_column'] = "ACS_WFC_F475W"
+        args['MIST_column_alt'] = "bmag"
+        super().__init__(**args)
     
 class ACS_WFC_F555W(Filter):
     """Return a Filter with HST F555W default params
@@ -272,18 +285,22 @@ class ACS_WFC_F555W(Filter):
                         "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
-        
-        zero_point = 25.720 #VEGAmag
-        red_per_ebv = 2.792
+
+        args = {}
+        args['exposure'] = exposure
+        args['zero_point'] = 25.720 #VEGAmag
+        args['d_mpc'] = d_mpc
+        args['red_per_ebv'] = 2.792
+        args['vega_to_ab'] = 0.0525
+        args['vega_to_st'] = 0.0063
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F555W.fits'
-        psf = fits.open(psf_file)[0].data.astype(float)
-        kwargs = {}
-        kwargs['name'] = "F555W"
-        kwargs['tex_name'] = r"V$_{555}$"
-        kwargs['MIST_column'] = "ACS_WFC_F555W"
-        kwargs['MIST_column_alt'] = "vmag"
-        Filter.__init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf, **kwargs)
+        args['psf'] = fits.open(psf_file)[0].data.astype(float)
+        args['name'] = "F555W"
+        args['tex_name'] = r"V$_{555}$"
+        args['MIST_column'] = "ACS_WFC_F555W"
+        args['MIST_column_alt'] = "vmag"
+        super().__init__(**args)
 
 class ACS_WFC_F814W(Filter):
     """Return a Filter with HST F814W default params
@@ -302,18 +319,22 @@ class ACS_WFC_F814W(Filter):
                         "exposure must be real number")
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
-        
-        zero_point = 25.9433
-        red_per_ebv = 1.536
+
+        args = {}
+        args['exposure'] = exposure
+        args['zero_point'] = 25.9433
+        args['d_mpc'] = d_mpc
+        args['red_per_ebv'] = 1.536
+        args['vega_to_ab'] = -1.2632
+        args['vega_to_st'] = -0.4237
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F814W.fits'
-        psf = fits.open(psf_file)[0].data.astype(float)
-        kwargs = {}
-        kwargs['name'] = "F814W"
-        kwargs['tex_name'] = r"I$_{814}$"
-        kwargs['MIST_column'] = "ACS_WFC_F814W"
-        kwargs['MIST_column_alt'] = "imag"
-        Filter.__init__(self, exposure, zero_point, d_mpc, red_per_ebv, psf, **kwargs)
+        args['psf'] = fits.open(psf_file)[0].data.astype(float)
+        args['name'] = "F814W"
+        args['tex_name'] = r"I$_{814}$"
+        args['MIST_column'] = "ACS_WFC_F814W"
+        args['MIST_column_alt'] = "imag"
+        super().__init__(**args)
 
 
 def m31_filters(dist=0.78):

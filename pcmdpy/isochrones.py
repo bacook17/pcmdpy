@@ -111,8 +111,7 @@ class Isochrone_Model:
        __init__ -- Pass a list of Filter objects, path to MIST model files,
                    and array of metallicities.
     """
-    def __init__(self, filters, MIST_path=None, conversions=None,
-                 iso_append=".iso.cmd"):
+    def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd"):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
         Arguments:
@@ -130,7 +129,9 @@ class Isochrone_Model:
         self.MIST_df = pd.DataFrame()
         self.num_filters = len(filters)
 
-        # Use optional conversions from ABS to VEGA, etc
+        # Use optional conversions from VEGA to AB or ST, etc
+        self.ab_conversions = np.array([f.vega_to_ab for f in filters])
+        self.st_conversions = np.array([f.vega_to_st for f in filters])
         if conversions is None:
             self.conversions = np.zeros_like(filters, dtype=float)
         elif len(conversions) != len(filters):
