@@ -1,4 +1,7 @@
 default:
+	python setup.py install clean
+
+with_pip:
 	$(MAKE) pcmdpy_gpu || $(MAKE) pcmdpy_cpu
 
 pcmdpy_gpu:

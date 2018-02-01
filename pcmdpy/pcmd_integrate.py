@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # pcmd_integrate.py
 # Ben Cook (bcook@cfa.harvard.edu)
 import numpy as np

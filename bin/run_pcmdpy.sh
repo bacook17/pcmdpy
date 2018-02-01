@@ -138,13 +138,13 @@ fi
 if $MOCK_RUN; then
     echo "exec: python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
 --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE"
-    python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
+    pcmd_integrate.py --config $CONFIG_FILE \
 	    --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
     CODE=${PIPESTATUS[0]}
 else
     echo "exec: python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE \
 --data $DATA_FILE --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE"
-    python pcmdpy/pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
+    pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
 	    --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE
     CODE=${PIPESTATUS[0]}
 fi
