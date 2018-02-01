@@ -1,0 +1,9 @@
+# dockerfile to build pcmdpy on GPU
+
+# start with base of nvidia's CUDA toolkit (Ubuntu based)
+FROM bacook17/gpu_base
+
+SHELL ["/bin/bash"]
+
+RUN install/pcmdpy.sh
+ENV PATH=/pcmdpy:/pcmdpy/pcmdpy:${PATH}
