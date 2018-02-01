@@ -1,0 +1,7 @@
+*.pem
+logs/*
+results/*
+config_files/*
+data/*
+*.jnk
+makefile
