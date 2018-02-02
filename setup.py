@@ -39,12 +39,12 @@ setup(
     scripts=['bin/run_pcmdpy.sh', 'pcmdpy/pcmd_integrate.py'],
     include_package_data=True,
     cmdclass={'clean': CleanCommand},
-    install_requires=[
-        'astropy==2.0.2', 'dynesty', 'scipy==0.19.1',
-        'pandas==0.20.3', 'matplotlib==2.0.2', 'numpy==1.13.1',
-    ],
-    dependency_links=[
-        'git+https://github.com/joshspeagle/dynesty.git@master#egg=dynesty-0'
-    ],
-    extras_require={"GPU": ['pycuda']},
+    #install_requires=[
+    #    'astropy==2.0.2', 'dynesty', 'scipy==0.19.1',
+    #    'pandas==0.20.3', 'matplotlib==2.0.2', 'numpy==1.13.1',
+    #],
+    #dependency_links=[
+    #    'git+https://github.com/joshspeagle/dynesty.git@master#egg=dynesty-0'
+    #],
+    #extras_require={"GPU": ['pycuda']},
 )
