@@ -32,7 +32,7 @@ def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.NonParam,
 
 
 def dynesty_run(func, out_df=None, out_file=None, save_every=10,
-                param_names=None, ncall_start=0, tstart=0., **func_kwargs):
+                param_names=None, ncall_start=0, **func_kwargs):
     ncall = ncall_start
     if 'dlogz' in list(func_kwargs.keys()):
         dlogz = func_kwargs['dlogz']
@@ -40,12 +40,13 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10,
         dlogz = np.nan
     start = time.time()
     for it, results in enumerate(func(**func_kwargs)):
-        dt = (time.time() - start) + tstart
+        dt = time.time() - start
+        start = time.time()
         row = {'niter': it}
         row['time_elapsed'] = dt
         (worst, ustar, vstar, row['logl'], row['logvol'], row['logwt'], row['logz'], logzvar, row['h'], nc, worst_it, propidx, propiter, row['eff'], delta_logz) = results
         ncall += nc
-        ave_t = float(dt) / ncall
+        ave_t = float(dt) / nc
         row['ncall'] =  ncall
         row['nlive'] = 2000
         if delta_logz > 1e6:
@@ -147,7 +148,7 @@ def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=10000
         if save_live:
             print('-Adding live points at end of dynesty samping')
             _, _ = dynesty_run(sampler.add_live_points, out_df=out_df, save_every=save_every,
-                               param_names=param_names, ncall_start=ncall, tstart=dt, out_file=out_file)
+                               param_names=param_names, ncall_start=ncall, out_file=out_file)
 
     results = sampler.results
     if (out_df is not None) and (out_file is not None):
