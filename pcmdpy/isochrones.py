@@ -130,14 +130,10 @@ class Isochrone_Model:
         self.num_filters = len(filters)
 
         # Use optional conversions from VEGA to AB or ST, etc
-        self.ab_conversions = np.array([f.vega_to_ab for f in filters])
-        self.st_conversions = np.array([f.vega_to_st for f in filters])
-        if conversions is None:
-            self.conversions = np.zeros_like(filters, dtype=float)
-        elif len(conversions) != len(filters):
-            self.conversions = np.zeros_like(filters, dtype=float)
-        else:
-            self.conversions = conversions
+        self.conversions = {}
+        self.conversions['vega'] = np.zeros(len(filters), dtype=float)
+        self.conversions['ab'] = np.array([f._vega_to_ab for f in filters])
+        self.conversions['st'] = np.array([f._vega_to_st for f in filters])
         _z_arr = []
         self.filters = filters
         self.filter_names = [f.tex_name for f in self.filters]
@@ -178,18 +174,29 @@ class Isochrone_Model:
         return None
     
     def get_isochrone(self, age, z, imf_func=salpeter_IMF, rare_cut=0.,
-                      **kwargs):
+                      system="vega", **kwargs):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
            age ---
            z ---
            imf_func ---
+           rare_cut ---
+           system ---
         Output:
            imf ---
            mags -- 2D array of magnitudes (DxN, where D is number of filters
                    the model was initialized with)
         """
+
+        system = system.lower()
+        if system not in self.conversions.keys():
+            warn(('system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(system)))
+            conversions = self.conversions['vega']
+        else:
+            conversions = self.conversions[system]
+        
         # Find closest age in MIST database
         if age not in self.ages:
             age = self.ages[np.abs(self.ages - age).argmin()]
@@ -214,7 +221,8 @@ class Isochrone_Model:
             inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
             
         IMF = imf_func(inter[:, 0], **kwargs)
-        mags = (inter[:, 1:] + self.conversions).T
+
+        mags = (inter[:, 1:] + conversions).T
         # lum = np.power(10., -0.4*mags)
         # mean_lum = np.average(lum, weights=IMF, axis=1)
         
@@ -223,7 +231,7 @@ class Isochrone_Model:
 
         return IMF[to_keep], mags[:, to_keep]
 
-    def model_galaxy(self, galaxy, lum_cut=np.inf,
+    def model_galaxy(self, galaxy, lum_cut=np.inf, system='vega',
                      **kwargs):
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
@@ -237,15 +245,25 @@ class Isochrone_Model:
         to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
         return weights[to_keep], mags[:, to_keep]
 
-    def plot_isochrone(self, galaxy, ax=None, **kwargs):
-        if ax is None:
+    def plot_isochrone(self, galaxy, axes=None, system='vega', **kwargs):
+        if axes is None:
             import matplotlib.pyplot as plt
-            fig, ax = plt.subplots()
-        for age, feh, _ in galaxy.iter_SSPs():
-            _, mags = self.get_isochrone(age, feh)
-            ax.plot(mags[1]-mags[0],mags[0], 'k-',
-                    label='age: %d, feh: %d' % (age, feh), **kwargs)
+            fig, axes = plt.subplots(ncols=(self.num_filters-1), sharey=True)
         names = self.filter_names
-        ax.set_ylabel(names[0], fontsize='x-large')
-        ax.set_xlabel('%s - %s' % (names[1], names[0]), fontsize='x-large')
-        return ax
+        for age, feh, _ in galaxy.iter_SSPs():
+            _, mags = self.get_isochrone(age, feh, system=system)
+            if self.num_filters == 2:
+                axes.plot(mags[1]-mags[0], mags[0], 'k-',
+                          label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
+                          **kwargs)
+                axes.set_xlabel('{0:s} - {1:s}'.format(names[1], names[0]),
+                                fontsize='x-large')
+            else:
+                for i, ax in enumerate(axes):
+                    ax.plot(mags[i+1]-mags[0], mags[0], 'k-',
+                            label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
+                            **kwargs)
+                    ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[0]),
+                                  fontsize='x-large')
+                    ax.set_ylabel(names[0], fontsize='x-large')
+        return axes
