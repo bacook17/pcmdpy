@@ -1,5 +1,6 @@
 #!/bin/bash
 # Install ecs-init, start docker, and install nvidia-docker
+sudo yum update
 sudo yum install -y ecs-init
 sudo service docker start
 

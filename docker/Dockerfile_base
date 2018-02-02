@@ -5,7 +5,7 @@ FROM nvidia/cuda:9.0-devel
 
 SHELL ["/bin/bash"]
 
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64/:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64/:/usr/local/cuda/lib64/stubs/:${LD_LIBRARY_PATH}"
 
 # load python and dependencies
 COPY install/*.sh install/
