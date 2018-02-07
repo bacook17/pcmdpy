@@ -245,21 +245,21 @@ def kernel_dist(x, y, sig, d_block=_MAX_2D_BLOCK_DIM,):
     N_y = y.shape[0]
     N_x = x.shape[0]
     # loop over x
-    result1 = np.zeros(N_x, dtype=np.float32)
+    resultxx = np.zeros(N_x, dtype=np.float32)
     grid_dim = (int(N_x//d_block + 1), 1)
     _kernel_func(cuda.In(x), cuda.In(x), np.float32(sig), np.int32(N_x), np.int32(N_x), np.int32(d),
-                 cuda.Out(result1), block=block_dim, grid=grid_dim)
+                 cuda.Out(resultxx), block=block_dim, grid=grid_dim)
     # loop over x-y
-    result2 = np.zeros(N_x, dtype=np.float32)
+    resultxy = np.zeros(N_x, dtype=np.float32)
     _kernel_func(cuda.In(x), cuda.In(y), np.float32(sig), np.int32(N_x), np.int32(N_y), np.int32(d),
-                 cuda.Out(result2), block=block_dim, grid=grid_dim)
+                 cuda.Out(resultxy), block=block_dim, grid=grid_dim)
     # loop over y
-    result3 = np.zeros(N_y, dtype=np.float32)
+    resultyy = np.zeros(N_y, dtype=np.float32)
     grid_dim = (int(N_y//d_block + 1), 1)
     _kernel_func(cuda.In(y), cuda.In(y), np.float32(sig), np.int32(N_y), np.int32(N_y), np.int32(d),
-                 cuda.Out(result3), block=block_dim, grid=grid_dim)
+                 cuda.Out(resultyy), block=block_dim, grid=grid_dim)
 
-    return result1.sum() + result2.sum() - 2*result3.sum()
+    return resultxx.sum() + resultyy.sum() - 2*resultxy.sum()
 
 def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
