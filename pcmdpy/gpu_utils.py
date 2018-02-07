@@ -34,6 +34,34 @@ _GPU_ACTIVE = False
 _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
+_kernel_code = """
+   #include <math.h>
+
+   extern "C"
+   {
+   __global__ void gauss_kernel(const float *x_arr, const float *y_arr, const float sig, const int N_x, const int N_y, const int d, float *sums)
+   {  
+      int id_x = blockIdx.x*blockDim.x + threadIdx.x;
+      float dist;
+      float denom = 2 * powf(sig, 2.);
+      float sum = 0.;
+      float x, y;
+      if ((id_x < N_x)) {
+          for (int id_y = 0; id_y < N_y; id_y++){
+               dist = 0.;
+               for (int j = 0; j < d; j++){
+                   x = x_arr[id_x*d + j];
+                   y = y_arr[id_y*d + j];
+                   dist += powf(x-y, 2.);
+               }
+               sum += expf( - dist / denom);
+          }
+          sums[id_x] = sum;
+      }
+   }
+   }
+"""
+
 _code = """
    #include <curand_kernel.h>
 
@@ -122,6 +150,19 @@ def initialize_gpu(n=None):
         _CUDAC_AVAIL = True
         print('CUDAC Available')
 
+    try:
+        global _mod2
+        print('Starting Kernel Code')
+        _mod2 = SourceModule(_kernel_code, keep=False, no_extern_c=True)
+        print('Getting Kernel function')
+        global _kernel_func
+        _kernel_func = _mod2.get_function('gauss_kernel')
+        print('Past the Kernel code')
+    except:
+        print('Something Failed in Kernel')
+    else:
+        pass
+    
 def draw_image(expected_nums, fluxes, N_scale, gpu=_GPU_ACTIVE, cudac=_CUDAC_AVAIL, fixed_seed=False, **kwargs):
     if gpu:
         if cudac:
@@ -194,6 +235,31 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     #Add on flux from fully-populated bins
     #result = np.array([result[i] + fixed_fluxes[i] for i in range(N_bands)]).astype(float)
     return result
+
+def kernel_dist(x, y, sig, d_block=_MAX_2D_BLOCK_DIM,):
+    x = x.astype(np.float32)
+    y = y.astype(np.float32)
+    block_dim = (int(d_block), 1, 1)
+    d = x.shape[1]
+    assert(d == y.shape[1])
+    N_y = y.shape[0]
+    N_x = x.shape[0]
+    # loop over x
+    result1 = np.zeros(N_x, dtype=np.float32)
+    grid_dim = (int(N_x//d_block + 1), 1)
+    _kernel_func(cuda.In(x), cuda.In(x), np.float32(sig), np.int32(N_x), np.int32(N_x), np.int32(d),
+                 cuda.Out(result1), block=block_dim, grid=grid_dim)
+    # loop over x-y
+    result2 = np.zeros(N_x, dtype=np.float32)
+    _kernel_func(cuda.In(x), cuda.In(y), np.float32(sig), np.int32(N_x), np.int32(N_y), np.int32(d),
+                 cuda.Out(result2), block=block_dim, grid=grid_dim)
+    # loop over y
+    result3 = np.zeros(N_y, dtype=np.float32)
+    grid_dim = (int(N_y//d_block + 1), 1)
+    _kernel_func(cuda.In(y), cuda.In(y), np.float32(sig), np.int32(N_y), np.int32(N_y), np.int32(d),
+                 cuda.Out(result3), block=block_dim, grid=grid_dim)
+
+    return result1.sum() + result2.sum() - 2*result3.sum()
 
 def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
