@@ -82,7 +82,7 @@ def dynesty_run(func, out_df=None, out_file=None, save_every=10,
 
     return ncall, dt
 
-def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=100000, gal_class=galaxy.NonParam, use_gpu=True, iso_model=None,
+def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=100000, maxcall_per_it=None, gal_class=galaxy.NonParam, use_gpu=True, iso_model=None,
                      bins=None, verbose=False, dlogz=None, dynamic=False, N_batch=0, save_live=False,
                      pool=None, out_df=None, out_file=None, save_every=100, param_names=None, prior=None, **kwargs):
     print('-initializing models')
@@ -129,7 +129,8 @@ def nested_integrate(pcmd, filters, N_im, N_live, method='multi', max_call=10000
         sampler = dynesty.DynamicNestedSampler(this_lnlike, this_pri_transform, ndim=n_dim, bound=method,
                                                sample='unif', rstate=rstate, pool=pool, nprocs=nprocs)
         print('-Running dynesty dynamic sampler')
-        sampler.run_nested(nlive_init=N_live, maxcall=max_call, nlive_batch=N_batch,
+        sampler.run_nested(nlive_init=N_live, maxcall=max_call,
+                           maxcall_per_it=maxcall_per_it, nlive_batch=N_batch,
                            wt_kwargs={'pfrac':1.0}, print_progress=True,
                            print_to_stderr=False, dlogz_init=dlogz)
     else:
