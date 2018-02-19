@@ -81,7 +81,7 @@ if __name__ == "__main__":
     args = {}
     args['pcmd'] = data_pcmd
 
-    required_keys = ['filters', 'N_im', 'N_live']
+    required_keys = ['filters', 'N_im', 'nlive']
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
