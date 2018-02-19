@@ -220,11 +220,11 @@ class ACS_WFC_F435W(Filter):
 
         args = {}
         args['exposure'] = exposure
-        args['zero_point'] = 25.767   # VEGAmag
+        args['zero_point'] = 25.571   # VEGAmag. see filter_setup.ipynb
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.610
-        args['vega_to_ab'] = 0.6127
-        args['vega_to_st'] = 0.1017
+        args['vega_to_ab'] = 0.1017
+        args['vega_to_st'] = 0.6127
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F435W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -257,8 +257,8 @@ class ACS_WFC_F475W(Filter):
         args['zero_point'] = 26.0593
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.248
-        args['vega_to_ab'] = 0.4086
-        args['vega_to_st'] = 0.0979
+        args['vega_to_ab'] = 0.0979
+        args['vega_to_st'] = 0.4086
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F475W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -288,11 +288,11 @@ class ACS_WFC_F555W(Filter):
 
         args = {}
         args['exposure'] = exposure
-        args['zero_point'] = 25.720 #VEGAmag
+        args['zero_point'] = 25.712  # VEGAmag see filter_setup.ipynb
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 2.792
-        args['vega_to_ab'] = 0.0525
-        args['vega_to_st'] = 0.0063
+        args['vega_to_ab'] = 0.0063
+        args['vega_to_st'] = 0.0525
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F555W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -322,11 +322,11 @@ class ACS_WFC_F814W(Filter):
 
         args = {}
         args['exposure'] = exposure
-        args['zero_point'] = 25.9433
+        args['zero_point'] = 26.36
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 1.536
-        args['vega_to_ab'] = -1.2632
-        args['vega_to_st'] = -0.4237
+        args['vega_to_ab'] = -0.4237
+        args['vega_to_st'] = -1.2632
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F814W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
