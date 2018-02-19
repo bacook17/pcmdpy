@@ -88,8 +88,15 @@ if __name__ == "__main__":
     for k, v in config.params.items():
         args[k] = v
 
+    args['sampler_kwargs'] = config.sampler_params
+    args['run_kwargs'] = config.run_params
+
+    all_keys = list(args.keys())
+    all_keys.append(list(config.sampler_params.keys()))
+    all_keys.append(list(config.run_params.keys()))
+    
     for key in required_keys:
-        if key not in list(args.keys()):
+        if key not in all_keys:
             print(("Config file %s doesn\'t set required parameter %s" %
                   (config_file, key)))
             sys.exit(1)
