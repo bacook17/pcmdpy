@@ -81,7 +81,7 @@ if __name__ == "__main__":
     args = {}
     args['pcmd'] = data_pcmd
 
-    required_keys = ['filters', 'N_im', 'nlive']
+    required_keys = ['filters', 'N_im']
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     args['run_kwargs'] = config.run_params
 
     all_keys = list(args.keys())
-    all_keys.append(list(config.sampler_params.keys()))
-    all_keys.append(list(config.run_params.keys()))
+    all_keys += list(config.sampler_params.keys())
+    all_keys += list(config.run_params.keys())
     
     for key in required_keys:
         if key not in all_keys:
