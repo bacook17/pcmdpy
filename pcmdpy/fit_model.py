@@ -41,7 +41,7 @@ class Printer(object):
         last = self.last_time
         self.last_time = time.time()
         dt = self.last_time - last
-        total_time = self.last_time - self.start_time()
+        total_time = self.last_time - self.start_time
         ave_t = dt/nc
             
         # constructing output
