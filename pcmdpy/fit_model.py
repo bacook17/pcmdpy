@@ -117,7 +117,7 @@ def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.NonParam,
     return pri + like
 
 
-def nested_integrate(pcmd, filters, N_im, nlive, gal_class=galaxy.NonParam,
+def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
                      use_gpu=True, iso_model=None, bins=None, verbose=False,
                      dynamic=False, out_df=None, out_file=None, save_every=100,
                      param_names=None, prior=None, sampler_kwargs={},
