@@ -128,11 +128,7 @@ def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
     print('dynamic: ', dynamic)
     print(sampler_kwargs)
     print(run_kwargs)
-    try:
-        dynamic = sampler_kwargs['dynamic']
-    except KeyError:
-        dynamic = False
-        
+
     print('-initializing models')
     n_filters = len(filters)
     utils.my_assert(pcmd.shape[0] == n_filters,
