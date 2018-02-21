@@ -125,6 +125,9 @@ def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
     # Default sampler arguments
     run_kwargs['print_progress'] = True
     run_kwargs['save_bounds'] = False
+    print('dynamic: ', dynamic)
+    print(sampler_kwargs)
+    print(run_kwargs)
     try:
         dynamic = sampler_kwargs['dynamic']
     except KeyError:
@@ -173,15 +176,19 @@ def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
         sampler = dynesty.DynamicNestedSampler(this_lnlike, this_pri_transform,
                                                ndim=n_dim, rstate=rstate,
                                                **sampler_kwargs)
+        print('Dynamic Sampler Initialized')
         
     else:
         sampler = dynesty.NestedSampler(this_lnlike, this_pri_transform,
                                         ndim=n_dim, rstate=rstate,
                                         **sampler_kwargs)
+        print('Traditional Sampler Initialized')
 
     printer = Printer(out_df=out_df, out_file=out_file,
                       save_every=save_every, param_names=param_names)
-    sampler.run_nested(print_func=printer.my_save_func, **run_kwargs)
+
+    run_kwargs['print_func'] = printer.my_save_func
+    sampler.run_nested(**run_kwargs)
 
     results = sampler.results
     if (printer.out_df is not None) and (printer.out_file is not None):

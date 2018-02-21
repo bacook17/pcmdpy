@@ -116,7 +116,8 @@ class FlatPrior(object):
         """
         if len(normed_params) != self.ndim:
             raise ValueError('len(normed_params) must '
-                             'equal {:d}'.format(self.ndim))
+                             'equal {0:d}. Instead is '
+                             '{1:d}'.format(self.ndim, len(normed_params)))
         if np.any(normed_params < 0.) or np.any(normed_params > 1.):
             raise ValueError('All normalized parameters must be within [0,1]')
         return self.lower_bounds + self.widths*normed_params
