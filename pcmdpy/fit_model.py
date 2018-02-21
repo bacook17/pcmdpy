@@ -35,8 +35,6 @@ class Printer(object):
             logzerr = np.nan
         if logz <= -1e6:
             logz = -np.inf
-        if loglstar <= -1e6:
-            loglstar = -np.inf
 
         last = self.last_time
         self.last_time = time.time()
