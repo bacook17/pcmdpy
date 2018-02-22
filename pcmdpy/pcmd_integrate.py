@@ -102,7 +102,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
     # The default dynesty result values
-    results_cols = ['nlive', 'niter', 'ncall', 'eff',
+    results_cols = ['nlive', 'niter', 'nc', 'eff',
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
     param_names = config.params['gal_class']._param_names
@@ -118,5 +118,5 @@ if __name__ == "__main__":
     args['param_names'] = param_names
 
     print('Running Nested Sampling')
-    results = fit_model.nested_integrate(**args)
+    fit_model.nested_integrate(**args)
     

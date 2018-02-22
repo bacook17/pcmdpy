@@ -4,6 +4,11 @@
 import numpy as np
 import warnings
 import sys
+import matplotlib.pyplot as plt
+import pandas as pd
+import matplotlib as mpl
+import seaborn as sns
+from scipy.misc import logsumexp
 
 
 # A module to create various utility functions
@@ -140,3 +145,81 @@ def generate_image_dithers(image, shifts=[0., 0.25, 0.5, 0.75], norm=False):
             if norm:
                 tiles[j, i] /= np.sum(tiles[j, i])
     return tiles
+
+
+class Results(object):
+
+    def __init__(self, df_file, truths=None, run_name=None, params=None,
+                 param_labels=None):
+        try:
+            self.df = pd.read_csv(df_file)
+        except UnicodeDecodeError:
+            self.df = pd.read_csv(df_file, compression='gzip')
+
+        self.truths = truths
+        self.param_labels = param_labels
+        self.run_name = run_name
+        
+        self.default_params = {'logfeh': '[Fe/H]', 'logfeh_mean': '[Fe/H]',
+                               'logfeh_std': r'$\sigma([Fe/H])$',
+                               'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
+                               'tau': r'$\tau$', 'logNpix': 'log Npix'}
+        for i in range(7):
+            s = 'logSFH{:d}'.format(i)
+            self.default_params[s] = s
+        if params is None:
+            self.params = []
+            for p in self.default_params.keys():
+                if p in self.df.columns:
+                    self.params.append(p)
+        else:
+            self.params = list(params)
+
+        if ('logSFH0' in self.params) and ('logNpix' not in self.params):
+            logsfhs = self.df[['logSFH{:d}'.format(i) for i in range(7)]]
+            self.df['logNpix'] = np.log10(np.sum(logsfhs.values, axis=1))
+            self.params.append('logNpix')
+
+        self.n_params = len(self.params)
+            
+        self.df['log_weights'] = (self.df.logwt.values -
+                                  logsumexp(self.df.logwt.values))
+        self.df['weights'] = np.exp(self.df['log_weights'])
+        self.df['time_elapsed'] /= 3600.
+        try:
+            self.df['logfeh'] = self.df.logzh
+        except AttributeError:
+            pass
+
+    def plot_chains(self, axes=None, title=None, dlogz=0.5):
+        nr = self.n_params + 3
+        if axes is None:
+            fig, axes = plt.subplots(nrows=nr, figsize=(8, 2+nr), sharex=True)
+        else:
+            assert(len(axes) == nr)
+        if title is None:
+            title = self.run_name
+        for i, p in enumerate(self.params):
+            axes[i].plot(self.df[p].values)
+            if self.param_labels is None:
+                axes[i].set_ylabel(self.default_params[p])
+            else:
+                axes[i].set_ylabel(self.param_labels[i])
+        axes[-3].plot(np.log10(self.df['delta_logz'].values))
+        axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
+        axes[-3].set_ylabel(r'log $\Delta$ln Z')
+        axes[-2].plot(self.df['eff'].values)
+        axes[-2].set_ylabel('eff (%)')
+        axes[-1].plot(self.df['time_elapsed'].values)
+        axes[-1].set_ylabel('run time (hrs)')
+        axes[-1].set_xlabel('Iteration')
+
+        if self.truths is not None:
+            for i, t in enumerate(self.truths):
+                axes[i].axhline(y=t, color='r', ls='--')
+
+        if title is not None:
+            axes[0].set_title(title)
+        return axes
+
+    

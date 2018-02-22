@@ -6,68 +6,82 @@ from pcmdpy import isochrones, galaxy, driver, utils, priors
 import sys
 import dynesty
 import time
+import pandas as pd
 from datetime import datetime
 
 
-class Printer(object):
+class ResultsCollector(object):
 
-    def __init__(self, loc=sys.stdout, out_df=None,
-                 out_file=None, save_every=10, param_names=None):
-        self.loc = loc
+    def __init__(self, ndim, verbose=True, print_loc=sys.stdout, out_file=None,
+                 save_every=10, param_names=None):
+        self.print_loc = print_loc
         self.last_time = time.time()
         self.start_time = time.time()
-        self.out_df = out_df
+        if out_file is None:
+            self.out_df = None
+        else:
+            self.colnames = ['nlive', 'niter', 'nc', 'eff', 'logl', 'logwt',
+                             'logvol', 'logz', 'logzerr', 'h', 'delta_logz',
+                             'time_elapsed']
+            if param_names is not None:
+                self.colnames += list(param_names)
+            else:
+                self.colnames += ['param{:d}'.format(i) for i in range(ndim)]
+            self.out_df = pd.DataFrame(columns=self.colnames)
         self.out_file = out_file
+        self.verbose = verbose
         self.save_every = save_every
         self.param_names = param_names
         
-    def my_save_func(self, results, niter, ncall, nbatch=None, dlogz=None,
-                     logl_max=None, add_live_it=None, stop_val=None,
-                     logl_min=-np.inf):
-        (worst, ustar, vstar, loglstar, logvol,
-         logwt, logz, logzvar, h, nc, worst_it,
-         boundidx, bounditer, eff, delta_logz) = results
-        if delta_logz > 1e6:
-            delta_logz = np.inf
-        if logzvar >= 0. and logzvar <= 1e6:
-            logzerr = np.sqrt(logzvar)
-        else:
-            logzerr = np.nan
-        if logz <= -1e6:
-            logz = -np.inf
+    def collect(self, results, niter, ncall, nbatch=None, dlogz=None,
+                logl_max=None, add_live_it=None, stop_val=None,
+                logl_min=-np.inf):
+        if self.verbose:
+            (worst, ustar, vstar, loglstar, logvol,
+             logwt, logz, logzvar, h, nc, worst_it,
+             boundidx, bounditer, eff, delta_logz) = results
+            if delta_logz > 1e6:
+                delta_logz = np.inf
+            if logzvar >= 0. and logzvar <= 1e6:
+                logzerr = np.sqrt(logzvar)
+            else:
+                logzerr = np.nan
+            if logz <= -1e6:
+                logz = -np.inf
 
-        last = self.last_time
-        self.last_time = time.time()
-        dt = self.last_time - last
-        total_time = self.last_time - self.start_time
-        ave_t = dt/nc
+            last = self.last_time
+            self.last_time = time.time()
+            dt = self.last_time - last
+            total_time = self.last_time - self.start_time
+            ave_t = dt/nc
             
-        # constructing output
-        print_str = 'iter: {:d}'.format(niter)
-        if add_live_it is not None:
-            print_str += "+{:d}".format(add_live_it)
-        print_str += " | "
-        if nbatch is not None:
-            print_str += "batch: {:d} | ".format(nbatch)
-        print_str += "nc: {:d} | ".format(nc)
-        print_str += "ncalls: {:d} | ".format(ncall)
-        print_str += "eff(%): {:6.3f} | ".format(eff)
-        print_str += "logz: {:.1e} +/- {:.1e} | ".format(logz, logzerr)
-        if dlogz is not None:
-            print_str += "dlogz: {:6.3f} > {:6.3f}".format(delta_logz, dlogz)
-        else:
-            print_str += "stop: {:6.3f}".format(stop_val)
-        print_str += "\n loglike: {:.1e} | ".format(loglstar)
-        print_str += "params: {:s}".format(str(vstar))
-        print_str += "\n Average call time: {:.2f} sec | ".format(ave_t)
-        print_str += "Current time: {:s}".format(str(datetime.now()))
-        print_str += '\n --------------------------'
+            # constructing output
+            print_str = 'iter: {:d}'.format(niter)
+            if add_live_it is not None:
+                print_str += "+{:d}".format(add_live_it)
+            print_str += " | "
+            if nbatch is not None:
+                print_str += "batch: {:d} | ".format(nbatch)
+            print_str += "nc: {:d} | ".format(nc)
+            print_str += "ncalls: {:d} | ".format(ncall)
+            print_str += "eff(%): {:6.3f} | ".format(eff)
+            print_str += "logz: {:.1e} +/- {:.1e} | ".format(logz, logzerr)
+            if dlogz is not None:
+                print_str += "dlogz: {:6.3f} > {:6.3f}".format(delta_logz,
+                                                               dlogz)
+            else:
+                print_str += "stop: {:6.3f}".format(stop_val)
+            print_str += "\n loglike: {:.1e} | ".format(loglstar)
+            print_str += "params: {:s}".format(str(vstar))
+            print_str += "\n Average call time: {:.2f} sec | ".format(ave_t)
+            print_str += "Current time: {:s}".format(str(datetime.now()))
+            print_str += '\n --------------------------'
 
-        print(print_str, file=self.loc)
-        sys.stdout.flush()
+            print(print_str, file=self.print_loc)
+            sys.stdout.flush()
 
         # Saving results to df
-        if (self.out_df is not None) and (self.out_file is not None):
+        if (self.out_df is not None):
             row = {'niter': niter}
             row['time_elapsed'] = total_time
             row['logl'] = loglstar
@@ -76,7 +90,7 @@ class Printer(object):
             row['logz'] = logz
             row['h'] = h
             row['eff'] = eff
-            row['ncall'] = ncall
+            row['nc'] = nc
             row['nlive'] = 2000
             row['delta_logz'] = delta_logz
             row['logzerr'] = logzerr
@@ -88,11 +102,14 @@ class Printer(object):
                     row['param{0:d}'.format(i)] = v
             self.out_df = self.out_df.append(row, ignore_index=True)
             if ((niter+1) % self.save_every == 0):
-                self.out_df.to_csv(self.out_file, mode='a', index=False,
-                                   header=False, float_format='%.4e')
-                self.out_df.drop(self.out_df.index, inplace=True)
+                self.flush_to_csv()
 
+    def flush_to_csv(self):
+        self.out_df.to_csv(self.out_file, mode='a', index=False,
+                           header=False, float_format='%.4e')
+        self.out_df.drop(self.out_df.index, inplace=True)
 
+        
 def lnlike(gal_params, driv, N_im, lnprior_func,
            gal_class=galaxy.NonParam, **kwargs):
     pri = lnprior_func(gal_params)
@@ -178,16 +195,13 @@ def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
                                         **sampler_kwargs)
         print('Traditional Sampler Initialized')
 
-    printer = Printer(out_df=out_df, out_file=out_file,
-                      save_every=save_every, param_names=param_names)
-
-    run_kwargs['print_func'] = printer.my_save_func
+    collector = ResultsCollector(n_dim, out_file=out_file,
+                                 save_every=save_every,
+                                 param_names=param_names)
+    
+    run_kwargs['print_func'] = collector.collect
     sampler.run_nested(**run_kwargs)
 
-    results = sampler.results
-    if (printer.out_df is not None) and (printer.out_file is not None):
+    if (collector.out_df is not None):
         print('-Saving final results dataframe')
-        printer.out_df.to_csv(printer.out_file, mode='a', index=False,
-                              header=False, float_format='%.4e')
-
-    return results
+        collector.flush_to_csv()
