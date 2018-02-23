@@ -176,8 +176,8 @@ class Results(object):
             self.params = list(params)
 
         if ('logSFH0' in self.params) and ('logNpix' not in self.params):
-            logsfhs = self.df[['logSFH{:d}'.format(i) for i in range(7)]]
-            self.df['logNpix'] = np.log10(np.sum(logsfhs.values, axis=1))
+            sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(7)]]
+            self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
             self.params.append('logNpix')
 
         self.n_params = len(self.params)

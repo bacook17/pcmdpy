@@ -353,10 +353,10 @@ class FullFlatPrior(FlatPrior):
 
     """
     def __init__(self, z_bound=[-2., 0.5], dust_bound=[-3., 0.5],
-                 sfh0_bound=[-4.3, -2.3], sfh1_bound=[-3.3, -1.3],
-                 sfh2_bound=[-3, -1], sfh3_bound=[-2.5, -.5],
-                 sfh4_bound=[-2, 0.], sfh5_bound=[-1.5, 0.5],
-                 sfh6_bound=[-1.5, 0.5]):
+                 sfh0_bound=[-3.1, -1.1], sfh1_bound=[-2.1, -0.1],
+                 sfh2_bound=[-1.7, 0.3], sfh3_bound=[-1.2, 0.8],
+                 sfh4_bound=[-0.5, 1.5], sfh5_bound=[0.4, 2.4],
+                 sfh6_bound=[0.9, 2.9]):
         """
         Yields a `FullFlatPrior` object with specified bounds in each
         dimension.
@@ -372,6 +372,7 @@ class FullFlatPrior(FlatPrior):
         sfh0_bound, ... , sfh6_bound : array-like with shape (2,), optional
              lower and upper bounds of star-formation in each age bin, in units
              log_10 M_star.
+             default is set for Npix=1e2, tau=5 SFH.
 
         Yields
         ------
