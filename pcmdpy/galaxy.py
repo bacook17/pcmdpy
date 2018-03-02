@@ -50,7 +50,11 @@ class BaseGalaxy:
         iso_fehs = cls.default_fehs[in_range]
         feh_weights = norm.pdf(iso_fehs, loc=feh_mean,
                                scale=feh_sig)
-        feh_weights /= np.sum(feh_weights)
+        # this can happen if feh_sig is much smaller than default_fehs spacing
+        if np.isclose(np.sum(feh_weights, 0.)):
+            return np.array([feh_mean]), np.array([1.])
+        else:
+            feh_weights /= np.sum(feh_weights)
         return iso_fehs, feh_weights
             
 
