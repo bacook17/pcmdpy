@@ -18,7 +18,7 @@ pip install pycuda --upgrade --user
 pip install awscli --upgrade --user
 
 # install dynesty and pcmdpy
-git clone https://github.com/joshspeagle/dynesty.git
+git clone ssh://git@github.com/joshspeagle/dynesty.git
 cd dynesty && python setup.py install && cd ..
 
 export PATH="${HOME}/.local/bin/:${PATH}"

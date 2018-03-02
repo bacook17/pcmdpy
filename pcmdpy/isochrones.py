@@ -258,6 +258,9 @@ class Isochrone_Model:
                           **kwargs)
                 axes.set_xlabel('{0:s} - {1:s}'.format(names[1], names[0]),
                                 fontsize='x-large')
+                axes.set_ylabel(names[0], fontsize='x-large')
+                yl = axes.get_ylim()
+                axes.set_ylim([max(yl), min(yl)])
             else:
                 for i, ax in enumerate(axes):
                     ax.plot(mags[i+1]-mags[0], mags[0], 'k-',
@@ -266,4 +269,6 @@ class Isochrone_Model:
                     ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[0]),
                                   fontsize='x-large')
                     ax.set_ylabel(names[0], fontsize='x-large')
+                    yl = ax.get_ylim()
+                    ax.set_ylim([max(yl), min(yl)])
         return axes
