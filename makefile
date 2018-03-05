@@ -1,12 +1,20 @@
-default:
-	python setup.py install clean
+default: gpu
 
-with_pip:
-	$(MAKE) pcmdpy_gpu || $(MAKE) pcmdpy_cpu
+gpu: pcmdpy_gpu
 
-pcmdpy_gpu:
-	pip install .[GPU] --process-dependency-links --user --upgrade
+cpu: pcmdpy_cpu
 
 pcmdpy_cpu:
-	pip install . --process-dependency-links --user --upgrade
+	@echo "---------------------------------------"
+	@echo "installing pcmdpy with CPU support only"
+	pip install . --user --upgrade
+	@echo "successfully completed installing pcmdpy with CPU support only"
+	@echo "---------------------------------------"
+
+pcmdpy_gpu: pcmdpy_cpu
+	@echo "---------------------------------------"
+	@echo "attempting to install GPU support for pcmdpy"
+	@pip install -q .[GPU] --user --upgrade || (echo "GPU support not available. Confirm NVIDIA GPU is available, the NVIDIA driver and CUDA are installed."; exit 1)
+	@echo "successfully completed installing pcmdpy with GPU support"
+	@echo "---------------------------------------"
 
