@@ -147,8 +147,9 @@ class Driver:
         if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
 
-        mags = np.array([f.counts_to_mag(im.flatten(), E_BV=gal_model.dust, **kwargs) for f,im in zip(self.filters, images)])
-
+        mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
+        mags = gal_model.add_dust(mags, self.filters)
+        
         pcmd = utils.make_pcmd(mags)
         
         self.num_sims += 1

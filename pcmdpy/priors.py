@@ -62,6 +62,14 @@ class FlatPrior(object):
             raise ValueError('The upper bounds must be greater than'
                              'the lower bounds in all dimensions')
 
+    def update_bound(self, index, bounds):
+        self.lower_bounds[index] = bounds[0]
+        self.upper_bounds[index] = bounds[1]
+        self.widths = self.upper_bunds - self.lower_bounds
+        if np.any(self.lower_bounds > self.upper_bounds):
+            raise ValueError('The upper bounds must be greater than'
+                             'the lower bounds in all dimensions')
+
     def lnprior(self, params):
         """
         Return ln of prior for given parameters. Typically either 0
