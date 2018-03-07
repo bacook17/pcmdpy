@@ -34,40 +34,14 @@ _GPU_ACTIVE = False
 _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
-_kernel_code = """
-   #include <math.h>
-
-   extern "C"
-   {
-   __global__ void gauss_kernel(const float *x_arr, const float *y_arr, const float sig, const int N_x, const int N_y, const int d, float *sums)
-   {  
-      int id_x = blockIdx.x*blockDim.x + threadIdx.x;
-      float dist;
-      float denom = 2 * powf(sig, 2.);
-      float sum = 0.;
-      float x, y;
-      if ((id_x < N_x)) {
-          for (int id_y = 0; id_y < N_y; id_y++){
-               dist = 0.;
-               for (int j = 0; j < d; j++){
-                   x = x_arr[id_x*d + j];
-                   y = y_arr[id_y*d + j];
-                   dist += powf(x-y, 2.);
-               }
-               sum += expf( - dist / denom);
-          }
-          sums[id_x] = sum;
-      }
-   }
-   }
-"""
 
 _code = """
    #include <curand_kernel.h>
-
+   #include <math.h>
    extern "C"
    {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
+   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float dust_frac, const float *red_per_ebv, const float dust_mean, const float dust_std, 
+                               const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
    {
       /* Initialize variables */
       int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -82,17 +56,27 @@ _code = """
       float results[10] = {0.0};
 
       float flux;
-      int count, skip;
+      int count_front, count_behind, skip;
+      
+      float ebv, reddening;
 
       if ((id_imx < N) && (id_imy < N)) {
           /* Update local_state, to make sure values are very random */
           skip = skip_n * block_id;
           skipahead(skip, &local_state);
+          /* draw the dust in this pixel from lognormal */
+          ebv = curand_log_normal(&local_state, dust_mean, dust_std);
           for (int i = 0; i < num_bins; i++){
-             count = curand_poisson(&local_state, exp_nums[i]);
+             /* distribute some starsin front of the dust screen, some behind */
+             count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
+             count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
              for (int f = 0; f < num_bands; f++){
                 flux = fluxes[i + (f*num_bins)];
-                results[f] += count * flux;
+                reddening = pow(10., -0.4 * ebv * red_per_ebv[f]);
+                /* add stars in front of dust screen */
+                results[f] += count_front * flux;
+                /* add stars behind dust screen */
+                results[f] += count_behind * flux * reddening;
              }
           }
           /* Save results for each band */
@@ -150,28 +134,13 @@ def initialize_gpu(n=None):
         _CUDAC_AVAIL = True
         print('CUDAC Available')
 
-    try:
-        global _mod2
-        print('Starting Kernel Code')
-        _mod2 = SourceModule(_kernel_code, keep=False, no_extern_c=True)
-        print('Getting Kernel function')
-        global _kernel_func
-        _kernel_func = _mod2.get_function('gauss_kernel')
-        print('Past the Kernel code')
-    except:
-        print('Something Failed in Kernel')
-    else:
-        pass
-    
-def draw_image(expected_nums, fluxes, N_scale, gpu=_GPU_ACTIVE, cudac=_CUDAC_AVAIL, fixed_seed=False, **kwargs):
+def draw_image(expected_nums, fluxes, N_scale, filters, dust_frac, dust_mean, dust_std,
+               gpu=_GPU_ACTIVE, fixed_seed=False, **kwargs):
     if gpu:
-        if cudac:
-            func = _draw_image_cudac
-        else:
-            func = _draw_image_pycuda
+        func = _draw_image_cudac
     else:
         func = _draw_image_numpy
-    return func(expected_nums, fluxes, N_scale, fixed_seed=fixed_seed, **kwargs)
+    return func(expected_nums, fluxes, N_scale, filters, dust_frac, dust_mean, dust_std, fixed_seed=fixed_seed, **kwargs)
 
 def seed_getter_fixed(N, value=None):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
@@ -185,7 +154,8 @@ def seed_getter_fixed(N, value=None):
     else:
         return result.fill(value)
         
-def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, my_shuffle=False, **kwargs):
+def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
+                      dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, my_shuffle=False, **kwargs):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
               ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
                "_GPU_ACTIVE are set to False"))
@@ -195,21 +165,9 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     my_assert(len(expected_nums) == fluxes.shape[1],
               "expected_nums must have same shape as fluxes")
 
-    """
-    upper_lim = tolerance**-2.
-    use_poisson = (expected_nums <= upper_lim)
-    use_fixed = ~use_poisson
-
-    #total flux from all "fully populated" bins above upper_lim
-    fixed_fluxes = np.sum(expected_nums[use_fixed]*fluxes[:,use_fixed], axis=1)
-
-    #remove fixed bins, and set proper byte size for cuda
-    expected_nums = expected_nums[use_poisson].astype(np.float32)
-    fluxes = fluxes[:,use_poisson].astype(np.int32)
-    """
-    
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
+    red_per_ebv = np.array([f.red_per_ebv for f in filters]).astype(np.float32)
 
     N_scale = N_scale
 
@@ -227,7 +185,8 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
-    _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
+    _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes), np.int32(dust_frac),
+          cuda.In(red_per_ebv), np.float32(dust_mean), np.float32(dust_std), 
           np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
           cuda.Out(result), np.int32(skip_n), np.int32(num_procs),
           block=block_dim, grid=grid_dim)
@@ -236,67 +195,8 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     #result = np.array([result[i] + fixed_fluxes[i] for i in range(N_bands)]).astype(float)
     return result
 
-def kernel_dist(x, y, sig, d_block=_MAX_2D_BLOCK_DIM,):
-    x = x.astype(np.float32)
-    y = y.astype(np.float32)
-    block_dim = (int(d_block), 1, 1)
-    d = x.shape[1]
-    assert(d == y.shape[1])
-    N_y = y.shape[0]
-    N_x = x.shape[0]
-    # loop over x
-    resultxx = np.zeros(N_x, dtype=np.float32)
-    grid_dim = (int(N_x//d_block + 1), 1)
-    _kernel_func(cuda.In(x), cuda.In(x), np.float32(sig), np.int32(N_x), np.int32(N_x), np.int32(d),
-                 cuda.Out(resultxx), block=block_dim, grid=grid_dim)
-    # loop over x-y
-    resultxy = np.zeros(N_x, dtype=np.float32)
-    _kernel_func(cuda.In(x), cuda.In(y), np.float32(sig), np.int32(N_x), np.int32(N_y), np.int32(d),
-                 cuda.Out(resultxy), block=block_dim, grid=grid_dim)
-    # loop over y
-    resultyy = np.zeros(N_y, dtype=np.float32)
-    grid_dim = (int(N_y//d_block + 1), 1)
-    _kernel_func(cuda.In(y), cuda.In(y), np.float32(sig), np.int32(N_y), np.int32(N_y), np.int32(d),
-                 cuda.Out(resultyy), block=block_dim, grid=grid_dim)
-
-    return resultxx.sum() + resultyy.sum() - 2*resultxy.sum()
-
-def _draw_image_pycuda(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
-              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
-               "_GPU_ACTIVE are set to False"))
-
-    N_bins = len(expected_nums)
-    N_bands = fluxes.shape[0]
-    my_assert(N_bins == fluxes.shape[1],
-              "fluxes.shape[1] should match number of bins")
-    if (tolerance < 0.):
-        upper_lim = np.inf
-    else:
-        upper_lim = tolerance**-2.
-    
-    if fixed_seed:
-        seed_getter = seed_getter_fixed
-    else:
-        seed_getter = curandom.seed_getter_uniform
-
-    generator = pycuda.curandom.XORWOWRandomNumberGenerator(seed_getter=seed_getter)
-    result = np.zeros((N_bands, N_scale*N_scale), dtype=float)
-
-    #Draw stars and cumulate flux for each mass bin
-    for b in np.arange(N_bins):
-        n_expected = expected_nums[b]
-        counts = fluxes[:,b]
-        if (n_expected <= upper_lim):
-            n_stars = generator.gen_poisson(N_scale*N_scale, np.uint32, n_expected).get()
-        #assume no poisson variance
-        else:
-            n_stars = n_expected
-        result += np.array([c * n_stars for c in counts])
-
-    return result.reshape([N_bands, N_scale, N_scale])
-
-def _draw_image_numpy(expected_nums, fluxes, N_scale, fixed_seed=False, tolerance=-1., **kwargs):
+def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
+                      dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
     my_assert(N_bins == fluxes.shape[1],
               "fluxes.shape[1] should match number of bins")
@@ -307,18 +207,28 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, fixed_seed=False, toleranc
     if fixed_seed:
         np.random.seed(0)
 
-    realiz_num = np.zeros((N_scale, N_scale, N_bins))
+    realiz_front = np.zeros((N_scale, N_scale, N_bins))
+    realiz_behind = np.zeros((N_scale, N_scale, N_bins))
     if not np.isinf(upper_lim):
-        realiz_num = np.random.poisson(lam=expected_nums, size=(N_scale, N_scale, N_bins))
+        realiz_front = np.random.poisson(lam=expected_nums*(1. - dust_frac), size=(N_scale, N_scale, N_bins))
+        realiz_behind = np.random.poisson(lam=expected_nums*dust_frac, size=(N_scale, N_scale, N_bins))
     else:
         use_poisson = (expected_nums <= upper_lim)
         use_fixed = ~use_poisson #Assume no poisson variance
         num_poisson = np.sum(use_poisson)
     
-        realiz_num[:,:,use_fixed] = expected_nums[use_fixed]
-        realiz_num[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson], size=(N_scale, N_scale, num_poisson))
-        
-    return np.dot(realiz_num, fluxes.T).T
+        realiz_front[:, :, use_fixed] = expected_nums[use_fixed] * (1. - dust_frac)
+        realiz_behind[:, :, use_fixed] = expected_nums[use_fixed] * dust_frac
+        realiz_front[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*(1. - dust_frac), size=(N_scale, N_scale, num_poisson))
+        realiz_behind[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*dust_frac, size=(N_scale, N_scale, num_poisson))
+
+    result_front = np.dot(realiz_front, fluxes.T).T
+    result_behind = np.dot(realiz_behind, fluxes.T).T
+
+    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std, size=(N_scale, N_scale))
+    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv) for f in filters])
+    
+    return result_front + result_behind*reddening
 
 def gpu_log10(array_in, verbose=False, **kwargs):
     if _GPU_AVAIL:

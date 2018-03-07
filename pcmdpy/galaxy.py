@@ -14,7 +14,7 @@ class BaseGalaxy:
 
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
 
-    def __init__(self, ages, fehs, SFH, dust_model):
+    def __init__(self, ages, fehs, SFH, dust_model, params=None):
         utils.my_assert(len(ages) == len(fehs),
                         "length of first param and second param must match")
         utils.my_assert(len(ages) == len(SFH),
@@ -23,15 +23,15 @@ class BaseGalaxy:
         self.fehs = fehs
         self.SFH = SFH
         self.dust_model = dust_model
-        self.add_dust = self.dust_model.add_dust
         self.Npix = np.sum(self.SFH)
         self.num_SSPs = len(self.ages)
+        self._params = params
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):
             yield self.ages[i], self.fehs[i], self.SFH[i]
 
-    
+
 class CustomGalaxy(BaseGalaxy):
 
     def __init__(self, feh_model, dust_model, age_model):
@@ -81,11 +81,12 @@ class CustomGalaxy(BaseGalaxy):
         new_fehs = []
         SFH = []
         for i, feh in enumerate(fehs):
-            SFH += age_weights * feh_weights[i]
-            new_ages += ages
+            SFH += list(age_weights * feh_weights[i])
+            new_ages += list(ages)
             new_fehs += [feh]*len(ages)
-                
-        return BaseGalaxy(new_ages, new_fehs, SFH, dust_model)
+
+        return BaseGalaxy(new_ages, new_fehs, SFH, dust_model,
+                          params=gal_params)
 
 
 DefaultTau = CustomGalaxy(metalmodels.SingleFeH, dustmodels.SingleDust,

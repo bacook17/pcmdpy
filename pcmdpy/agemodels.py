@@ -3,14 +3,14 @@
 
 """Define AgeModel classes to integrate with Galaxy Models"""
 
-__all__ = ['NonParam', 'ConstSFR', 'TauModel', 'RisingTau',
+__all__ = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
            'SSPModel']
 
 import numpy as np
 from pcmdpy import utils
 
 
-class AgeModel:
+class _AgeModel:
     default_edges = np.array([6., 7., 8., 8.5, 9., 9.5, 10., 10.2])
     _num_SFH_bins = len(default_edges) - 1
 
@@ -21,7 +21,7 @@ class AgeModel:
         return self.ages, self.SFH
 
 
-class NonParam(AgeModel):
+class NonParam(_AgeModel):
 
     _param_names = ['logSFH0', 'logSFH1', 'logSFH2', 'logSFH3', 'logSFH4',
                     'logSFH5', 'logSFH6']
@@ -60,7 +60,7 @@ class NonParam(AgeModel):
         return NonParam(self._params, iso_step=-1)
 
 
-class ConstantSFR(AgeModel):
+class ConstantSFR(_AgeModel):
 
     _param_names = ['logNpix']
     _num_params = len(_param_names)
@@ -89,7 +89,7 @@ class ConstantSFR(AgeModel):
         return ConstantSFR(self._params, iso_step=-1)
 
 
-class TauModel(AgeModel):
+class TauModel(_AgeModel):
 
     _param_names = ['logNpix', 'tau']
     _num_params = len(_param_names)
@@ -123,7 +123,7 @@ class TauModel(AgeModel):
         return TauModel(self._params, iso_step=-1)
 
 
-class RisingTau(AgeModel):
+class RisingTau(_AgeModel):
 
     _param_names = ['logNpix', 'tau']
     _num_params = len(_param_names)
@@ -157,7 +157,7 @@ class RisingTau(AgeModel):
         return RisingTau(self._params, iso_step=-1)
 
 
-class SSPModel(AgeModel):
+class SSPModel(_AgeModel):
     _param_names = ['logNpix', 'logage']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]

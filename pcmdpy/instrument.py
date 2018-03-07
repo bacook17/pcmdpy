@@ -59,7 +59,7 @@ class Filter:
             self._exposure = float(exposure)
             self._zero_point = float(zero_point)
             self._dmod = 25. + 5.*np.log10(d_mpc)  # distance modulus
-            self._red_per_ebv = float(red_per_ebv)
+            self.red_per_ebv = float(red_per_ebv)
             self._vega_to_ab = float(vega_to_ab)
             self._vega_to_st = float(vega_to_st)
         except TypeError:

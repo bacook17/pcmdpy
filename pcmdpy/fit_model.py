@@ -111,7 +111,7 @@ class ResultsCollector(object):
 
         
 def lnlike(gal_params, driv, N_im, lnprior_func,
-           gal_class=galaxy.NonParam, **kwargs):
+           gal_class=galaxy.DefaultNonParam, **kwargs):
     pri = lnprior_func(gal_params)
     if np.isinf(pri):
         return -np.inf
@@ -122,8 +122,8 @@ def lnlike(gal_params, driv, N_im, lnprior_func,
     return like
 
 
-def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.NonParam,
-           **kwargs):
+def lnprob(gal_params, driv, N_im, lnprior_func,
+           gal_class=galaxy.DefaultNonParam, **kwargs):
     pri = lnprior_func(gal_params)
     if np.isinf(pri):
         return -np.inf
@@ -132,7 +132,7 @@ def lnprob(gal_params, driv, N_im, lnprior_func, gal_class=galaxy.NonParam,
     return pri + like
 
 
-def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.NonParam,
+def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.DefaultNonParam,
                      use_gpu=True, iso_model=None, bins=None, verbose=False,
                      dynamic=False, out_df=None, out_file=None, save_every=10,
                      param_names=None, prior=None, sampler_kwargs={},

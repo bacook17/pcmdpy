@@ -140,15 +140,17 @@ class Driver:
     def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
-
-        images = gpu_utils.draw_image(IMF, fluxes, im_scale, gpu=self.gpu_on, cudac=True, fixed_seed=fixed_seed, **kwargs)
+        dust_frac, dust_mean, dust_std = gal_model.dust_model.get_params()
+        images = gpu_utils.draw_image(IMF, fluxes, im_scale, self.filters,
+                                      dust_frac, dust_mean, dust_std,
+                                      gpu=self.gpu_on, fixed_seed=fixed_seed,
+                                      **kwargs)
         images += 1e-10
 
         if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
 
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
-        mags = gal_model.add_dust(mags, self.filters)
         
         pcmd = utils.make_pcmd(mags)
         

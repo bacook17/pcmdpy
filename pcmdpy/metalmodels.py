@@ -8,7 +8,7 @@ from scipy.stats import norm
 from pcmdpy import utils
 
 
-class FeHModel:
+class _FeHModel:
     default_fehs = np.arange(-4., 0.6, 0.5)
     _num_feh_bins = len(default_fehs) - 1
 
@@ -19,7 +19,7 @@ class FeHModel:
         return self.fehs, self.weights
     
 
-class SingleFeH(FeHModel):
+class SingleFeH(_FeHModel):
 
     _param_names = ['logfeh']
     _num_params = len(_param_names)
@@ -30,7 +30,7 @@ class SingleFeH(FeHModel):
         self.fehs, self.weights = np.array([logfeh]), np.array([1.])
 
 
-class NormMDF(FeHModel):
+class NormMDF(_FeHModel):
     
     _param_names = ['feh_mean', 'feh_sig']
     _num_params = len(_param_names)

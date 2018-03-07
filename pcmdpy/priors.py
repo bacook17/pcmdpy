@@ -398,14 +398,3 @@ class FullFlatPrior(FlatPrior):
                            sfh6_bound])
         FlatPrior.__init__(self, bounds)
 
-
-default_prior = {}
-default_prior[galaxy.NonParam] = FullFlatPrior()
-default_prior[galaxy.ConstantSFR] = ConstFlatPrior()
-default_prior[galaxy.TauModel] = TauFlatPrior()
-default_prior[galaxy.RisingTau] = TauFlatPrior()
-default_prior[galaxy.SSPModel] = SSPFlatPrior()
-default_prior[galaxy.NonParamMDF] = None
-default_prior[galaxy.ConstantSFRMDF] = None
-default_prior[galaxy.TauModelMDF] = None
-default_prior[galaxy.RisingTauMDF] = None
