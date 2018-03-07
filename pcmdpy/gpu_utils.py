@@ -54,11 +54,12 @@ _code = """
 
       curandState local_state = global_state[seed_id];
       float results[10] = {0.0};
+      float reddening[10] = {0.0};
 
       float flux;
       int count_front, count_behind, skip;
       
-      float ebv, reddening;
+      float ebv;
 
       if ((id_imx < N) && (id_imy < N)) {
           /* Update local_state, to make sure values are very random */
@@ -66,17 +67,19 @@ _code = """
           skipahead(skip, &local_state);
           /* draw the dust in this pixel from lognormal */
           ebv = curand_log_normal(&local_state, dust_mean, dust_std);
+          for (int f = 0; f < num_bands; f++){
+             reddening[f] = pow(10., -0.4 * ebv * red_per_ebv[f]);
+          }
           for (int i = 0; i < num_bins; i++){
              /* distribute some starsin front of the dust screen, some behind */
              count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
              count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
              for (int f = 0; f < num_bands; f++){
                 flux = fluxes[i + (f*num_bins)];
-                reddening = pow(10., -0.4 * ebv * red_per_ebv[f]);
                 /* add stars in front of dust screen */
                 results[f] += count_front * flux;
                 /* add stars behind dust screen */
-                results[f] += count_behind * flux * reddening;
+                results[f] += count_behind * flux * reddening[f];
              }
           }
           /* Save results for each band */
