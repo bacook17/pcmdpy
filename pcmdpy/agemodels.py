@@ -15,7 +15,7 @@ class _AgeModel:
     _num_SFH_bins = len(default_edges) - 1
 
     def __init__(self):
-        pass
+        self.Npix = np.sum(self.SFH)
 
     def get_vals(self):
         return self.ages, self.SFH
@@ -55,6 +55,8 @@ class NonParam(_AgeModel):
         utils.my_assert(len(age_params) == self._num_params,
                         "age_params for Galaxy_Model should be length %d" %
                         self._num_params)
+        self._params = age_params
+        super().__init__()
 
     def as_default(self):
         return NonParam(self._params, iso_step=-1)
@@ -84,6 +86,8 @@ class ConstantSFR(_AgeModel):
         Npix = 10.**age_params[0]
         SFH_term = 10.**iso_edges[1:] - 10.**iso_edges[:-1]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
+        self._params = age_params
+        super().__init__()
 
     def as_default(self):
         return ConstantSFR(self._params, iso_step=-1)
@@ -118,6 +122,8 @@ class TauModel(_AgeModel):
         ages_linear = 10.**(iso_edges - 9.)  # convert to Gyrs
         SFH_term = np.exp(ages_linear[1:]/tau) - np.exp(ages_linear[:-1]/tau)
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
+        self._params = age_params
+        super().__init__()
 
     def as_default(self):
         return TauModel(self._params, iso_step=-1)
@@ -152,6 +158,8 @@ class RisingTau(_AgeModel):
         base_term = (ages_linear[-1]+tau-ages_linear) * np.exp(ages_linear/tau)
         SFH_term = base_term[:-1] - base_term[1:]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
+        self._params = age_params
+        super().__init__()
 
     def as_default(self):
         return RisingTau(self._params, iso_step=-1)
@@ -162,7 +170,7 @@ class SSPModel(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
     
-    def __init__(self, age_params):
+    def __init__(self, age_params, iso_step=None):
         """
         age_params:
            0 -- log Npix
@@ -174,3 +182,5 @@ class SSPModel(_AgeModel):
         Npix = 10.**age_params[0]
         self.SFH = np.array([Npix])
         self.ages = np.array([age_params[1]])
+        self._params = age_params
+        super().__init__()
