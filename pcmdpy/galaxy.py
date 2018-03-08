@@ -38,7 +38,7 @@ class CustomGalaxy(BaseGalaxy):
         # set the metallicity model
         self.feh_model = feh_model
         self.p_feh = feh_model._num_params
-        self._param_names = [feh_model._param_names]
+        self._param_names = feh_model._param_names
         # set the dust model
         self.dust_model = dust_model
         self.p_dust = dust_model._num_params

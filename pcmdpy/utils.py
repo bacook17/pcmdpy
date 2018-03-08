@@ -10,7 +10,7 @@ import seaborn as sns
 from scipy.misc import logsumexp
 from datetime import datetime
 import time
-
+from pcmdpy import agemodels
 
 # A module to create various utility functions
 def my_assert(bool_statement, fail_message=None):
@@ -257,16 +257,18 @@ class ResultsPlotter(object):
         except UnicodeDecodeError:
             self.df = pd.read_csv(df_file, compression='gzip')
 
-        self.truths = truths
+        self.truths_dict = truths
         self.param_labels = param_labels
         self.run_name = run_name
+        self.num_iters = len(self.df)
         
         self.default_params = {'logfeh': '[Fe/H]', 'logfeh_mean': '[Fe/H]',
                                'logfeh_std': r'$\sigma([Fe/H])$',
                                'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
                                'logdust_med': 'log E(B-V)',
                                'dust_sig': r'$\sigma(E(B-V))$',
-                               'tau': r'$\tau$', 'logNpix': 'log Npix'}
+                               'tau': r'$\tau$', 'tau_rise': r'$\tau$',
+                               'logNpix': 'log Npix'}
         for i in range(7):
             s = 'logSFH{:d}'.format(i)
             self.default_params[s] = s
@@ -317,11 +319,77 @@ class ResultsPlotter(object):
         axes[-1].set_ylabel('run time (hrs)')
         axes[-1].set_xlabel('Iteration')
 
-        if self.truths is not None:
-            for i, t in enumerate(self.truths):
-                axes[i].axhline(y=t, color='r', ls='--')
+        if self.truths_dict is not None:
+            for i, p in enumerate(self.params):
+                axes[i].axhline(y=self.truths_dict[p], color='r', ls='--')
 
         if title is not None:
             axes[0].set_title(title)
         return axes
 
+    def plot_cum_sfh(self, width=68., axis=None, title=None,
+                     burn=0, color='k', **plot_kwargs):
+        if (width > 100.) or (width < 0.):
+            print('width must be between 0 and 100')
+            return
+        n_plot = self.num_iters - burn
+        if ('logSFH0' in self.params):
+            cols = ['logSFH{:d}'.format(i) for i in range(7)]
+            normed_sfh = 10.**self.df[cols].values[-n_plot:].T
+            normed_sfh /= 10.**self.df['logNpix'].values[-n_plot:]
+            normed_sfh = normed_sfh.T
+            if self.truths_dict is not None:
+                truth_sfh = 10.**([self.truths_dict[p] for p in cols])
+                truth_sfh /= np.sum(truth_sfh)
+                truth_sfh = np.cumsum(truth_sfh)
+        elif ('tau' in self.params):
+            taus = self.df['tau'].values
+            normed_sfh = np.zeros((n_plot, 7))
+            for i in range(0, n_plot):
+                model = agemodels.TauModel(np.array([0., taus[i+burn]]),
+                                           iso_step=-1.)
+                normed_sfh[i] = model.SFH
+            if self.truths_dict is not None:
+                t = self.truths_dict['tau']
+                truth_sfh = agemodels.TauModel(np.array([0., t]),
+                                               iso_step=-1.).SFH
+                truth_sfh = np.cumsum(truth_sfh)
+        elif ('tau_rise' in self.params):
+            taus = self.df['tau_rise'].values
+            normed_sfh = np.zeros((n_plot, 7))
+            for i in range(0, n_plot):
+                model = agemodels.RisingTau(np.array([0., taus[i+burn]]),
+                                            iso_step=-1.)
+                normed_sfh[i] = model.SFH
+            if self.truths_dict is not None:
+                t = self.truths_dict['tau_rise']
+                truth_sfh = agemodels.TauModel(np.array([0., t]),
+                                               iso_step=-1.).SFH
+                truth_sfh = np.cumsum(truth_sfh)
+        elif ('logage' in self.params):
+            print('Cannot plot cumulative SFH for SSP')
+            return
+        else:
+            sfh_base = agemodels.ConstantSFR(np.array([0.]), iso_step=-1.).SFH
+            normed_sfh = np.ones((n_plot, 7)) * sfh_base
+            truth_sfh = sfh_base
+        if axis is None:
+            fig, axis = plt.subplots()
+        cum_sfh = np.cumsum(normed_sfh, axis=1)
+        upper_lim = 50 + (width / 2.)
+        lower_lim = 50 - (width / 2.)
+        med = np.percentile(cum_sfh, 50, axis=0)
+        upper = np.percentile(cum_sfh, upper_lim, axis=0)
+        lower = np.percentile(cum_sfh, lower_lim, axis=0)
+        edges = agemodels._AgeModel.default_edges
+        ages = 0.5*(edges[:-1] + edges[1:])
+        axis.plot(ages, med, 'k-', color=color, **plot_kwargs)
+        axis.fill_between(ages, y1=lower, y2=upper, alpha=0.3, color=color,
+                          **plot_kwargs)
+        if self.truths_dict is not None:
+            axis.plot(ages, truth_sfh, 'r--')
+        axis.set_yscale('log')
+        axis.set_title(title)
+        axis.set_xlabel('log age (yr)')
+        axis.set_ylabel('log cumulative SFH')
+        return axis

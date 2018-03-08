@@ -131,7 +131,7 @@ class TauModel(_AgeModel):
 
 class RisingTau(_AgeModel):
 
-    _param_names = ['logNpix', 'tau']
+    _param_names = ['logNpix', 'tau_rise']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
 
