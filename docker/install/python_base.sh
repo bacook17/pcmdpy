@@ -8,17 +8,9 @@ export PATH="$HOME/miniconda/bin:$PATH"
 export PYTHONPATH="$HOME/miniconda/lib/python3.6/site-packages"
 
 # install base requirements
-conda install -y pip numpy scipy matplotlib pandas astropy ipython
-
-# install pycuda (not listed on conda)
-# conda install lukepfister pycuda
-pip install pycuda --upgrade --user
+conda install -y pip
 
 # install awscli
 pip install awscli --upgrade --user
-
-# install dynesty and pcmdpy
-git clone ssh://git@github.com/joshspeagle/dynesty.git
-cd dynesty && python setup.py install && cd ..
 
 export PATH="${HOME}/.local/bin/:${PATH}"

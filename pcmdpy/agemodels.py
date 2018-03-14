@@ -8,6 +8,7 @@ __all__ = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
 
 import numpy as np
 from pcmdpy import utils
+from scipy.special import expi
 
 
 class _AgeModel:
@@ -20,9 +21,12 @@ class _AgeModel:
     def get_vals(self):
         return self.ages, self.SFH
 
-    def get_cum_sfh(self):
+    def get_cum_sfh(self, inverted=False):
         normed_sfh = self.SFH / self.Npix
-        return np.cumsum(normed_sfh)
+        if inverted:
+            return np.cumsum(normed_sfh[::-1])[::-1]
+        else:
+            return np.cumsum(normed_sfh)
 
 
 class NonParam(_AgeModel):
@@ -150,7 +154,7 @@ class RisingTau(_AgeModel):
         if iso_step > 0:
             iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
-            iso_edges = BaseGalaxy.default_edges
+            iso_edges = self.default_edges
         self.ages = 0.5*(iso_edges[1:] + iso_edges[:-1])
         utils.my_assert(len(age_params) == self._num_params,
                         "gal_params for Rising_Tau should be length %d" %
@@ -160,6 +164,7 @@ class RisingTau(_AgeModel):
 
         ages_linear = 10.**(iso_edges - 9.)  # convert to Gyrs
         base_term = (ages_linear[-1]+tau-ages_linear) * np.exp(ages_linear/tau)
+        #base_term = expi(ages_linear / tau)
         SFH_term = base_term[:-1] - base_term[1:]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
