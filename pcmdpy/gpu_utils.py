@@ -233,7 +233,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
-    if dust_frac <= 1e-2:
+    if dust_frac >= 0.99:
         _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
               cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
