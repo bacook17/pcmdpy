@@ -38,7 +38,7 @@ class CustomGalaxy(BaseGalaxy):
         # set the metallicity model
         self.feh_model = feh_model
         self.p_feh = feh_model._num_params
-        self._param_names = feh_model._param_names
+        self._param_names = list(feh_model._param_names)
         # set the dust model
         self.dust_model = dust_model
         self.p_dust = dust_model._num_params
@@ -48,6 +48,11 @@ class CustomGalaxy(BaseGalaxy):
         self.p_age = age_model._num_params
         self._param_names += age_model._param_names
         self.p_total = self.p_feh + self.p_dust + self.p_age
+        self._num_params = len(self._param_names)
+        if (self._num_params != self.p_total):
+            print(self._num_params, self.p_total)
+            print(self._param_names)
+            assert(False)
 
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
                        age_bounds=None):

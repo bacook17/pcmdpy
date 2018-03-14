@@ -40,8 +40,8 @@ _code = """
    #include <math.h>
    extern "C"
    {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, float dust_frac, const float *red_per_ebv, float dust_mean, float dust_std, 
-                               const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
+   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, float dust_frac, const int num_bands,
+                               const int num_bins, const int N, float *pixels_front, float *pixels_behind, const int skip_n, const int num_procs)
    {
       /* Initialize variables */
       int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -55,12 +55,9 @@ _code = """
       curandState local_state = global_state[seed_id];
       float results_front[10] = {0.0};
       float results_behind[10] = {0.0};
-      float reddening;
 
       float flux;
       int count_front, count_behind, skip;
-      
-      float ebv;
 
       if ((id_imx < N) && (id_imy < N)) {
           /* Update local_state, to make sure values are very random */
@@ -78,12 +75,10 @@ _code = """
                 results_behind[f] += count_behind * flux;
              }
           }
-          /* draw the dust in this pixel from lognormal */
-          ebv = curand_log_normal(&local_state, dust_mean, dust_std);
           /* Save results for each band */
           for (int f = 0; f < num_bands; f++){
-             reddening = pow(10., -0.4 * ebv * red_per_ebv[f]);
-             pixels[id_pix + (N*N)*f] = results_front[f] + (results_behind[f] * reddening);
+             pixels_front[id_pix + (N*N)*f] = results_front[f];
+             pixels_behind[id_pix + (N*N)*f] = results_behind[f];
           }
       }
 
@@ -171,7 +166,6 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
-    red_per_ebv = np.array([f.red_per_ebv for f in filters]).astype(np.float32)
 
     N_scale = N_scale
 
@@ -185,19 +179,22 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     generator = curandom.XORWOWRandomNumberGenerator(seed_getter=seed_getter)
     num_procs = generator.block_count
-    result = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
+    result_front = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
+    result_behind = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
     _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes), np.float32(dust_frac),
-          cuda.In(red_per_ebv), np.float32(dust_mean), np.float32(dust_std), 
           np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-          cuda.Out(result), np.int32(skip_n), np.int32(num_procs),
+          cuda.Out(result_front), cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
           block=block_dim, grid=grid_dim)
 
     #Add on flux from fully-populated bins
     #result = np.array([result[i] + fixed_fluxes[i] for i in range(N_bands)]).astype(float)
-    return result
+    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std, size=(N_scale, N_scale))
+    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv) for f in filters])
+    
+    return result_front + result_behind*reddening
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
