@@ -27,7 +27,7 @@ class _DustModel:
 
 class SingleDust(_DustModel):
 
-    _param_names = ['logdust_med']
+    _param_names = ['logdust']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5]]
 

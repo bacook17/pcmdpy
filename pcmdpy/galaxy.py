@@ -14,7 +14,8 @@ class BaseGalaxy:
 
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
 
-    def __init__(self, ages, fehs, SFH, dust_model, params=None):
+    def __init__(self, ages, fehs, SFH, dust_model, params=None,
+                 param_names=None, metal_class=None, age_class=None):
         utils.my_assert(len(ages) == len(fehs),
                         "length of first param and second param must match")
         utils.my_assert(len(ages) == len(SFH),
@@ -26,6 +27,10 @@ class BaseGalaxy:
         self.Npix = np.sum(self.SFH)
         self.num_SSPs = len(self.ages)
         self._params = params
+        if param_names is not None:
+            self._param_names = param_names
+        self.metal_model = metal_class
+        self.age_model = age_class
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):
@@ -34,11 +39,11 @@ class BaseGalaxy:
 
 class CustomGalaxy(BaseGalaxy):
 
-    def __init__(self, feh_model, dust_model, age_model):
+    def __init__(self, metal_model, dust_model, age_model):
         # set the metallicity model
-        self.feh_model = feh_model
-        self.p_feh = feh_model._num_params
-        self._param_names = feh_model._param_names
+        self.metal_model = metal_model
+        self.p_feh = metal_model._num_params
+        self._param_names = list(metal_model._param_names)
         # set the dust model
         self.dust_model = dust_model
         self.p_dust = dust_model._num_params
@@ -52,7 +57,7 @@ class CustomGalaxy(BaseGalaxy):
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
                        age_bounds=None):
         if feh_bounds is None:
-            bounds = self.feh_model._default_prior_bounds
+            bounds = self.metal_model._default_prior_bounds
         else:
             assert(len(feh_bounds) == self.p_feh)
             bounds = feh_bounds
@@ -73,7 +78,7 @@ class CustomGalaxy(BaseGalaxy):
         feh_params = gal_params[:self.p_feh]
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
         age_params = gal_params[-self.p_age:]
-        fehs, feh_weights = self.feh_model(feh_params).get_vals()
+        fehs, feh_weights = self.metal_model(feh_params).get_vals()
         dust_model = self.dust_model(dust_params)
         ages, age_weights = self.age_model(age_params).get_vals()
         # merge the age and metallicity bins
@@ -86,7 +91,9 @@ class CustomGalaxy(BaseGalaxy):
             new_fehs += [feh]*len(ages)
 
         return BaseGalaxy(new_ages, new_fehs, SFH, dust_model,
-                          params=gal_params)
+                          params=gal_params, param_names=self._param_names,
+                          metal_class=self.metal_model,
+                          age_class=self.age_model)
 
 
 DefaultTau = CustomGalaxy(metalmodels.SingleFeH, dustmodels.SingleDust,

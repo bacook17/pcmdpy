@@ -20,6 +20,10 @@ class _AgeModel:
     def get_vals(self):
         return self.ages, self.SFH
 
+    def get_cum_sfh(self):
+        normed_sfh = self.SFH / self.Npix
+        return np.cumsum(normed_sfh)
+
 
 class NonParam(_AgeModel):
 
