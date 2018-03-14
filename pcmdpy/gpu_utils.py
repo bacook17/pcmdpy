@@ -35,65 +35,7 @@ _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
 
-_lognorm_code = """
-   #include <curand_kernel.h>
-   #include <math.h>
-   extern "C"
-   {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, float dust_frac, const float *red_per_ebv, float dust_mean, float dust_std, 
-                               const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
-   {
-      /* Initialize variables */
-      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
-      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
-      int id_pix = (id_imx) + N*id_imy;
-      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
-      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
-
-      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
-
-      curandState local_state = global_state[seed_id];
-      float results_front[10] = {0.0};
-      float results_behind[10] = {0.0};
-      float reddening;
-
-      float flux;
-      int count_front, count_behind, skip;
-      
-      float ebv;
-
-      if ((id_imx < N) && (id_imy < N)) {
-          /* Update local_state, to make sure values are very random */
-          skip = skip_n * block_id;
-          skipahead(skip, &local_state);
-          for (int i = 0; i < num_bins; i++){
-             /* distribute some starsin front of the dust screen, some behind */
-             count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
-             count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
-             for (int f = 0; f < num_bands; f++){
-                flux = fluxes[i + (f*num_bins)];
-                /* add stars in front of dust screen */
-                results_front[f] += count_front * flux;
-                /* add stars behind dust screen */
-                results_behind[f] += count_behind * flux;
-             }
-          }
-          /* draw the dust in this pixel from lognormal */
-          ebv = curand_log_normal(&local_state, dust_mean, dust_std);
-          /* Save results for each band */
-          for (int f = 0; f < num_bands; f++){
-             reddening = pow(10., -0.4 * ebv * red_per_ebv[f]);
-             pixels[id_pix + (N*N)*f] = results_front[f] + (results_behind[f] * reddening);
-          }
-      }
-
-      /* Save back state */
-      global_state[seed_id] = local_state;
-   }
-   }
-"""
-
-_base_code = """
+_code = """
    #include <curand_kernel.h>
    #include <math.h>
    extern "C"
