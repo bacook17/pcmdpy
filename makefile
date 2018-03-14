@@ -4,6 +4,13 @@ gpu: pcmdpy_gpu
 
 cpu: pcmdpy_cpu
 
+pcmdpy_only: 
+	@echo "---------------------------------------"
+	@echo "installing pcmdpy only, NO dependencies"
+	pip install . --user --upgrade --no-deps
+	@echo "successfully completed installing pcmdpy with NO dependencies"
+	@echo "---------------------------------------"
+
 pcmdpy_cpu:
 	@echo "---------------------------------------"
 	@echo "installing pcmdpy with CPU support only"

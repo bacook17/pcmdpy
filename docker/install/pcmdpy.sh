@@ -1,2 +1,4 @@
-git clone https://github.com/bacook17/pcmdpy.git
-cd pcmdpy && make gpu && cd ..
+# Only install most recent pcmdpy version
+cd pcmdpy && git pull origin master
+echo "hello"
+make pcmdpy_only && cd ..

@@ -13,4 +13,8 @@ conda install -y pip
 # install awscli
 pip install awscli --upgrade --user
 
+# first install of pcmdpy with requirements
+git clone https://github.com/bacook17/pcmdpy.git
+cd pcmdpy && make gpu && cd ..
+
 export PATH="${HOME}/.local/bin/:${PATH}"
