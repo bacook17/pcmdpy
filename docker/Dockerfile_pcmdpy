@@ -5,5 +5,7 @@ FROM bacook17/gpu_base
 
 SHELL ["/bin/bash"]
 
+# load pcmdpy and dependencies
+COPY install/pcmdpy.sh install/
 RUN install/pcmdpy.sh
 ENV PATH=/pcmdpy:/pcmdpy/pcmdpy:${PATH}
