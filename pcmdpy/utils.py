@@ -10,7 +10,9 @@ import seaborn as sns
 from scipy.misc import logsumexp
 from datetime import datetime
 import time
-from pcmdpy import agemodels
+from pcmdpy import metalmodels, dustmodels, agemodels
+from corner import corner
+
 
 # A module to create various utility functions
 def my_assert(bool_statement, fail_message=None):
@@ -34,6 +36,7 @@ def make_pcmd(data):
             pcmd[i] = (data[i] - data[0]).flatten()
     return pcmd
     
+
 def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     n_dim = pcmd.shape[0]
     n = pcmd.shape[1] #total number of pixels
@@ -250,41 +253,76 @@ class ResultsCollector(object):
         
 class ResultsPlotter(object):
 
-    def __init__(self, df_file, truths=None, run_name=None, params=None,
-                 param_labels=None):
+    param_labels = {'logfeh': '[Fe/H]', 'logfeh_mean': '[Fe/H]',
+                    'logfeh_std': r'$\sigma([Fe/H])$',
+                    'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
+                    'logdust_med': 'log E(B-V)',
+                    'dust_sig': r'$\sigma(E(B-V))$', 'tau': r'$\tau$',
+                    'tau_rise': r'$\tau$',
+                    'logNpix': r'$\log_{10} N_{pix}$'}
+    param_labels.update({'logSFH{:d}'.format(i):
+                         r'$\log_{10}$'+'SFH{:d}'.format(i) for i in range(7)})
+
+    def __init__(self, df_file, true_model=None, prior=None,
+                 run_name=None, params=None,
+                 labels=None):
         try:
             self.df = pd.read_csv(df_file)
         except UnicodeDecodeError:
             self.df = pd.read_csv(df_file, compression='gzip')
 
-        self.truths_dict = truths
-        self.param_labels = param_labels
+        self.true_model = true_model
         self.run_name = run_name
         self.num_iters = len(self.df)
-        
-        self.default_params = {'logfeh': '[Fe/H]', 'logfeh_mean': '[Fe/H]',
-                               'logfeh_std': r'$\sigma([Fe/H])$',
-                               'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
-                               'logdust_med': 'log E(B-V)',
-                               'dust_sig': r'$\sigma(E(B-V))$',
-                               'tau': r'$\tau$', 'tau_rise': r'$\tau$',
-                               'logNpix': 'log Npix'}
-        for i in range(7):
-            s = 'logSFH{:d}'.format(i)
-            self.default_params[s] = s
-        if params is None:
-            self.params = []
-            for p in self.default_params.keys():
-                if p in self.df.columns:
-                    self.params.append(p)
-        else:
-            self.params = list(params)
+        self.true_params = None
+        self.prior = prior
 
-        if ('logSFH0' in self.params) and ('logNpix' not in self.params):
+        if true_model is not None:
+            self.params = list(true_model._param_names)
+            self.metal_model = true_model.metal_model
+            self.dust_model = true_model.dust_model
+            self.age_model = true_model.age_model
+            self.true_params = list(true_model._params)
+
+        else:
+            if params is not None:
+                self.params = list(params)
+            else:
+                self.params = []
+                for p in self.param_labels.keys():
+                    if p in self.df.columns:
+                        self.params.append(p)
+            if 'logfeh_std' in self.params:
+                self.metal_model = metalmodels.NormMDF
+            else:
+                self.metal_model = metalmodels.SingleFeH
+            if 'dust_sig' in self.params:
+                self.dust_model = dustmodels.LogNormDust
+            else:
+                self.dust_model = dustmodels.SingleDust
+            if 'logSFH0' in self.params:
+                self.age_model = agemodels.NonParam
+            elif 'tau' in self.params:
+                self.age_model = agemodels.TauModel
+            elif 'tau_rise' in self.params:
+                self.age_model = agemodels.RisingTau
+            elif 'logage' in self.params:
+                self.age_model = agemodels.SSPModel
+            else:
+                self.age_model = agemodels.ConstantSFR
+
+        if self.age_model == agemodels.NonParam:
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(7)]]
             self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
             self.params.append('logNpix')
-
+            if self.true_params is not None:
+                self.true_params += [np.log10(true_model.Npix)]
+            
+        if labels is not None:
+            self.labels = list(labels)
+        else:
+            self.labels = [self.param_labels[p] for p in self.params]
+            
         self.n_params = len(self.params)
             
         self.df['log_weights'] = (self.df.logwt.values -
@@ -296,7 +334,8 @@ class ResultsPlotter(object):
         except AttributeError:
             pass
 
-    def plot_chains(self, axes=None, title=None, dlogz=0.5):
+    def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
+                    show_prior=True, plot_kwargs=None):
         nr = self.n_params + 3
         if axes is None:
             fig, axes = plt.subplots(nrows=nr, figsize=(8, 2+nr), sharex=True)
@@ -304,12 +343,11 @@ class ResultsPlotter(object):
             assert(len(axes) == nr)
         if title is None:
             title = self.run_name
+        if plot_kwargs is None:
+            plot_kwargs = {}
         for i, p in enumerate(self.params):
-            axes[i].plot(self.df[p].values)
-            if self.param_labels is None:
-                axes[i].set_ylabel(self.default_params[p])
-            else:
-                axes[i].set_ylabel(self.param_labels[i])
+            axes[i].plot(self.df[p].values, **plot_kwargs)
+            axes[i].set_ylabel(self.labels[i])
         axes[-3].plot(np.log10(self.df['delta_logz'].values))
         axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
         axes[-3].set_ylabel(r'log $\Delta$ln Z')
@@ -319,77 +357,146 @@ class ResultsPlotter(object):
         axes[-1].set_ylabel('run time (hrs)')
         axes[-1].set_xlabel('Iteration')
 
-        if self.truths_dict is not None:
-            for i, p in enumerate(self.params):
-                axes[i].axhline(y=self.truths_dict[p], color='r', ls='--')
+        if self.true_model is not None:
+            for i in range(self.n_params):
+                axes[i].axhline(y=self.true_params[i], color='r', ls='--')
+
+        if show_prior and (self.prior is not None):
+            for i in range(self.n_params):
+                axes[i].axhline(y=self.prior.lower_bounds[i], color='k',
+                                ls=':')
+                axes[i].axhline(y=self.prior.upper_bounds[i], color='k',
+                                ls=':')
+
+        if burn > 0:
+            for ax in axes:
+                ax.axvline(x=burn, ls=':', color='k')
 
         if title is not None:
             axes[0].set_title(title)
         return axes
 
     def plot_cum_sfh(self, width=68., axis=None, title=None,
-                     burn=0, color='k', **plot_kwargs):
+                     burn=0, show_prior=True, **plot_kwargs):
         if (width > 100.) or (width < 0.):
             print('width must be between 0 and 100')
             return
-        n_plot = self.num_iters - burn
-        if ('logSFH0' in self.params):
-            cols = ['logSFH{:d}'.format(i) for i in range(7)]
-            normed_sfh = 10.**self.df[cols].values[-n_plot:].T
-            normed_sfh /= 10.**self.df['logNpix'].values[-n_plot:]
-            normed_sfh = normed_sfh.T
-            if self.truths_dict is not None:
-                truth_sfh = 10.**([self.truths_dict[p] for p in cols])
-                truth_sfh /= np.sum(truth_sfh)
-                truth_sfh = np.cumsum(truth_sfh)
-        elif ('tau' in self.params):
-            taus = self.df['tau'].values
-            normed_sfh = np.zeros((n_plot, 7))
-            for i in range(0, n_plot):
-                model = agemodels.TauModel(np.array([0., taus[i+burn]]),
-                                           iso_step=-1.)
-                normed_sfh[i] = model.SFH
-            if self.truths_dict is not None:
-                t = self.truths_dict['tau']
-                truth_sfh = agemodels.TauModel(np.array([0., t]),
-                                               iso_step=-1.).SFH
-                truth_sfh = np.cumsum(truth_sfh)
-        elif ('tau_rise' in self.params):
-            taus = self.df['tau_rise'].values
-            normed_sfh = np.zeros((n_plot, 7))
-            for i in range(0, n_plot):
-                model = agemodels.RisingTau(np.array([0., taus[i+burn]]),
-                                            iso_step=-1.)
-                normed_sfh[i] = model.SFH
-            if self.truths_dict is not None:
-                t = self.truths_dict['tau_rise']
-                truth_sfh = agemodels.TauModel(np.array([0., t]),
-                                               iso_step=-1.).SFH
-                truth_sfh = np.cumsum(truth_sfh)
-        elif ('logage' in self.params):
+        if self.age_model == agemodels.SSPModel:
             print('Cannot plot cumulative SFH for SSP')
             return
-        else:
-            sfh_base = agemodels.ConstantSFR(np.array([0.]), iso_step=-1.).SFH
-            normed_sfh = np.ones((n_plot, 7)) * sfh_base
-            truth_sfh = sfh_base
+        n_plot = self.num_iters - burn
+        cols = self.age_model._param_names
+        vals = self.df[cols].values[-n_plot:]
+        cum_sfh = np.array([self.age_model(v, iso_step=-1.).get_cum_sfh()
+                            for v in vals])
+        if self.true_model is not None:
+            p_age = self.age_model._num_params
+            vals_true = self.true_model._params[-p_age:]
+            true_cum_sfh = self.age_model(vals_true,
+                                          iso_step=-1.).get_cum_sfh()
+        edges = self.age_model.default_edges
+        ages = 0.5*(edges[:-1] + edges[1:])
+
         if axis is None:
             fig, axis = plt.subplots()
-        cum_sfh = np.cumsum(normed_sfh, axis=1)
-        upper_lim = 50 + (width / 2.)
-        lower_lim = 50 - (width / 2.)
-        med = np.percentile(cum_sfh, 50, axis=0)
-        upper = np.percentile(cum_sfh, upper_lim, axis=0)
-        lower = np.percentile(cum_sfh, lower_lim, axis=0)
-        edges = agemodels._AgeModel.default_edges
-        ages = 0.5*(edges[:-1] + edges[1:])
-        axis.plot(ages, med, 'k-', color=color, **plot_kwargs)
-        axis.fill_between(ages, y1=lower, y2=upper, alpha=0.3, color=color,
+        med = np.percentile(cum_sfh, 50., axis=0)
+        upper = np.percentile(cum_sfh, 50. + 0.5*width, axis=0)
+        lower = np.percentile(cum_sfh, 50. - 0.5*width, axis=0)
+        if 'color' in plot_kwargs:
+            color = plot_kwargs.pop('color')
+        else:
+            color = 'k'
+        if 'alpha' in plot_kwargs:
+            alpha = plot_kwargs.pop('alpha')
+        else:
+            alpha = 0.3
+        axis.plot(ages, med, ls='-', color=color, **plot_kwargs)
+        axis.fill_between(ages, y1=lower, y2=upper, alpha=alpha, color=color,
                           **plot_kwargs)
-        if self.truths_dict is not None:
-            axis.plot(ages, truth_sfh, 'r--')
+        if self.true_model is not None:
+            axis.plot(ages, true_cum_sfh, ls='--', color=color, **plot_kwargs)
         axis.set_yscale('log')
-        axis.set_title(title)
+        if title is None:
+            axis.set_title(self.run_name)
+        else:
+            axis.set_title(title)
         axis.set_xlabel('log age (yr)')
         axis.set_ylabel('log cumulative SFH')
+        if show_prior:
+            if self.prior is None:
+                self.plot_cum_sfh(burn=0, axis=axis, width=99.9, color='b',
+                                  alpha=0.1, zorder=-1, show_prior=False,
+                                  **plot_kwargs)
+            else:
+                lower_p = self.prior.lower_bounds[-p_age:]
+                upper_p = self.prior.upper_bounds[-p_age:]
+                lower = self.age_model(lower_p, iso_step=-1.).get_cum_sfh()
+                upper = self.age_model(upper_p, iso_step=-1.).get_cum_sfh()
+                axis.fill_between(ages, y1=lower, y2=upper, alpha=0.1,
+                                  color='b', zorder=-1, **plot_kwargs)
         return axis
+
+    def plot_corner(self, fig=None, title=None, burn=0, bins=30,
+                    smooth_frac=.03, smooth1d=0.,
+                    weight=True, full_range=True,
+                    show_prior=True, plot_density=False, fill_contours=True,
+                    sig_levels=None,
+                    **corner_kwargs):
+        df_temp = self.df.iloc[burn:]
+        vals = df_temp[self.params].values
+        smooth = smooth_frac * bins
+        if sig_levels is None:
+            sig_levels = np.arange(1, 4)
+        # convert from sigma to 2d CDF (equivalent of 68-95-99.7 rule)
+        levels = 1. - np.exp(-0.5 * sig_levels**2.)
+        if full_range:
+            lims = []
+            for p in self.params:
+                lims += [[self.df[p].min(), self.df[p].max()]]
+        else:
+            lims = None
+        if corner_kwargs is None:
+            corner_kwargs = {}
+        if weight:
+            corner_kwargs['weights'] = df_temp['weights'].values
+        else:
+            corner_kwargs['weights'] = None
+        corner_kwargs.update({'labels': self.labels,
+                              'truths': self.true_params, 'fig': fig,
+                              'bins': bins, 'smooth': smooth,
+                              'plot_density': plot_density,
+                              'fill_contours': fill_contours,
+                              'levels': levels,
+                              'range': lims,
+                              'smooth1d': smooth1d})
+        fig = corner(vals, **corner_kwargs)
+        axes = np.array(fig.get_axes()).reshape(self.n_params, self.n_params)
+        if show_prior:
+            for i in range(self.n_params):
+                a = axes[i, i]
+                lower, upper = a.get_ylim()
+                y = len(df_temp) / bins
+                if weight:
+                    y *= np.mean(corner_kwargs['weights'])
+                a.axhline(y=y, ls=':')
+        if title is None:
+            fig.suptitle(self.run_name)
+        else:
+            fig.suptitle(title)
+        return (fig, axes)
+
+    def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
+                        corner_kwargs=None, **all_kwargs):
+        if chain_kwargs is None:
+            chain_kwargs = {}
+        chain_kwargs.update(all_kwargs)
+        if cum_sfh_kwargs is None:
+            cum_sfh_kwargs = {}
+        cum_sfh_kwargs.update(all_kwargs)
+        if corner_kwargs is None:
+            corner_kwargs = {}
+        corner_kwargs.update(all_kwargs)
+        chain_axes = self.plot_chains(**chain_kwargs)
+        cum_sfh_ax = self.plot_cum_sfh(**cum_sfh_kwargs)
+        corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
+        return (chain_axes, cum_sfh_ax, (corner_fig, corner_axes))

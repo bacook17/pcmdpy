@@ -32,7 +32,7 @@ class SingleFeH(_FeHModel):
 
 class NormMDF(_FeHModel):
     
-    _param_names = ['feh_mean', 'feh_sig']
+    _param_names = ['logfeh_mean', 'logfeh_std']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 0.5], [0.05, 1.0]]
 

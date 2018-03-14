@@ -65,11 +65,16 @@ class FlatPrior(object):
     def update_bound(self, index, bounds):
         self.lower_bounds[index] = bounds[0]
         self.upper_bounds[index] = bounds[1]
-        self.widths = self.upper_bunds - self.lower_bounds
+        self.widths = self.upper_bounds - self.lower_bounds
         if np.any(self.lower_bounds > self.upper_bounds):
             raise ValueError('The upper bounds must be greater than'
                              'the lower bounds in all dimensions')
 
+    def add_bound(self, bounds):
+        self.lower_bounds = np.append(self.lower_bounds, 0.)
+        self.upper_bounds = np.append(self.upper_bounds, 0.)
+        self.update_bound(-1, bounds)
+    
     def lnprior(self, params):
         """
         Return ln of prior for given parameters. Typically either 0
