@@ -37,6 +37,51 @@ _MAX_2D_BLOCK_DIM = 32
 
 _code = """
    #include <curand_kernel.h>
+
+   extern "C"
+   {
+   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
+   {
+      /* Initialize variables */
+      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
+      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
+      int id_pix = (id_imx) + N*id_imy;
+      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
+      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
+
+      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
+
+      curandState local_state = global_state[seed_id];
+      float results[10] = {0.0};
+
+      float flux;
+      int count, skip;
+
+      if ((id_imx < N) && (id_imy < N)) {
+          /* Update local_state, to make sure values are very random */
+          skip = skip_n * block_id;
+          skipahead(skip, &local_state);
+          for (int i = 0; i < num_bins; i++){
+             count = curand_poisson(&local_state, exp_nums[i]);
+             for (int f = 0; f < num_bands; f++){
+                flux = fluxes[i + (f*num_bins)];
+                results[f] += count * flux;
+             }
+          }
+          /* Save results for each band */
+          for (int f = 0; f < num_bands; f++){
+             pixels[id_pix + (N*N)*f] = results[f];
+          }
+      }
+
+      /* Save back state */
+      global_state[seed_id] = local_state;
+   }
+   }
+"""
+
+_lognorm_code = """
+   #include <curand_kernel.h>
    #include <math.h>
    extern "C"
    {
@@ -118,11 +163,15 @@ def initialize_gpu(n=None):
     
     try:
         global _mod
+        global _lognorm_mod
         print('Starting SourceModule Code')
         _mod = SourceModule(_code, keep=False, no_extern_c=True)
+        _lognorm_mod = SourceModule(_lognorm_code, keep=False, no_extern_c=True)
         print('Getting function')
         global _func
+        global _lognorm_func
         _func = _mod.get_function('poisson_sum')
+        _lognorm_func = _lognorm_mod.get_function('poisson_sum')
         print('Past the SourceModule code')
     except cuda.CompileError as e:
         print('Something Failed')
@@ -184,17 +233,25 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
-    _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes), np.float32(dust_frac),
-          np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-          cuda.Out(result_front), cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
-          block=block_dim, grid=grid_dim)
+    if dust_frac <= 1e-2:
+        _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
+              np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+              cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
+              block=block_dim, grid=grid_dim)
+        return result_front
+    else:
+        _lognorm_func(generator._state, cuda.In(expected_nums),
+                      cuda.In(fluxes), np.float32(dust_frac),
+                      np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+                      cuda.Out(result_front), cuda.Out(result_behind),
+                      np.int32(skip_n), np.int32(num_procs),
+                      block=block_dim, grid=grid_dim)
 
-    #Add on flux from fully-populated bins
-    #result = np.array([result[i] + fixed_fluxes[i] for i in range(N_bands)]).astype(float)
-    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std, size=(N_scale, N_scale))
-    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv) for f in filters])
-    
-    return result_front + result_behind*reddening
+        dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
+                                          size=(N_scale, N_scale))
+        reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
+                              for f in filters])
+        return result_front + result_behind*reddening
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
