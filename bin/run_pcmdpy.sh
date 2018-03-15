@@ -50,7 +50,11 @@ while :; do
 	# Set the configuration file. 
 	-c|--config-file)
 	    if [ "$2" ]; then
-		CONFIG_FILE=$2
+		if [ "$AWS_BATCH_JOB_ARRAY_INDEX" ]; then
+		    CONFIG_FILE=$2_$AWS_BATCH_JOB_ARRAY_INDEX.py
+		else
+		    CONFIG_FILE=$2
+		fi
 		shift
 	    else
 		error_exit "-c or --config-file requires a non-empty option argument."
@@ -68,7 +72,11 @@ while :; do
 	# Set the run name.
 	-r|--run-name)
 	    if [ "$2" ]; then
-		RUN_NAME=$2
+		if [ "$AWS_BATCH_JOB_ARRAY_INDEX" ]; then
+		    RUN_NAME=$2_$AWS_BATCH_JOB_ARRAY_INDEX
+		else
+		    RUN_NAME=$2
+		fi
 		shift
 	    else
 		error_exit "-r or --run-name requires a non-empty option argument."
