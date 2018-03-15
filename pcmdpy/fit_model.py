@@ -53,8 +53,8 @@ def nested_integrate(pcmd, filters, N_im, gal_class=galaxy.DefaultNonParam,
     if bins is None:
         utils.my_assert(n_filters == 2,
                         "Default behavior only defined for 2 filters")
-        xbins = np.arange(-1.5, 4.6, 0.05)
-        ybins = np.arange(-12, 15.6, 0.05)
+        xbins = np.arange(-12, 15.6, 0.05)
+        ybins = np.arange(-1.5, 4.6, 0.05)
         bins = np.array([xbins, ybins])
     driv.initialize_data(pcmd, bins)
 
