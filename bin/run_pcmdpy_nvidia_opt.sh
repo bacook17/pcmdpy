@@ -41,8 +41,8 @@ DATA_FILE=
 RUN_NAME=
 
 # Try to speed up GPU -- THESE OPTIONS SET FOR Tesla K80 (P2 instances)
-sudo nvidia-smi -pm ENABLED
-sudo nvidia-smi -ac 2505,875
+nvidia-smi -pm ENABLED
+nvidia-smi -ac 2505,875
 
 # Iterate through all options
 while :; do
