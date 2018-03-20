@@ -236,11 +236,8 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
     if dust_frac >= 0.99:
         _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-              cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
+              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
               block=block_dim, grid=grid_dim)
-        reddening = np.array([10.**(-0.4 * dust_mean * f.red_per_ebv)
-                              for f in filters])
-        return result_front * reddening
     else:
         _lognorm_func(generator._state, cuda.In(expected_nums),
                       cuda.In(fluxes), np.float32(dust_frac),
@@ -248,12 +245,11 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
                       cuda.Out(result_front), cuda.Out(result_behind),
                       np.int32(skip_n), np.int32(num_procs),
                       block=block_dim, grid=grid_dim)
-
-        dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
-                                          size=(N_scale, N_scale))
-        reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
-                              for f in filters])
-        return result_front + result_behind*reddening
+    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
+                                      size=(N_scale, N_scale))
+    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
+                          for f in filters])
+    return result_front + result_behind*reddening
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
