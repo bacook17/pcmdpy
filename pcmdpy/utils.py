@@ -424,6 +424,7 @@ class ResultsPlotter(object):
             if self.prior is None:
                 self.plot_cum_sfh(burn=0, axis=axis, width=99.9, color='b',
                                   alpha=0.1, zorder=-1, show_prior=False,
+                                  title=title,
                                   **plot_kwargs)
             else:
                 lower_p = self.prior.lower_bounds[-p_age:]

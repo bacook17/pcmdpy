@@ -238,7 +238,9 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
               cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
               block=block_dim, grid=grid_dim)
-        return result_front
+        reddening = np.array([10.**(-0.4 * dust_mean * f.red_per_ebv)
+                              for f in filters])
+        return result_front * reddening
     else:
         _lognorm_func(generator._state, cuda.In(expected_nums),
                       cuda.In(fluxes), np.float32(dust_frac),
