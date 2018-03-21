@@ -78,14 +78,15 @@ class CustomGalaxy(BaseGalaxy):
             bounds += age_bounds
         return priors.FlatPrior(bounds)
 
-    def get_model(self, gal_params):
+    def get_model(self, gal_params, iso_step=0.2):
         assert(len(gal_params) == self.p_total)
         feh_params = gal_params[:self.p_feh]
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
         age_params = gal_params[-self.p_age:]
         fehs, feh_weights = self.metal_model(feh_params).get_vals()
         dust_model = self.dust_model(dust_params)
-        ages, age_weights = self.age_model(age_params).get_vals()
+        ages, age_weights = self.age_model(age_params,
+                                           iso_step=iso_step).get_vals()
         # merge the age and metallicity bins
         new_ages = []
         new_fehs = []
