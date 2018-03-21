@@ -237,7 +237,7 @@ class Isochrone_Model:
         mags = np.empty((self.num_filters, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh in galaxy.iter_SSPs():
-            imf, m = self.get_isochrone(age, feh, **kwargs)
+            imf, m = self.get_isochrone(age, feh, system=system, **kwargs)
             weights = np.append(weights, imf*sfh)
             mags = np.append(mags, m, axis=-1)
         lum = np.power(10., -0.4*mags)
