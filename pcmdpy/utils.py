@@ -343,6 +343,8 @@ class ResultsPlotter(object):
             title = self.run_name
         if plot_kwargs is None:
             plot_kwargs = {}
+        else:
+            plot_kwargs = dict(plot_kwargs)
         for i, p in enumerate(self.params):
             axes[i].plot(self.df[p].values, **plot_kwargs)
             axes[i].set_ylabel(self.labels[i])
@@ -456,6 +458,8 @@ class ResultsPlotter(object):
             lims = None
         if corner_kwargs is None:
             corner_kwargs = {}
+        else:
+            corner_kwargs = dict(corner_kwargs)
         if weight:
             corner_kwargs['weights'] = df_temp['weights'].values
         else:
