@@ -333,8 +333,10 @@ class ResultsPlotter(object):
             pass
 
     def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
-                    show_prior=True, plot_kwargs=None):
+                    show_prior=True, chains_only=False, plot_kwargs=None):
         nr = self.n_params + 3
+        if chains_only:
+            nr = self.n_params
         if axes is None:
             fig, axes = plt.subplots(nrows=nr, figsize=(8, 2+nr), sharex=True)
         else:
@@ -348,13 +350,14 @@ class ResultsPlotter(object):
         for i, p in enumerate(self.params):
             axes[i].plot(self.df[p].values, **plot_kwargs)
             axes[i].set_ylabel(self.labels[i])
-        axes[-3].plot(np.log10(self.df['delta_logz'].values))
-        axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
-        axes[-3].set_ylabel(r'log $\Delta$ln Z')
-        axes[-2].plot(self.df['eff'].values)
-        axes[-2].set_ylabel('eff (%)')
-        axes[-1].plot(self.df['time_elapsed'].values)
-        axes[-1].set_ylabel('run time (hrs)')
+        if not chains_only:
+            axes[-3].plot(np.log10(self.df['delta_logz'].values))
+            axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
+            axes[-3].set_ylabel(r'log $\Delta$ln Z')
+            axes[-2].plot(self.df['eff'].values)
+            axes[-2].set_ylabel('eff (%)')
+            axes[-1].plot(self.df['time_elapsed'].values)
+            axes[-1].set_ylabel('run time (hrs)')
         axes[-1].set_xlabel('Iteration')
 
         if self.true_model is not None:
