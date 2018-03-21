@@ -35,7 +35,7 @@ class Filter:
     def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, 
                  vega_to_ab, vega_to_st, psf,
                  name="", tex_name="", MIST_column="", MIST_column_alt="",
-                 tiled_psf=False, **kwargs):
+                 tiled_psf=True, **kwargs):
         """Create a new Filter, given input properties of observation
 
         Arguments:
