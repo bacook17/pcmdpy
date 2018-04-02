@@ -145,7 +145,7 @@ class Driver:
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
-        images += 1e-10
+        #images += 1e-10
 
         if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])

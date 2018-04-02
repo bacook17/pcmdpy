@@ -25,3 +25,5 @@ pcmdpy_gpu: pcmdpy_cpu
 	@echo "successfully completed installing pcmdpy with GPU support"
 	@echo "---------------------------------------"
 
+manual:
+	python setup.py install clean

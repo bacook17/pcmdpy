@@ -221,16 +221,16 @@ class Isochrone_Model:
             dfhigh = this_age[this_age.z == zhigh][self._interp_cols]
             inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
             
-        IMF = imf_func(inter[:, 0], **kwargs)
+        IMF = imf_func(inter[::downsample, 0], **kwargs)
 
-        mags = (inter[:, 1:] + conversions).T
+        mags = (inter[::downsample, 1:] + conversions).T
         # lum = np.power(10., -0.4*mags)
         # mean_lum = np.average(lum, weights=IMF, axis=1)
         
         # remove stars that are extremely rare
         to_keep = (IMF >= rare_cut)
 
-        return IMF[to_keep][::downsample], mags[:, to_keep][:, ::downsample]
+        return IMF[to_keep], mags[:, to_keep]
 
     def model_galaxy(self, galaxy, lum_cut=np.inf, system='vega',
                      downsample=1,

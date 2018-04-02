@@ -85,7 +85,7 @@ _code = """
    #include <math.h>
    extern "C"
    {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float *red_per_ebv, float dust_frac, float dust_mean, float dust_sig, const int num_bands,
+   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float *red_per_ebv, const float dust_frac, const float dust_mean, const float dust_sig, const int num_bands,
                                const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
    {
       /* Initialize variables */
@@ -116,7 +116,7 @@ _code = """
              count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
              count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
              for (int f = 0; f < num_bands; f++){
-                reddening = powf(10., -0.4 * (dust * red_per_ebv[f]));
+                reddening = (float) powf(10., -0.4 * (dust * red_per_ebv[f]));
                 flux = fluxes[i + (f*num_bins)];
                 /* add stars in front of dust screen */
                 results[f] += count_front * flux;
@@ -302,10 +302,11 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
     if mode == 'default':
         _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
-              cuda.In(red_per_ebvs), np.float32(dust_mean), np.float32(dust_std),
+              cuda.In(red_per_ebvs), np.float32(dust_frac), np.float32(dust_mean), np.float32(dust_std),
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs))
-        return result_behind
+              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
+              block=block_dim, grid=grid_dim)
+        return result_behind.astype(np.float64)
     else:
         dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
                                           size=(N_scale, N_scale))
@@ -323,7 +324,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
                          cuda.Out(result_front), cuda.Out(result_behind),
                          np.int32(skip_n), np.int32(num_procs),
                          block=block_dim, grid=grid_dim)
-        return result_front + result_behind*reddening
+        return (result_front + result_behind*reddening).astype(np.float64)
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
