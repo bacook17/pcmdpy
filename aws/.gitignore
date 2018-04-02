@@ -5,3 +5,4 @@ config_files/*
 data/*
 *.jnk
 makefile
+batch_files/*

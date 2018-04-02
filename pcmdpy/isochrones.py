@@ -174,7 +174,7 @@ class Isochrone_Model:
         return None
     
     def get_isochrone(self, age, z, imf_func=salpeter_IMF, rare_cut=0.,
-                      system="vega", **kwargs):
+                      downsample=1, system="vega", **kwargs):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
@@ -182,6 +182,7 @@ class Isochrone_Model:
            z ---
            imf_func ---
            rare_cut ---
+           downsample --- 
            system ---
         Output:
            imf ---
@@ -229,15 +230,17 @@ class Isochrone_Model:
         # remove stars that are extremely rare
         to_keep = (IMF >= rare_cut)
 
-        return IMF[to_keep], mags[:, to_keep]
+        return IMF[to_keep][::downsample], mags[:, to_keep][:, ::downsample]
 
     def model_galaxy(self, galaxy, lum_cut=np.inf, system='vega',
+                     downsample=1,
                      **kwargs):
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh in galaxy.iter_SSPs():
-            imf, m = self.get_isochrone(age, feh, system=system, **kwargs)
+            imf, m = self.get_isochrone(age, feh, system=system,
+                                        downsample=downsample, **kwargs)
             weights = np.append(weights, imf*sfh)
             mags = np.append(mags, m, axis=-1)
         lum = np.power(10., -0.4*mags)
@@ -245,13 +248,15 @@ class Isochrone_Model:
         to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
         return weights[to_keep], mags[:, to_keep]
 
-    def plot_isochrone(self, galaxy, axes=None, system='vega', **kwargs):
+    def plot_isochrone(self, galaxy, axes=None, system='vega', downsample=1,
+                       **kwargs):
         if axes is None:
             import matplotlib.pyplot as plt
             fig, axes = plt.subplots(ncols=(self.num_filters-1), sharey=True)
         names = self.filter_names
         for age, feh, _ in galaxy.iter_SSPs():
-            _, mags = self.get_isochrone(age, feh, system=system)
+            _, mags = self.get_isochrone(age, feh, system=system,
+                                         downsample=downsample)
             if self.num_filters == 2:
                 axes.plot(mags[1]-mags[0], mags[0], 'k-',
                           label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),

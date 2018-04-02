@@ -35,7 +35,7 @@ _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
 
-_code = """
+_single_code = """
    #include <curand_kernel.h>
 
    extern "C"
@@ -80,7 +80,68 @@ _code = """
    }
 """
 
-_lognorm_code = """
+_code = """
+   #include <curand_kernel.h>
+   #include <math.h>
+   extern "C"
+   {
+   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float *red_per_ebv, float dust_frac, float dust_mean, float dust_sig, const int num_bands,
+                               const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
+   {
+      /* Initialize variables */
+      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
+      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
+      int id_pix = (id_imx) + N*id_imy;
+      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
+      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
+
+      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
+
+      curandState local_state = global_state[seed_id];
+      float results[10] = {0.0};
+
+      float flux;
+      int count_front, count_behind, skip;
+      float dust;
+      float reddening;
+
+      if ((id_imx < N) && (id_imy < N)) {
+          /* Update local_state, to make sure values are very random */
+          skip = skip_n * block_id;
+          skipahead(skip, &local_state);
+          /* Draw dust for this pixel */
+          dust = curand_log_normal(&local_state, dust_mean, dust_sig);
+          for (int i = 0; i < num_bins; i++){
+             /* distribute some starsin front of the dust screen, some behind */
+             count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
+             count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
+             for (int f = 0; f < num_bands; f++){
+                reddening = powf(10., -0.4 * (dust * red_per_ebv[f]));
+                flux = fluxes[i + (f*num_bins)];
+                /* add stars in front of dust screen */
+                results[f] += count_front * flux;
+                /* add stars behind dust screen */
+                results[f] += count_behind * flux * reddening;
+             }
+          }
+          /* Save results for each band */
+          for (int f = 0; f < num_bands; f++){
+             pixels[id_pix + (N*N)*f] = results[f];
+          }
+      }
+
+      /* Save back state */
+      global_state[seed_id] = local_state;
+
+   }
+
+   }
+
+
+"""
+
+
+_double_code = """
    #include <curand_kernel.h>
    #include <math.h>
    extern "C"
@@ -162,16 +223,20 @@ def initialize_gpu(n=None):
         _MAX_2D_BLOCK_DIM = 32
     
     try:
+        global _single_mod
         global _mod
-        global _lognorm_mod
+        global _double_mod
         print('Starting SourceModule Code')
+        _single_mod = SourceModule(_single_code, keep=False, no_extern_c=True)
         _mod = SourceModule(_code, keep=False, no_extern_c=True)
-        _lognorm_mod = SourceModule(_lognorm_code, keep=False, no_extern_c=True)
+        _double_mod = SourceModule(_double_code, keep=False, no_extern_c=True)
         print('Getting function')
+        global _single_func
         global _func
-        global _lognorm_func
+        global _double_func
+        _single_func = _single_mod.get_function('poisson_sum')
         _func = _mod.get_function('poisson_sum')
-        _lognorm_func = _lognorm_mod.get_function('poisson_sum')
+        _double_func = _double_mod.get_function('poisson_sum')
         print('Past the SourceModule code')
     except cuda.CompileError as e:
         print('Something Failed')
@@ -203,7 +268,8 @@ def seed_getter_fixed(N, value=None):
         return result.fill(value)
         
 def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
-                      dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, my_shuffle=False, **kwargs):
+                      dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
+                      mode='default', **kwargs):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
               ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
                "_GPU_ACTIVE are set to False"))
@@ -215,6 +281,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
+    red_per_ebvs = np.array([f._red_per_ebv for f in filters]).astype(np.float32)
 
     N_scale = N_scale
 
@@ -233,23 +300,30 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
-    if dust_frac >= 0.99:
+    if mode == 'default':
         _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
+              cuda.In(red_per_ebvs), np.float32(dust_mean), np.float32(dust_std),
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
-              block=block_dim, grid=grid_dim)
+              cuda.Out(result_behind), np.in32(skip_n), np.int32(num_procs))
+        return result_behind
     else:
-        _lognorm_func(generator._state, cuda.In(expected_nums),
-                      cuda.In(fluxes), np.float32(dust_frac),
-                      np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-                      cuda.Out(result_front), cuda.Out(result_behind),
-                      np.int32(skip_n), np.int32(num_procs),
-                      block=block_dim, grid=grid_dim)
-    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
-                                      size=(N_scale, N_scale))
-    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
-                          for f in filters])
-    return result_front + result_behind*reddening
+        dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
+                                          size=(N_scale, N_scale))
+        reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
+                              for f in filters])
+        if mode == 'single':
+            _single_func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
+                         np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+                         cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
+                         block=block_dim, grid=grid_dim)
+        else:
+            _double_func(generator._state, cuda.In(expected_nums),
+                         cuda.In(fluxes), np.float32(dust_frac),
+                         np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+                         cuda.Out(result_front), cuda.Out(result_behind),
+                         np.int32(skip_n), np.int32(num_procs),
+                         block=block_dim, grid=grid_dim)
+        return result_front + result_behind*reddening
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
