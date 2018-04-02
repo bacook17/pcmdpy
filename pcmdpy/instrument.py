@@ -204,7 +204,7 @@ class ACS_WFC_F435W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F435W attributes
     """
-    def __init__(self, d_mpc, exposure=3235.):
+    def __init__(self, d_mpc, exposure=3235., **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
@@ -215,7 +215,7 @@ class ACS_WFC_F435W(Filter):
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = {}
+        args = dict(kwargs)
         args['exposure'] = exposure
         args['zero_point'] = 25.571   # VEGAmag. see filter_setup.ipynb
         args['d_mpc'] = d_mpc
@@ -238,7 +238,7 @@ class ACS_WFC_F475W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3620.0
     Output: Filter with default F475W attributes
     """
-    def __init__(self, d_mpc, exposure=3620.):
+    def __init__(self, d_mpc, exposure=3620., **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
@@ -249,7 +249,7 @@ class ACS_WFC_F475W(Filter):
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = {}
+        args = dict(kwargs)
         args['exposure'] = exposure
         args['zero_point'] = 26.0593
         args['d_mpc'] = d_mpc
@@ -272,7 +272,7 @@ class ACS_WFC_F555W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F555W attributes
     """
-    def __init__(self, d_mpc, exposure=3235.):
+    def __init__(self, d_mpc, exposure=3235., **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
@@ -283,7 +283,7 @@ class ACS_WFC_F555W(Filter):
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = {}
+        args = dict(kwargs)
         args['exposure'] = exposure
         args['zero_point'] = 25.712  # VEGAmag see filter_setup.ipynb
         args['d_mpc'] = d_mpc
@@ -306,7 +306,7 @@ class ACS_WFC_F814W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F814W attributes
     """
-    def __init__(self, d_mpc, exposure=3235.):
+    def __init__(self, d_mpc, exposure=3235., **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
@@ -317,7 +317,7 @@ class ACS_WFC_F814W(Filter):
         if (exposure < 0.):
             raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = {}
+        args = dict(kwargs)
         args['exposure'] = exposure
         args['zero_point'] = 26.36
         args['d_mpc'] = d_mpc

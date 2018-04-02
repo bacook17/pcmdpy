@@ -281,7 +281,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
-    red_per_ebvs = np.array([f._red_per_ebv for f in filters]).astype(np.float32)
+    red_per_ebvs = np.array([f.red_per_ebv for f in filters]).astype(np.float32)
 
     N_scale = N_scale
 
