@@ -304,7 +304,7 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
         _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
               cuda.In(red_per_ebvs), np.float32(dust_mean), np.float32(dust_std),
               np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-              cuda.Out(result_behind), np.in32(skip_n), np.int32(num_procs))
+              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs))
         return result_behind
     else:
         dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
