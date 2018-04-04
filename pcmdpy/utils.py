@@ -379,6 +379,84 @@ class ResultsPlotter(object):
             axes[0].set_title(title)
         return axes
 
+    def plot_sfh(self, width=68., axis=None, title=None,
+                 burn=0, show_prior=True, log=False, norm=True, **plot_kwargs):
+        if (width > 100.) or (width < 0.):
+            print('width must be between 0 and 100')
+            return
+        if self.age_model == agemodels.SSPModel:
+            print('Cannot plot cumulative SFH for SSP')
+            return
+        n_plot = self.num_iters - burn
+        cols = self.age_model._param_names
+        vals = self.df[cols].values[-n_plot:]
+        edges = self.age_model.default_edges
+        ages = 10.**(edges[-1] - 9.) - 10.**(edges - 9.)
+        if norm:
+            dt = -np.diff(ages * 1e9)
+        else:
+            dt = np.ones(len(ages) - 1)
+        ages = np.repeat(ages, 2)[1:-1]
+        edges = np.repeat(edges, 2)[1:-1]
+        if log:
+            x = edges
+        else:
+            x = ages
+        sfh = np.array([np.log10(self.age_model(v, iso_step=-1.).SFH / dt)
+                        for v in vals])
+        if self.true_model is not None:
+            p_age = self.age_model._num_params
+            vals_true = self.true_model._params[-p_age:]
+            true_sfh = np.log10(self.age_model(vals_true,
+                                               iso_step=-1.).SFH / dt)
+        # ages = 0.5*(edges[:-1] + edges[1:])
+
+        if axis is None:
+            fig, axis = plt.subplots()
+        med = np.repeat(np.percentile(sfh, 50., axis=0), 2)
+        upper = np.repeat(np.percentile(sfh, 50. + 0.5*width, axis=0), 2)
+        lower = np.repeat(np.percentile(sfh, 50. - 0.5*width, axis=0), 2)
+        if 'color' in plot_kwargs:
+            color = plot_kwargs.pop('color')
+        else:
+            color = 'k'
+        if 'alpha' in plot_kwargs:
+            alpha = plot_kwargs.pop('alpha')
+        else:
+            alpha = 0.3
+        axis.plot(x, med, ls='-', color=color, **plot_kwargs)
+        axis.fill_between(x, y1=lower, y2=upper, alpha=alpha, color=color,
+                          **plot_kwargs)
+        if self.true_model is not None:
+            axis.plot(x, np.repeat(true_sfh, 2), ls='--', color=color, **plot_kwargs)
+        axis.set_yscale('linear')
+        if title is None:
+            axis.set_title(self.run_name)
+        else:
+            axis.set_title(title)
+        if log:
+            axis.set_xlabel('log age (yr)')
+        else:
+            axis.set_xlabel('Time (Gyr)')
+        if norm:
+            axis.set_ylabel('Log Instantaneous SFR')
+        else:
+            axis.set_ylabel('Log Stars Formed')
+        if show_prior:
+            if self.prior is None:
+                self.plot_sfh(burn=0, axis=axis, width=99.9, color='b',
+                                  alpha=0.1, zorder=-1, show_prior=False,
+                                  title=title, norm=norm, log=log, 
+                                  **plot_kwargs)
+            else:
+                lower_p = self.prior.lower_bounds[-p_age:]
+                upper_p = self.prior.upper_bounds[-p_age:]
+                lower = np.repeat(np.log10(self.age_model(lower_p, iso_step=-1.).SFH / dt), 2)
+                upper = np.repeat(np.log10(self.age_model(upper_p, iso_step=-1.).SFH / dt), 2)
+                axis.fill_between(x, y1=lower, y2=upper, alpha=0.1,
+                                  color='b', zorder=-1, **plot_kwargs)
+        return axis
+    
     def plot_cum_sfh(self, width=68., axis=None, title=None,
                      burn=0, show_prior=True, **plot_kwargs):
         if (width > 100.) or (width < 0.):
@@ -398,6 +476,69 @@ class ResultsPlotter(object):
             true_cum_sfh = self.age_model(vals_true,
                                           iso_step=-1.).get_cum_sfh()
         edges = self.age_model.default_edges
+        ages = 10.**(edges[-1] - 9.) - 10.**(edges - 9.)
+        # ages = 0.5*(edges[:-1] + edges[1:])
+
+        if axis is None:
+            fig, axis = plt.subplots()
+        med = np.percentile(cum_sfh, 50., axis=0)
+        upper = np.percentile(cum_sfh, 50. + 0.5*width, axis=0)
+        lower = np.percentile(cum_sfh, 50. - 0.5*width, axis=0)
+        if 'color' in plot_kwargs:
+            color = plot_kwargs.pop('color')
+        else:
+            color = 'k'
+        if 'alpha' in plot_kwargs:
+            alpha = plot_kwargs.pop('alpha')
+        else:
+            alpha = 0.3
+        axis.plot(ages, med, ls='-', color=color, **plot_kwargs)
+        axis.fill_between(ages, y1=lower, y2=upper, alpha=alpha, color=color,
+                          **plot_kwargs)
+        if self.true_model is not None:
+            axis.plot(ages, true_cum_sfh, ls='--', color=color, **plot_kwargs)
+        axis.set_yscale('linear')
+        if title is None:
+            axis.set_title(self.run_name)
+        else:
+            axis.set_title(title)
+        axis.set_xlabel('Time (Gyr)')
+        axis.set_ylabel('cumulative SFH')
+        if show_prior:
+            if self.prior is None:
+                self.plot_cum_sfh(burn=0, axis=axis, width=99.9, color='b',
+                                  alpha=0.1, zorder=-1, show_prior=False,
+                                  title=title,
+                                  **plot_kwargs)
+            else:
+                lower_p = self.prior.lower_bounds[-p_age:]
+                upper_p = self.prior.upper_bounds[-p_age:]
+                lower = self.age_model(lower_p, iso_step=-1.).get_cum_sfh()
+                upper = self.age_model(upper_p, iso_step=-1.).get_cum_sfh()
+                axis.fill_between(ages, y1=lower, y2=upper, alpha=0.1,
+                                  color='b', zorder=-1, **plot_kwargs)
+        return axis
+
+    def plot_cum_sfh_log(self, width=68., axis=None, title=None,
+                         burn=0, show_prior=True, **plot_kwargs):
+        if (width > 100.) or (width < 0.):
+            print('width must be between 0 and 100')
+            return
+        if self.age_model == agemodels.SSPModel:
+            print('Cannot plot cumulative SFH for SSP')
+            return
+        n_plot = self.num_iters - burn
+        cols = self.age_model._param_names
+        vals = self.df[cols].values[-n_plot:]
+        cum_sfh = np.array([self.age_model(v, iso_step=-1.).get_cum_sfh(inverted=False)
+                            for v in vals])
+        if self.true_model is not None:
+            p_age = self.age_model._num_params
+            vals_true = self.true_model._params[-p_age:]
+            true_cum_sfh = self.age_model(vals_true,
+                                          iso_step=-1.).get_cum_sfh(inverted=False)
+        edges = self.age_model.default_edges
+        # ages = 10.**(edges[-1] - 9.) - 10.**(edges - 9.)
         ages = 0.5*(edges[:-1] + edges[1:])
 
         if axis is None:
@@ -427,19 +568,20 @@ class ResultsPlotter(object):
         axis.set_ylabel('log cumulative SFH')
         if show_prior:
             if self.prior is None:
-                self.plot_cum_sfh(burn=0, axis=axis, width=99.9, color='b',
+                self.plot_cum_sfh_log(burn=0, axis=axis, width=99.9, color='b',
                                   alpha=0.1, zorder=-1, show_prior=False,
                                   title=title,
                                   **plot_kwargs)
             else:
                 lower_p = self.prior.lower_bounds[-p_age:]
                 upper_p = self.prior.upper_bounds[-p_age:]
-                lower = self.age_model(lower_p, iso_step=-1.).get_cum_sfh()
-                upper = self.age_model(upper_p, iso_step=-1.).get_cum_sfh()
+                lower = self.age_model(lower_p, iso_step=-1.).get_cum_sfh(inverted=False)
+                upper = self.age_model(upper_p, iso_step=-1.).get_cum_sfh(inverted=False)
                 axis.fill_between(ages, y1=lower, y2=upper, alpha=0.1,
                                   color='b', zorder=-1, **plot_kwargs)
         return axis
 
+    
     def plot_corner(self, fig=None, title=None, burn=0, bins=30,
                     smooth_frac=.03, smooth1d=0.,
                     weight=True, full_range=True,
@@ -503,6 +645,13 @@ class ResultsPlotter(object):
             corner_kwargs = {}
         corner_kwargs.update(all_kwargs)
         chain_axes = self.plot_chains(**chain_kwargs)
-        cum_sfh_ax = self.plot_cum_sfh(**cum_sfh_kwargs)
+        fig, axes = plt.subplots(ncols=3, nrows=2, figsize=(12, 10))
+        axes = axes.flatten()
+        self.plot_cum_sfh(axis=axes[0], **cum_sfh_kwargs)
+        self.plot_cum_sfh_log(axis=axes[1], **cum_sfh_kwargs)
+        self.plot_sfh(axis=axes[2], norm=True, log=False, **cum_sfh_kwargs)
+        self.plot_sfh(axis=axes[3], norm=False, log=False,  **cum_sfh_kwargs)
+        self.plot_sfh(axis=axes[4], norm=True, log=True,  **cum_sfh_kwargs)
+        self.plot_sfh(axis=axes[5], norm=False, log=True, **cum_sfh_kwargs)
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
-        return (chain_axes, cum_sfh_ax, (corner_fig, corner_axes))
+        return (chain_axes, axes, (corner_fig, corner_axes))

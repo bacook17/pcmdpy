@@ -21,10 +21,10 @@ class _AgeModel:
     def get_vals(self):
         return self.ages, self.SFH
 
-    def get_cum_sfh(self, inverted=False):
+    def get_cum_sfh(self, inverted=True):
         normed_sfh = self.SFH / self.Npix
         if inverted:
-            return np.cumsum(normed_sfh[::-1])[::-1]
+            return np.append(0., np.cumsum(normed_sfh[::-1]))[::-1]
         else:
             return np.cumsum(normed_sfh)
 
