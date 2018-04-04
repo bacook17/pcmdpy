@@ -3,8 +3,8 @@ import warnings
 import os
 import multiprocessing
 from pcmdpy.utils import my_assert
-# from reikna import cluda
-# from reikna.fft import FFT
+from pcmdpy import dustmodels
+from pkg_resources import resource_filename
 
 try:
     import pycuda
@@ -35,165 +35,6 @@ _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
 
-_single_code = """
-   #include <curand_kernel.h>
-
-   extern "C"
-   {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const int num_bands, const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
-   {
-      /* Initialize variables */
-      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
-      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
-      int id_pix = (id_imx) + N*id_imy;
-      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
-      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
-
-      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
-
-      curandState local_state = global_state[seed_id];
-      float results[10] = {0.0};
-
-      float flux;
-      int count, skip;
-
-      if ((id_imx < N) && (id_imy < N)) {
-          /* Update local_state, to make sure values are very random */
-          skip = skip_n * block_id;
-          skipahead(skip, &local_state);
-          for (int i = 0; i < num_bins; i++){
-             count = curand_poisson(&local_state, exp_nums[i]);
-             for (int f = 0; f < num_bands; f++){
-                flux = fluxes[i + (f*num_bins)];
-                results[f] += count * flux;
-             }
-          }
-          /* Save results for each band */
-          for (int f = 0; f < num_bands; f++){
-             pixels[id_pix + (N*N)*f] = results[f];
-          }
-      }
-
-      /* Save back state */
-      global_state[seed_id] = local_state;
-   }
-   }
-"""
-
-_code = """
-   #include <curand_kernel.h>
-   #include <math.h>
-   extern "C"
-   {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float *red_per_ebv, const float dust_frac, const float dust_mean, const float dust_sig, const int num_bands,
-                               const int num_bins, const int N, float *pixels, const int skip_n, const int num_procs)
-   {
-      /* Initialize variables */
-      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
-      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
-      int id_pix = (id_imx) + N*id_imy;
-      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
-      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
-
-      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
-
-      curandState local_state = global_state[seed_id];
-      float results[10] = {0.0};
-
-      float flux;
-      int count_front, count_behind, skip;
-      float dust;
-      float reddening;
-
-      if ((id_imx < N) && (id_imy < N)) {
-          /* Update local_state, to make sure values are very random */
-          skip = skip_n * block_id;
-          skipahead(skip, &local_state);
-          /* Draw dust for this pixel */
-          dust = curand_log_normal(&local_state, dust_mean, dust_sig);
-          for (int i = 0; i < num_bins; i++){
-             /* distribute some starsin front of the dust screen, some behind */
-             count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
-             count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
-             for (int f = 0; f < num_bands; f++){
-                reddening = (float) powf(10., -0.4 * (dust * red_per_ebv[f]));
-                flux = fluxes[i + (f*num_bins)];
-                /* add stars in front of dust screen */
-                results[f] += count_front * flux;
-                /* add stars behind dust screen */
-                results[f] += count_behind * flux * reddening;
-             }
-          }
-          /* Save results for each band */
-          for (int f = 0; f < num_bands; f++){
-             pixels[id_pix + (N*N)*f] = results[f];
-          }
-      }
-
-      /* Save back state */
-      global_state[seed_id] = local_state;
-
-   }
-
-   }
-
-
-"""
-
-
-_double_code = """
-   #include <curand_kernel.h>
-   #include <math.h>
-   extern "C"
-   {
-   __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, float dust_frac, const int num_bands,
-                               const int num_bins, const int N, float *pixels_front, float *pixels_behind, const int skip_n, const int num_procs)
-   {
-      /* Initialize variables */
-      int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
-      int id_imy = blockIdx.y*blockDim.y + threadIdx.y;
-      int id_pix = (id_imx) + N*id_imy;
-      int id_within_block = threadIdx.x + (blockDim.x * threadIdx.y);
-      int block_id = blockIdx.x*gridDim.y + blockIdx.y;
-
-      int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
-
-      curandState local_state = global_state[seed_id];
-      float results_front[10] = {0.0};
-      float results_behind[10] = {0.0};
-
-      float flux;
-      int count_front, count_behind, skip;
-
-      if ((id_imx < N) && (id_imy < N)) {
-          /* Update local_state, to make sure values are very random */
-          skip = skip_n * block_id;
-          skipahead(skip, &local_state);
-          for (int i = 0; i < num_bins; i++){
-             /* distribute some starsin front of the dust screen, some behind */
-             count_front = curand_poisson(&local_state, exp_nums[i] * (1.0 - dust_frac));
-             count_behind = curand_poisson(&local_state, exp_nums[i] * dust_frac);
-             for (int f = 0; f < num_bands; f++){
-                flux = fluxes[i + (f*num_bins)];
-                /* add stars in front of dust screen */
-                results_front[f] += count_front * flux;
-                /* add stars behind dust screen */
-                results_behind[f] += count_behind * flux;
-             }
-          }
-          /* Save results for each band */
-          for (int f = 0; f < num_bands; f++){
-             pixels_front[id_pix + (N*N)*f] = results_front[f];
-             pixels_behind[id_pix + (N*N)*f] = results_behind[f];
-          }
-      }
-
-      /* Save back state */
-      global_state[seed_id] = local_state;
-   }
-   }
-"""
-
 def initialize_gpu(n=None):
     """
     This function makes pycuda use GPU number n in the system. If no n is provided, will use the current
@@ -207,6 +48,11 @@ def initialize_gpu(n=None):
     else:
         print(('using given n: {0:d}'.format(n)))
     
+    src_file = resource_filename('pcmdpy', 'src/') + 'poisson_sum.c'
+
+    with open(src_file, 'r') as f:
+        src_code = f.read()
+
     os.environ['CUDA_DEVICE'] = '{0:d}'.format(n)
     import pycuda.autoinit
 
@@ -223,23 +69,13 @@ def initialize_gpu(n=None):
         _MAX_2D_BLOCK_DIM = 32
     
     try:
-        global _single_mod
-        global _mod
-        global _double_mod
         print('Starting SourceModule Code')
-        _single_mod = SourceModule(_single_code, keep=False, no_extern_c=True)
-        _mod = SourceModule(_code, keep=False, no_extern_c=True)
-        _double_mod = SourceModule(_double_code, keep=False, no_extern_c=True)
-        print('Getting function')
-        global _single_func
-        global _func
-        global _double_func
-        _single_func = _single_mod.get_function('poisson_sum')
-        _func = _mod.get_function('poisson_sum')
-        _double_func = _double_mod.get_function('poisson_sum')
+        module = SourceModule(src_code, keep=False, no_extern_c=True)
+        global poisson_sum_gpu
+        poisson_sum_gpu = module.get_function('poisson_sum')
         print('Past the SourceModule code')
     except cuda.CompileError as e:
-        print('Something Failed')
+        print('Something Failed in Compiling C Source')
         print(e.msg)
         print(e.stderr)
     else:
@@ -247,13 +83,12 @@ def initialize_gpu(n=None):
         _CUDAC_AVAIL = True
         print('CUDAC Available')
 
-def draw_image(expected_nums, fluxes, N_scale, filters, dust_frac, dust_mean, dust_std,
-               gpu=_GPU_ACTIVE, fixed_seed=False, **kwargs):
+def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
     if gpu:
-        func = _draw_image_cudac
+        func = _draw_image_gpu
     else:
         func = _draw_image_numpy
-    return func(expected_nums, fluxes, N_scale, filters, dust_frac, dust_mean, dust_std, fixed_seed=fixed_seed, **kwargs)
+    return func(*args, **kwargs)
 
 def seed_getter_fixed(N, value=None):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
@@ -267,9 +102,9 @@ def seed_getter_fixed(N, value=None):
     else:
         return result.fill(value)
         
-def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
-                      dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
-                      mode='default', **kwargs):
+def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
+                    dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
+                    **kwargs):
     my_assert(_GPU_AVAIL & _GPU_ACTIVE,
               ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
                "_GPU_ACTIVE are set to False"))
@@ -281,7 +116,6 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
-    red_per_ebvs = np.array([f.red_per_ebv for f in filters]).astype(np.float32)
 
     N_scale = N_scale
 
@@ -294,37 +128,36 @@ def _draw_image_cudac(expected_nums, fluxes, N_scale, filters, dust_frac,
         seed_getter = curandom.seed_getter_uniform
 
     generator = curandom.XORWOWRandomNumberGenerator(seed_getter=seed_getter)
+    d_states = generator._state
     num_procs = generator.block_count
+    d_expected_nums = cuda.In(expected_nums)
+    d_fluxes = cuda.In(fluxes)
+
     result_front = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
     result_behind = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
     
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
-    if mode == 'default':
-        _func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
-              cuda.In(red_per_ebvs), np.float32(dust_frac), np.float32(dust_mean), np.float32(dust_std),
-              np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-              cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
-              block=block_dim, grid=grid_dim)
-        return result_behind.astype(np.float64)
-    else:
-        dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
-                                          size=(N_scale, N_scale))
-        reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
-                              for f in filters])
-        if mode == 'single':
-            _single_func(generator._state, cuda.In(expected_nums), cuda.In(fluxes),
-                         np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-                         cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
-                         block=block_dim, grid=grid_dim)
-        else:
-            _double_func(generator._state, cuda.In(expected_nums),
-                         cuda.In(fluxes), np.float32(dust_frac),
-                         np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-                         cuda.Out(result_front), cuda.Out(result_behind),
-                         np.int32(skip_n), np.int32(num_procs),
-                         block=block_dim, grid=grid_dim)
-        return (result_front + result_behind*reddening).astype(np.float64)
+
+    # draw stars behind dust screen
+    poisson_sum_gpu(d_states, d_expected_nums, d_fluxes,
+                    np.float32(dust_frac), np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+                    cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
+                    block=block_dim, grid=grid_dim)
+
+    # draw stars in front of dust screen
+    if dust_frac <= 0.99:
+        poisson_sum_gpu(d_states, d_expected_nums, d_fluxes,
+                        np.float32(1. - dust_frac), np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
+                        cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
+                        block=block_dim, grid=grid_dim)
+
+    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
+                                      size=(N_scale, N_scale))
+    reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
+                          for f in filters])
+
+    return result_front + result_behind*reddening
 
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
