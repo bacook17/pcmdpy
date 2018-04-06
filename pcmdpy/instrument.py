@@ -9,6 +9,7 @@ from pcmdpy import utils
 from pcmdpy.gpu_utils import gpu_log10
 from scipy.signal import fftconvolve, gaussian
 from pkg_resources import resource_filename
+from warnings import warn
 
 
 class Filter:
@@ -31,10 +32,8 @@ class Filter:
        HST_F814W -- the Hubble F814W filter (only free parameter is distance)
     """
 
-    
-    def __init__(self, exposure, zero_point, d_mpc, red_per_ebv, 
-                 vega_to_ab, vega_to_st, psf,
-                 name="", tex_name="", MIST_column="", MIST_column_alt="",
+    def __init__(self, exposure, zpt_vega, zpt_ab, zpt_st, d_mpc, red_per_ebv,
+                 psf, name="", tex_name="", MIST_column="", MIST_column_alt="",
                  tiled_psf=True, **kwargs):
         """Create a new Filter, given input properties of observation
 
@@ -45,8 +44,6 @@ class Filter:
            d_mpc -- the assumed distance to the source in Mpc (int or float)
            red_per_ebv -- the Reddening value [A_x / E(B-V)], such as from Schlafly & Finkbeiner 2011, Table 6 (float)
            psf -- the PSF kernel, should be normalized to one (2D square array of floats)
-           vega_to_ab --
-           vega_to_st --
         Keyword Argments:
            name -- descriptive name of the filter (string)
            tex_name -- LaTeX formatted name of the filter, eg for use in plotting (string, eg: r"g$_{475}$")
@@ -57,11 +54,12 @@ class Filter:
         #validate and initialize internal attributes
         try:
             self._exposure = float(exposure)
-            self._zero_point = float(zero_point)
+            self._zpts = {}
+            self._zpts['vega'] = float(zpt_vega)
+            self._zpts['ab'] = float(zpt_ab)
+            self._zpts['st'] = float(zpt_st)
             self._dmod = 25. + 5.*np.log10(d_mpc)  # distance modulus
             self.red_per_ebv = float(red_per_ebv)
-            self._vega_to_ab = float(vega_to_ab)
-            self._vega_to_st = float(vega_to_st)
         except TypeError:
             print('First six arguments must each be either a float or integer')
             raise
@@ -97,7 +95,7 @@ class Filter:
     #########################
     # Filter methods
     
-    def mag_to_counts(self, mags):
+    def mag_to_counts(self, mags, system='vega'):
         """Convert absolute magnitudes to photon counts (no reddening assumed)
 
         Arguments:
@@ -105,10 +103,16 @@ class Filter:
         Output:
            counts -- photon counts (same type as input)
         """
+        if system in self._zpts:
+            zpt = self._zpts[system]
+        else:
+            warn(('system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(system)))
+            zpt = self._zpts['vega']
 
-        return 10.**(-0.4 * (mags + self._dmod - self._zero_point)) * self._exposure
+        return 10.**(-0.4 * (mags + self._dmod - zpt)) * self._exposure
 
-    def counts_to_mag(self, counts, **kwargs):
+    def counts_to_mag(self, counts, system='vega', **kwargs):
         """Convert photon counts to absolute magnitudes (assuming reddening)
 
         Arguments:
@@ -116,8 +120,14 @@ class Filter:
         Output:
            mags -- absolute magnitudes (same type as input)
         """
+        if system in self._zpts:
+            zpt = self._zpts[system]
+        else:
+            warn(('system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(system)))
+            zpt = self._zpts['vega']
 
-        return -2.5*gpu_log10(counts / self._exposure, **kwargs) + self._zero_point - self._dmod
+        return -2.5*gpu_log10(counts / self._exposure, **kwargs) + zpt - self._dmod
 
     def psf_convolve(self, image, multi_psf=True, convolve_func=None, **kwargs):
         """Convolve image with instrumental PSF
@@ -197,6 +207,8 @@ class Filter:
 
 ##############################
 # Pre-defined Filters
+
+
 class ACS_WFC_F435W(Filter):
     """Return a Filter with HST F435W default params
     Arguments:
@@ -204,24 +216,20 @@ class ACS_WFC_F435W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F435W attributes
     """
-    def __init__(self, d_mpc, exposure=3235., **kwargs):
+    def __init__(self, d_mpc, **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or
-                        isinstance(exposure, float),
-                        "exposure must be real number")
-        if (exposure < 0.):
-            raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = dict(kwargs)
-        args['exposure'] = exposure
-        args['zero_point'] = 25.571   # VEGAmag. see filter_setup.ipynb
+        args = {}
+        # set defaults
+        args['exposure'] = 16320.0
+        args['zpt_vega'] = 25.7885  # see filter_setup.ipynb
+        args['zpt_ab'] = 25.6903
+        args['zpt_st'] = 25.1801
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.610
-        args['vega_to_ab'] = -0.1017
-        args['vega_to_st'] = -0.6127
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F435W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -229,8 +237,11 @@ class ACS_WFC_F435W(Filter):
         args['tex_name'] = r"B$_{435}$"
         args['MIST_column'] = "ACS_WFC_F435W"
         args['MIST_column_alt'] = "Bmag"
+        # update with manual entries
+        args.update(kwargs)
         super().__init__(**args)
 
+        
 class ACS_WFC_F475W(Filter):
     """Return a Filter with HST F475W default params
     Arguments:
@@ -238,24 +249,20 @@ class ACS_WFC_F475W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3620.0
     Output: Filter with default F475W attributes
     """
-    def __init__(self, d_mpc, exposure=3620., **kwargs):
+    def __init__(self, d_mpc, **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or
-                        isinstance(exposure, float),
-                        "exposure must be real number")
-        if (exposure < 0.):
-            raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = dict(kwargs)
-        args['exposure'] = exposure
-        args['zero_point'] = 26.0593
+        args = {}
+        # set defaults
+        args['exposure'] = 3620.
+        args['zpt_vega'] = 26.1511  # see filter_setup.ipynb
+        args['zpt_ab'] = 26.0586
+        args['zpt_st'] = 25.7483
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.248
-        args['vega_to_ab'] = -0.0979
-        args['vega_to_st'] = -0.4086
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F475W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -263,8 +270,11 @@ class ACS_WFC_F475W(Filter):
         args['tex_name'] = r"g$_{475}$"
         args['MIST_column'] = "ACS_WFC_F475W"
         args['MIST_column_alt'] = "bmag"
+        # update with manual entries
+        args.update(kwargs)
         super().__init__(**args)
     
+
 class ACS_WFC_F555W(Filter):
     """Return a Filter with HST F555W default params
     Arguments:
@@ -272,24 +282,20 @@ class ACS_WFC_F555W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F555W attributes
     """
-    def __init__(self, d_mpc, exposure=3235., **kwargs):
+    def __init__(self, d_mpc, **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or
-                        isinstance(exposure, float),
-                        "exposure must be real number")
-        if (exposure < 0.):
-            raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = dict(kwargs)
-        args['exposure'] = exposure
-        args['zero_point'] = 25.712  # VEGAmag see filter_setup.ipynb
+        args = {}
+        # set defaults
+        args['exposure'] = 8160.0
+        args['zpt_vega'] = 25.7318  # see filter_setup.ipynb
+        args['zpt_ab'] = 25.7319
+        args['zpt_st'] = 25.6857
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 2.792
-        args['vega_to_ab'] = -0.0063
-        args['vega_to_st'] = -0.0525
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F555W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -297,7 +303,10 @@ class ACS_WFC_F555W(Filter):
         args['tex_name'] = r"V$_{555}$"
         args['MIST_column'] = "ACS_WFC_F555W"
         args['MIST_column_alt'] = "vmag"
+        # update with manual entries
+        args.update(kwargs)
         super().__init__(**args)
+
 
 class ACS_WFC_F814W(Filter):
     """Return a Filter with HST F814W default params
@@ -306,24 +315,20 @@ class ACS_WFC_F814W(Filter):
        exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F814W attributes
     """
-    def __init__(self, d_mpc, exposure=3235., **kwargs):
+    def __init__(self, d_mpc, **kwargs):
         utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
                         "d_mpc must be real number")
         if (d_mpc < 0.):
             raise ValueError('Argument (d_mpc) must be greater than zero')
-        utils.my_assert(isinstance(exposure, int) or
-                        isinstance(exposure, float),
-                        "exposure must be real number")
-        if (exposure < 0.):
-            raise ValueError('Argument (exposure) must be greater than zero')
 
-        args = dict(kwargs)
-        args['exposure'] = exposure
-        args['zero_point'] = 26.36
+        args = {}
+        # set defaults
+        args['exposure'] = 8160.
+        args['zpt_vega'] = 25.5283  # see filter_setup.ipynb
+        args['zpt_ab'] = 25.9565
+        args['zpt_st'] = 26.7927
         args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 1.536
-        args['vega_to_ab'] = 0.4237
-        args['vega_to_st'] = 1.2632
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F814W.fits'
         args['psf'] = fits.open(psf_file)[0].data.astype(float)
@@ -331,6 +336,8 @@ class ACS_WFC_F814W(Filter):
         args['tex_name'] = r"I$_{814}$"
         args['MIST_column'] = "ACS_WFC_F814W"
         args['MIST_column_alt'] = "imag"
+        # update with manual entries
+        args.update(kwargs)
         super().__init__(**args)
 
 

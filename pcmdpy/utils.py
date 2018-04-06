@@ -324,7 +324,7 @@ class ResultsPlotter(object):
         self.n_params = len(self.params)
             
         self.df['log_weights'] = (self.df.logwt.values -
-                                  logsumexp(self.df.logwt.values))
+                                  logsumexp(self.df.logl.values))
         self.df['weights'] = np.exp(self.df['log_weights'])
         self.df['time_elapsed'] /= 3600.
         try:

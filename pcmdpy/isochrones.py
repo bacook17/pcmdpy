@@ -132,8 +132,10 @@ class Isochrone_Model:
         # Use optional conversions from VEGA to AB or ST, etc
         self.conversions = {}
         self.conversions['vega'] = np.zeros(len(filters), dtype=float)
-        self.conversions['ab'] = np.array([f._vega_to_ab for f in filters])
-        self.conversions['st'] = np.array([f._vega_to_st for f in filters])
+        self.conversions['ab'] = np.array([f._zpts['ab'] - f._zpts['vega']
+                                           for f in filters])
+        self.conversions['st'] = np.array([f._zpts['ab'] - f._zpts['vega']
+                                           for f in filters])
         _z_arr = []
         self.filters = filters
         self.filter_names = [f.tex_name for f in self.filters]
