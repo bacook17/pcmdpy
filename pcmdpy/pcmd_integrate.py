@@ -71,8 +71,9 @@ if __name__ == "__main__":
                   "data_is_mock set to True".format(config_file)))
             sys.exit(1)
     else:
-        data = np.loadtxt(data_file, unpack=True)  # Data columns are Color-Mag
-        data_pcmd = data[::-1, :]  # swap to Mag-Color order
+        data = np.loadtxt(data_file, unpack=True)  # Data columns are Mag-Color
+        data_pcmd = data
+        # data_pcmd = data[::-1, :]  # swap to Mag-Color order
     
     # where to save results
     results_file = args.results
@@ -86,8 +87,7 @@ if __name__ == "__main__":
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
-    for k, v in config.params.items():
-        args[k] = v
+    args.update(config.params)
 
     args['sampler_kwargs'] = config.sampler_params
     args['run_kwargs'] = config.run_params
