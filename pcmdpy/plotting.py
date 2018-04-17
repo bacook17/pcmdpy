@@ -64,14 +64,14 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
 
     denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
     chi = (counts_model - counts_compare) / denom
-    chi_max = max(np.abs(chi))
+    chi_max = np.max(np.abs(chi))
     if norm is None:
         norm = mpl.colors.Normalize(vmin=-chi_max, vmax=chi_max)
-    ax.imshow(chi, norm=norm, origin='lower',
+    ax.imshow(chi.T, norm=norm, origin='lower',
               extent=(xbins[0], xbins[1],
                       ybins[0], ybins[1]),
               **im_kwargs)
-    return ax, bins, norm
+    return ax, chi, bins, norm
 
 
 def plot_isochrone(galaxy, iso_model, axes=None, system='vega', **kwargs):

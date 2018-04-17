@@ -98,8 +98,8 @@ class CustomGalaxy(BaseGalaxy):
         self.age_model.set_params(age_params)
         ages, age_weights = self.age_model.get_vals()
         # set distance parameters
-        if self.p_dist > 0:
-            dist_mod = gal_params[self.p_feh]
+        if self.p_distance > 0:
+            dist_mod = gal_params[-self.p_distance]
         else:
             dist_mod = self.distance_model.dmod
         # merge the age and metallicity bins
@@ -120,16 +120,22 @@ class CustomGalaxy(BaseGalaxy):
 
 DefaultTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
                           ppy.dustmodels.SingleDust(),
-                          ppy.agemodels.TauModel())
+                          ppy.agemodels.TauModel(), 
+                          ppy.distancemodels.FixedDistance(30.))
 DefaultSSP = CustomGalaxy(ppy.metalmodels.SingleFeH(),
                           ppy.dustmodels.SingleDust(),
-                          ppy.agemodels.SSPModel())
+                          ppy.agemodels.SSPModel(),
+                          ppy.distancemodels.FixedDistance(30.))
 DefaultNonParam = CustomGalaxy(ppy.metalmodels.SingleFeH(),
                                ppy.dustmodels.SingleDust(),
-                               ppy.agemodels.NonParam())
+                               ppy.agemodels.NonParam(),
+                               ppy.distancemodels.FixedDistance(30.))
 MDFTau = CustomGalaxy(ppy.metalmodels.NormMDF(),
                       ppy.dustmodels.SingleDust(),
-                      ppy.agemodels.TauModel())
+                      ppy.agemodels.TauModel(),
+                      ppy.distancemodels.FixedDistance(30.))
 LogNormTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
                           ppy.dustmodels.LogNormDust(),
-                          ppy.agemodels.TauModel())
+                          ppy.agemodels.TauModel(),
+                          ppy.distancemodels.FixedDistance(30.))
+
