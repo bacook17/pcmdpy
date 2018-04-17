@@ -10,6 +10,7 @@ from datetime import datetime
 import time
 from pcmdpy import metalmodels, dustmodels, agemodels
 from corner import corner
+from astropy.io import fits
 
 
 # A module to create various utility functions
@@ -31,30 +32,35 @@ def make_pcmd(data):
         raise IndexError("Must be at least 2 images to create a PCMD")
     else:
         for i in range(1, n_filters):
-            pcmd[i] = (data[i] - data[0]).flatten()
+            pcmd[i] = (data[i] - data[i-1]).flatten()
     return pcmd
     
 
 def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
-    n_dim = pcmd.shape[0]
-    n = pcmd.shape[1] #total number of pixels
-    if (n_dim != bins.shape[0]):
-        raise IndexError("The first dimensions of pcmd and bins must match")
-    counts = np.histogramdd(pcmd.T, bins=bins)[0].astype(float)
-    #add "everything else" bin
-    counts = counts.flatten()
+    mags = pcmd[0]
+    colors = pcmd[1:]
+    n_colors = colors.shape[0]
+    n = pcmd.shape[1]  # total number of pixels
+    counts = []
+    for i in range(n_colors):
+        c, _, _ = np.histogram2d(mags, colors[i],
+                                 bins=[bins[0], bins[i+1]])
+        counts.append(c)
+    counts = np.array(counts).flatten()
+    # add "everything else" bin
     counts = np.append(counts, n - np.sum(counts))
     err = np.sqrt(counts)
     
     if charlie_err:
-        #this is Charlie's method for inflating errors
+        # this is Charlie's method for inflating errors
         err[counts < 1.] = 0.1
         err[counts < 2.] *= 10.
     else:
-        #inflate small errors, with inflation decreasing exponentially at higher counts
+        # inflate small errors, with inflation decreasing
+        # exponentially at higher counts
         err += err_min * np.exp(-err)
 
-    #normalize by number of pixels
+    # normalize by number of pixels
     hess = counts / n
     err /= n
     
@@ -655,3 +661,91 @@ class ResultsPlotter(object):
         self.plot_sfh(axis=axes[5], norm=False, log=True, **cum_sfh_kwargs)
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
         return (chain_axes, axes, (corner_fig, corner_axes))
+
+
+class DataSet(object):
+    
+    def __init__(self, file_names, filter_classes):
+        assert(len(file_names) == len(filter_classes))
+        self.n_bands = len(filter_classes)
+        headers = []
+        with fits.open(file_names[0]) as hdu:
+            self.im_shape = hdu[0].data.shape
+            self.images = np.zeros((self.im_shape[0], self.im_shape[1],
+                                    self.n_bands))
+            headers.append(hdu[0].header)
+            self.images[:, :, 0] = hdu[0].data
+        for i, f in enumerate(file_names[1:]):
+            with fits.open(f) as hdu:
+                self.images[:, :, i+1] = hdu[0].data
+                headers.append(hdu[0].header)
+        self.headers = np.array(headers)
+        assert(self.images.ndim == 3)  # else the images weren't matching sizes
+        filters = []
+        for filt, header in zip(filter_classes, headers):
+            filters.append(filt(exposure=header['EXPTIME']))
+        self.filters = np.array(filters)
+        
+    def get_pcmd(self, bool_matrix, bands=None):
+        if bands is not None:
+            assert(max(bands) < self.n_bands)
+            assert(min(bands) <= 0)
+            pixels = self.images[bool_matrix, bands]
+        else:
+            bands = np.arange(self.n_bands)
+            pixels = self.images[bool_matrix, :]
+        assert(bool_matrix.shape == self.im_shape)
+        filts = self.filters[bands]
+        mags = np.zeros_like(pixels.T)
+        for i in bands:
+            flux = pixels[:, i] * filts[i]._exposure  # convert to counts
+            mags[i] = filts[i].counts_to_mag(flux)
+        pcmd = make_pcmd(mags)
+        return pcmd
+
+    def get_image(self, bool_matrix=None, downsample=1, bands=None):
+        if bands is None:
+            bands = np.arange(self.n_bands)
+        if bool_matrix is None:
+            images = np.copy(self.images[::downsample, ::downsample, :])
+            for i, b in enumerate(bands):
+                images[:, :, i] *= self.filters[b]._exposure
+            xmin, ymin = 0, 0
+            xmax, ymax = self.im_shape
+        else:
+            assert(bool_matrix.shape == self.images.shape[:2])
+            bool_matrix = bool_matrix[::downsample, ::downsample]
+            x, y = np.where(bool_matrix)
+            xmin, xmax = min(x), max(x)+1
+            ymin, ymax = min(y), max(y)+1
+            images = np.zeros((xmax-xmin, ymax-ymin, 3))
+            for a in [xmin, xmax, ymin, ymax]:
+                a *= downsample
+            bools = bool_matrix[xmin:xmax, ymin:ymax]
+            for i, b in enumerate(bands):
+                images[bools, i] = self.images[::downsample,
+                                               ::downsample][bool_matrix, b]
+                images[:, :, i] *= self.filters[b]._exposure
+        return images, (ymin, ymax, xmin, xmax)
+
+    
+def plot_rgb_image(images, extent=None, ax=None,
+                   clip_percent=98, r_index=0,
+                   g_index=1, b_index=2):
+    if ax is None:
+        fig, ax = plt.subplots()
+    if images.shape[-1] != 3:
+        assert images.shape[0] == 3, 'not proper RGB image shape'
+        ims_new = np.zeros((images.shape[1], images.shape[2], 3))
+        for i in range(3):
+            ims_new[:, :, i] = images[i]
+        images = np.copy(ims_new)
+    else:
+        images = np.copy(images)
+    for i in range(images.shape[-1]):
+        images[:, :, i] /= np.percentile(images[:, :, i], clip_percent)
+    images[images <= 0.] = 0.
+    images[images >= 1.] = 1.
+    ax.imshow(images, origin='lower', aspect='equal',
+              extent=extent)
+    return ax

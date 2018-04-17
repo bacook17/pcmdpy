@@ -14,7 +14,7 @@ class BaseGalaxy:
 
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
 
-    def __init__(self, ages, fehs, SFH, dust_model, params=None,
+    def __init__(self, ages, fehs, SFH, dust_model, dist_mod, params=None,
                  param_names=None, metal_class=None, age_class=None):
         utils.my_assert(len(ages) == len(fehs),
                         "length of first param and second param must match")
@@ -24,6 +24,7 @@ class BaseGalaxy:
         self.fehs = fehs
         self.SFH = SFH
         self.dust_model = dust_model
+        self.dist_mod = dist_mod
         self.Npix = np.sum(self.SFH)
         self.num_SSPs = len(self.ages)
         self._params = params
@@ -34,7 +35,10 @@ class BaseGalaxy:
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):
-            yield self.ages[i], self.fehs[i], self.SFH[i]
+            yield self.ages[i], self.fehs[i], self.SFH[i], self.dist_mod
+
+    def get_dmpc(self):
+        return 10.**(0.2 * (self.dist_mod - 25.))
 
 
 class CustomGalaxy(BaseGalaxy):
@@ -52,15 +56,14 @@ class CustomGalaxy(BaseGalaxy):
         self.age_model = age_model
         self.p_age = age_model._num_params
         self._param_names += age_model._param_names
-        self.p_total = self.p_feh + self.p_dust + self.p_age
+        # set the distance modulus
+        self._param_names += ['dist_mod']
+        self.p_total = self.p_feh + self.p_dust + self.p_age + 1
         self._num_params = len(self._param_names)
-        if (self._num_params != self.p_total):
-            print(self._num_params, self.p_total)
-            print(self._param_names)
-            assert(False)
+        assert self._num_params == self.p_total, ('galaxy parameter mismatch')
 
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
-                       age_bounds=None):
+                       age_bounds=None, dmod_bounds=None):
         if feh_bounds is None:
             bounds = self.metal_model._default_prior_bounds
         else:
@@ -72,17 +75,23 @@ class CustomGalaxy(BaseGalaxy):
             assert(len(dust_bounds) == self.p_dust)
             bounds += dust_bounds
         if age_bounds is None:
-            bounds = self.age_model._default_prior_bounds
+            bounds += self.age_model._default_prior_bounds
         else:
             assert(len(age_bounds) == self.p_age)
             bounds += age_bounds
+        if dmod_bounds is None:
+            bounds += [[23.5, 30.]]  # 0.5 Mpc to 10 Mpc
+        else:
+            assert len(dmod_bounds) == 1
+            bounds += dmod_bounds
         return priors.FlatPrior(bounds)
 
     def get_model(self, gal_params, iso_step=0.2):
         assert(len(gal_params) == self.p_total)
         feh_params = gal_params[:self.p_feh]
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
-        age_params = gal_params[-self.p_age:]
+        age_params = gal_params[self.p_feh+self.p_dust:-1]
+        dist_mod = gal_params[-1]
         fehs, feh_weights = self.metal_model(feh_params).get_vals()
         dust_model = self.dust_model(dust_params)
         ages, age_weights = self.age_model(age_params,
@@ -96,7 +105,7 @@ class CustomGalaxy(BaseGalaxy):
             new_ages += list(ages)
             new_fehs += [feh]*len(ages)
 
-        return BaseGalaxy(new_ages, new_fehs, SFH, dust_model,
+        return BaseGalaxy(new_ages, new_fehs, SFH, dust_model, dist_mod,
                           params=gal_params, param_names=self._param_names,
                           metal_class=self.metal_model,
                           age_class=self.age_model)

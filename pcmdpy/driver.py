@@ -29,8 +29,6 @@ class Driver:
             self.gpu_on = False
         #No data has been initialized
         self._data_init = False
-        self.num_sims = 0
-        self.num_calls = 0
         
     def initialize_data(self, pcmd, bins=None, charlie_err=False, **kwargs):
         if bins is None:
@@ -43,13 +41,13 @@ class Driver:
         self.hess_bins = bins
         self.n_data = pcmd.shape[1]
 
-        #fit a 2D gaussian to the points
+        # fit a 2D gaussian to the points
         means = np.mean(pcmd, axis=1)
         cov = np.cov(pcmd)
 
         self.gaussian_data = multivariate_normal(mean=means, cov=cov)
 
-        #compute the mean magnitudes
+        # compute the mean magnitudes
         mags = np.copy(pcmd)
         for i in range(1, self.n_filters):
             mags[i] += mags[0]
@@ -65,15 +63,12 @@ class Driver:
         self._data_init = True
         self.pcmd_data = pcmd
 
-    def loglike(self, pcmd, use_gaussian=True, charlie_err=False, like_mode=0, **kwargs):
+    def loglike(self, pcmd, use_gaussian=True, charlie_err=False, like_mode=2, **kwargs):
         try:
             assert(self._data_init)
         except AssertionError:
             print('Cannot evaluate, as data has not been initialized (use driver.initialize_data)')
             return
-
-        self.num_calls += 1
-        #print(self.num_calls)
 
         #fit a multi-D gaussian to the points
         means = np.mean(pcmd, axis=1)
@@ -137,7 +132,8 @@ class Driver:
             #default to like_mode == 1
             return log_like
 
-    def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False, **kwargs):
+    def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
+                 shot_noise=False, noise=1e-10, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
         dust_frac, dust_mean, dust_std = gal_model.dust_model.get_params()
@@ -145,8 +141,9 @@ class Driver:
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
-        #images += 1e-10
-
+        images += noise
+        if shot_noise:
+            images = np.random.poisson(images)
         if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
 
@@ -154,5 +151,4 @@ class Driver:
         
         pcmd = utils.make_pcmd(mags)
         
-        self.num_sims += 1
         return pcmd, images

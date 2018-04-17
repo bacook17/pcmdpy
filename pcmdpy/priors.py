@@ -10,7 +10,6 @@ __all__ = ['FlatPrior', 'SSPFlatPrior', 'ConstFlatPrior', 'TauFlatPrior',
            'FullFlatPrior']
 
 import numpy as np
-from pcmdpy import galaxy
 # from scipy.stats import dirichlet    # , gamma
 
 
@@ -153,7 +152,8 @@ class SSPFlatPrior(FlatPrior):
         using the inverse of the prior
     """
     def __init__(self, z_bound=[-2., 0.5], dust_bound=[-3., 0.5],
-                 npix_bound=[-1., 8.], age_bound=[6., 10.3]):
+                 npix_bound=[-1., 8.], age_bound=[6., 10.3],
+                 dmod_bound=[23.5, 30.]):
         """
         Yields an `SSPFlatPrior` object with specified bounds in each
         dimension.
@@ -172,7 +172,9 @@ class SSPFlatPrior(FlatPrior):
         age_bound : array-like with shape (2,), optional
              lower (default 6.) and upper (default 10.3) bounds of age,
              in units log_10 years
-        
+        dmod_bound : array-like with shape (2,), optional
+             lower (default 23.5 = 0.5 Mpc) and upper (default 30.0 = 10 Mpc)
+             bounds of distance modulus
         Yields
         ------
         `SSPFlatPrior`
@@ -184,7 +186,8 @@ class SSPFlatPrior(FlatPrior):
             If any key-word arguments are not array-like with length 2
             OR if upper bounds are lesser than lower bounds in any dimension
         """
-        bounds = np.array([z_bound, dust_bound, npix_bound, age_bound])
+        bounds = np.array([z_bound, dust_bound, npix_bound, age_bound,
+                           dmod_bound])
         FlatPrior.__init__(self, bounds)
 
         
@@ -207,7 +210,7 @@ class ConstFlatPrior(FlatPrior):
     """
 
     def __init__(self, z_bound=[-2., 0.5], dust_bound=[-3., 0.5],
-                 npix_bound=[-1., 8.]):
+                 npix_bound=[-1., 8.], dmod_bound=[23.5, 30.]):
         """
         Yields a `ConstFlatPrior` object with specified bounds in each
         dimension.
@@ -223,6 +226,9 @@ class ConstFlatPrior(FlatPrior):
         npix_bound : array-like (length 2), optional
              lower (default -1.) and upper (default 8.) bounds of
              star-per-pixel, in units log_10 N_pix
+        dmod_bound : array-like with shape (2,), optional
+             lower (default 23.5 = 0.5 Mpc) and upper (default 30.0 = 10 Mpc)
+             bounds of distance modulus
         
         Yields
         ------
@@ -235,7 +241,7 @@ class ConstFlatPrior(FlatPrior):
             If any key-word arguments are not array-like with length 2
             OR if upper bounds are lesser than lower bounds in any dimension
         """
-        bounds = np.array([z_bound, dust_bound, npix_bound])
+        bounds = np.array([z_bound, dust_bound, npix_bound, dmod_bound])
         FlatPrior.__init__(self, bounds)
 
         
@@ -259,7 +265,8 @@ class TauFlatPrior(FlatPrior):
     """
 
     def __init__(self, z_bound=[-2., 0.5], dust_bound=[-3., 0.5],
-                 npix_bound=[-1., 8.], tau_bound=[.1, 20.]):
+                 npix_bound=[-1., 8.], tau_bound=[.1, 20.],
+                 dmod_bound=[23.5, 30.]):
         """
         Yields a `TauFlatPrior` object with specified bounds in each dimension.
 
@@ -277,6 +284,9 @@ class TauFlatPrior(FlatPrior):
         tau_bound : array-like with shape (2,), optional
              lower (default 0.1) and upper (default 20.) bounds of tau, the
              star-formation timescale, in units of Gyrs
+        dmod_bound : array-like with shape (2,), optional
+             lower (default 23.5 = 0.5 Mpc) and upper (default 30.0 = 10 Mpc)
+             bounds of distance modulus
 
         Yields
         ------
@@ -289,7 +299,8 @@ class TauFlatPrior(FlatPrior):
             If any key-word arguments are not array-like with length 2
             OR if upper bounds are lesser than lower bounds in any dimension
         """
-        bounds = np.array([z_bound, dust_bound, npix_bound, tau_bound])
+        bounds = np.array([z_bound, dust_bound, npix_bound, tau_bound,
+                           dmod_bound])
         FlatPrior.__init__(self, bounds)
 
         
@@ -314,7 +325,7 @@ class TauMDFFlatPrior(FlatPrior):
 
     def __init__(self, z_bound=[-2., 0.5], sigz_bound=[0., 1.],
                  dust_bound=[-3., 0.5], npix_bound=[-1., 8.],
-                 tau_bound=[.1, 20.]):
+                 tau_bound=[.1, 20.], dmod_bound=[23.5, 30.]):
         """
         Yields a `TauMDFFlatPrior` object with specified bounds in each dimension.
 
@@ -332,6 +343,9 @@ class TauMDFFlatPrior(FlatPrior):
         tau_bound : array-like with shape (2,), optional
              lower (default 0.1) and upper (default 20.) bounds of tau, the
              star-formation timescale, in units of Gyrs
+        dmod_bound : array-like with shape (2,), optional
+             lower (default 23.5 = 0.5 Mpc) and upper (default 30.0 = 10 Mpc)
+             bounds of distance modulus
 
         Yields
         ------
@@ -345,7 +359,7 @@ class TauMDFFlatPrior(FlatPrior):
             OR if upper bounds are lesser than lower bounds in any dimension
         """
         bounds = np.array([z_bound, sigz_bound, dust_bound, npix_bound,
-                           tau_bound])
+                           tau_bound, dmod_bound])
         FlatPrior.__init__(self, bounds)
 
         
@@ -369,7 +383,7 @@ class FullFlatPrior(FlatPrior):
                  sfh0_bound=[-3.1, -1.1], sfh1_bound=[-2.1, -0.1],
                  sfh2_bound=[-1.7, 0.3], sfh3_bound=[-1.2, 0.8],
                  sfh4_bound=[-0.5, 1.5], sfh5_bound=[0.4, 2.4],
-                 sfh6_bound=[0.9, 2.9]):
+                 sfh6_bound=[0.9, 2.9], dmod_bound=[23.5, 30.]):
         """
         Yields a `FullFlatPrior` object with specified bounds in each
         dimension.
@@ -386,6 +400,9 @@ class FullFlatPrior(FlatPrior):
              lower and upper bounds of star-formation in each age bin, in units
              log_10 M_star.
              default is set for Npix=1e2, tau=5 SFH.
+        dmod_bound : array-like with shape (2,), optional
+             lower (default 23.5 = 0.5 Mpc) and upper (default 30.0 = 10 Mpc)
+             bounds of distance modulus
 
         Yields
         ------
@@ -400,6 +417,6 @@ class FullFlatPrior(FlatPrior):
         """
         bounds = np.array([z_bound, dust_bound, sfh0_bound, sfh1_bound,
                            sfh2_bound, sfh3_bound, sfh4_bound, sfh5_bound,
-                           sfh6_bound])
+                           sfh6_bound, dmod_bound])
         FlatPrior.__init__(self, bounds)
 

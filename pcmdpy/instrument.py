@@ -1,6 +1,10 @@
 # instrument.py
 # Ben Cook (bcook@cfa.harvard.edu)
 
+__all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
+           'ACS_WFC_F814W', 'm31_filters', 'm51_filters',
+           'default_m31_filters', 'default_m51_filters']
+
 """Define classes for Filters and other similar objects"""
 
 import numpy as np
@@ -32,7 +36,7 @@ class Filter:
        HST_F814W -- the Hubble F814W filter (only free parameter is distance)
     """
 
-    def __init__(self, exposure, zpt_vega, zpt_ab, zpt_st, d_mpc, red_per_ebv,
+    def __init__(self, exposure, zpt_vega, zpt_ab, zpt_st, red_per_ebv,
                  psf, name="", tex_name="", MIST_column="", MIST_column_alt="",
                  tiled_psf=True, **kwargs):
         """Create a new Filter, given input properties of observation
@@ -41,7 +45,6 @@ class Filter:
            exposure -- exposure time of the observation, in seconds (int or float)
            zero_point -- apparent (VEGA) magnitude corresponding to 1 count / second (int or float)
                    this value is affected by telescope aperture, sensitivity, etc.
-           d_mpc -- the assumed distance to the source in Mpc (int or float)
            red_per_ebv -- the Reddening value [A_x / E(B-V)], such as from Schlafly & Finkbeiner 2011, Table 6 (float)
            psf -- the PSF kernel, should be normalized to one (2D square array of floats)
         Keyword Argments:
@@ -58,13 +61,10 @@ class Filter:
             self._zpts['vega'] = float(zpt_vega)
             self._zpts['ab'] = float(zpt_ab)
             self._zpts['st'] = float(zpt_st)
-            self._dmod = 25. + 5.*np.log10(d_mpc)  # distance modulus
             self.red_per_ebv = float(red_per_ebv)
         except TypeError:
             print('First six arguments must each be either a float or integer')
             raise
-        if np.isnan(self._dmod):
-            raise ValueError('The third argument (d_mpc) must be greater than zero')
         if not isinstance(psf, np.ndarray):
             psf = np.array(psf)
         if (psf.shape[-2] != psf.shape[-1]) or (psf.dtype != float):
@@ -96,10 +96,10 @@ class Filter:
     # Filter methods
     
     def mag_to_counts(self, mags, system='vega'):
-        """Convert absolute magnitudes to photon counts (no reddening assumed)
+        """Convert apparent magnitudes to photon counts (no reddening assumed)
 
         Arguments:
-           mags -- absolute magnitudes (int or float or array or ndarray)
+           mags -- apparent magnitudes (int or float or array or ndarray)
         Output:
            counts -- photon counts (same type as input)
         """
@@ -110,15 +110,15 @@ class Filter:
                   'conversions. Reverting to Vega'.format(system)))
             zpt = self._zpts['vega']
 
-        return 10.**(-0.4 * (mags + self._dmod - zpt)) * self._exposure
+        return 10.**(-0.4 * (mags - zpt)) * self._exposure
 
     def counts_to_mag(self, counts, system='vega', **kwargs):
-        """Convert photon counts to absolute magnitudes (assuming reddening)
+        """Convert photon counts to apparent magnitudes
 
         Arguments:
            counts -- photon counts (int or float or array or ndarray)
         Output:
-           mags -- absolute magnitudes (same type as input)
+           mags -- apparent magnitudes (same type as input)
         """
         if system in self._zpts:
             zpt = self._zpts[system]
@@ -127,7 +127,7 @@ class Filter:
                   'conversions. Reverting to Vega'.format(system)))
             zpt = self._zpts['vega']
 
-        return -2.5*gpu_log10(counts / self._exposure, **kwargs) + zpt - self._dmod
+        return -2.5*gpu_log10(counts / self._exposure, **kwargs) + zpt
 
     def psf_convolve(self, image, multi_psf=True, convolve_func=None, **kwargs):
         """Convolve image with instrumental PSF
@@ -192,18 +192,18 @@ class Filter:
     ##############################
     # Alternative constructors
     @classmethod
-    def HST_F475W(cls, d_mpc, **kwargs):
+    def HST_F475W(cls, **kwargs):
         """
         Deprecated. Use: ACS_WFC_F475W
         """
-        return ACS_WFC_F475W(d_mpc, **kwargs)
+        return ACS_WFC_F475W(**kwargs)
 
     @classmethod
-    def HST_F814W(cls, d_mpc, **kwargs):
+    def HST_F814W(cls, **kwargs):
         """
         Deprecated. Use: ACS_WFC_F814W
         """
-        return ACS_WFC_F814W(d_mpc, **kwargs)
+        return ACS_WFC_F814W(**kwargs)
 
 ##############################
 # Pre-defined Filters
@@ -212,23 +212,15 @@ class Filter:
 class ACS_WFC_F435W(Filter):
     """Return a Filter with HST F435W default params
     Arguments:
-       d_mpc -- the assumed distance to the source
-       exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F435W attributes
     """
-    def __init__(self, d_mpc, **kwargs):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
-                        "d_mpc must be real number")
-        if (d_mpc < 0.):
-            raise ValueError('Argument (d_mpc) must be greater than zero')
-
+    def __init__(self, **kwargs):
         args = {}
         # set defaults
         args['exposure'] = 16320.0
         args['zpt_vega'] = 25.7885  # see filter_setup.ipynb
         args['zpt_ab'] = 25.6903
         args['zpt_st'] = 25.1801
-        args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.610
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F435W.fits'
@@ -245,23 +237,15 @@ class ACS_WFC_F435W(Filter):
 class ACS_WFC_F475W(Filter):
     """Return a Filter with HST F475W default params
     Arguments:
-       d_mpc -- the assumed distance to the source
-       exposure -- exposure time (in sec) DEFAULT=3620.0
     Output: Filter with default F475W attributes
     """
-    def __init__(self, d_mpc, **kwargs):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
-                        "d_mpc must be real number")
-        if (d_mpc < 0.):
-            raise ValueError('Argument (d_mpc) must be greater than zero')
-
+    def __init__(self, **kwargs):
         args = {}
         # set defaults
         args['exposure'] = 3620.
         args['zpt_vega'] = 26.1511  # see filter_setup.ipynb
         args['zpt_ab'] = 26.0586
         args['zpt_st'] = 25.7483
-        args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 3.248
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F475W.fits'
@@ -278,23 +262,15 @@ class ACS_WFC_F475W(Filter):
 class ACS_WFC_F555W(Filter):
     """Return a Filter with HST F555W default params
     Arguments:
-       d_mpc -- the assumed distance to the source
-       exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F555W attributes
     """
-    def __init__(self, d_mpc, **kwargs):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
-                        "d_mpc must be real number")
-        if (d_mpc < 0.):
-            raise ValueError('Argument (d_mpc) must be greater than zero')
-
+    def __init__(self, **kwargs):
         args = {}
         # set defaults
         args['exposure'] = 8160.0
         args['zpt_vega'] = 25.7318  # see filter_setup.ipynb
         args['zpt_ab'] = 25.7319
         args['zpt_st'] = 25.6857
-        args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 2.792
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F555W.fits'
@@ -311,23 +287,15 @@ class ACS_WFC_F555W(Filter):
 class ACS_WFC_F814W(Filter):
     """Return a Filter with HST F814W default params
     Arguments:
-       d_mpc -- the assumed distance to the source
-       exposure -- exposure time (in sec) DEFAULT=3235.0
     Output: Filter with default F814W attributes
     """
-    def __init__(self, d_mpc, **kwargs):
-        utils.my_assert(isinstance(d_mpc, int) or isinstance(d_mpc, float),
-                        "d_mpc must be real number")
-        if (d_mpc < 0.):
-            raise ValueError('Argument (d_mpc) must be greater than zero')
-
+    def __init__(self, **kwargs):
         args = {}
         # set defaults
         args['exposure'] = 8160.
         args['zpt_vega'] = 25.5283  # see filter_setup.ipynb
         args['zpt_ab'] = 25.9565
         args['zpt_st'] = 26.7927
-        args['d_mpc'] = d_mpc
         args['red_per_ebv'] = 1.536
         psf_path = resource_filename('pcmdpy', 'psf/')
         psf_file = psf_path + 'ACS_WFC_F814W.fits'
@@ -341,9 +309,13 @@ class ACS_WFC_F814W(Filter):
         super().__init__(**args)
 
 
-def m31_filters(dist=0.78):
-    return [ACS_WFC_F814W(dist), ACS_WFC_F475W(dist)]
+m31_filters = [ACS_WFC_F814W, ACS_WFC_F475W]
+m51_filters = [ACS_WFC_F814W, ACS_WFC_F555W, ACS_WFC_F435W]
 
 
-def m51_filters(dist=8.58):
-    return [ACS_WFC_F814W(dist), ACS_WFC_F555W(dist), ACS_WFC_F435W(dist)]
+def default_m31_filters():
+    return [f() for f in m31_filters]
+
+
+def default_m51_filters():
+    return [f() for f in m51_filters]

@@ -240,10 +240,11 @@ class Isochrone_Model:
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
         # Collect the isochrones from each bin
-        for age, feh, sfh in galaxy.iter_SSPs():
+        for age, feh, sfh, d_mod in galaxy.iter_SSPs():
             imf, m = self.get_isochrone(age, feh, system=system,
                                         downsample=downsample, **kwargs)
             weights = np.append(weights, imf*sfh)
+            m += d_mod
             mags = np.append(mags, m, axis=-1)
         lum = np.power(10., -0.4*mags)
         mean_lum = np.average(lum, weights=weights, axis=1)
@@ -256,9 +257,10 @@ class Isochrone_Model:
             import matplotlib.pyplot as plt
             fig, axes = plt.subplots(ncols=(self.num_filters-1), sharey=True)
         names = self.filter_names
-        for age, feh, _ in galaxy.iter_SSPs():
+        for age, feh, _, d_mod in galaxy.iter_SSPs():
             _, mags = self.get_isochrone(age, feh, system=system,
                                          downsample=downsample)
+            mags += d_mod
             if self.num_filters == 2:
                 axes.plot(mags[1]-mags[0], mags[0], 'k-',
                           label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
@@ -270,10 +272,10 @@ class Isochrone_Model:
                 axes.set_ylim([max(yl), min(yl)])
             else:
                 for i, ax in enumerate(axes):
-                    ax.plot(mags[i+1]-mags[0], mags[0], 'k-',
+                    ax.plot(mags[i+1]-mags[i], mags[0], 'k-',
                             label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
                             **kwargs)
-                    ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[0]),
+                    ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[i]),
                                   fontsize='x-large')
                     ax.set_ylabel(names[0], fontsize='x-large')
                     yl = ax.get_ylim()
