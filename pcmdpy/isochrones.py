@@ -251,33 +251,3 @@ class Isochrone_Model:
         to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
         return weights[to_keep], mags[:, to_keep]
 
-    def plot_isochrone(self, galaxy, axes=None, system='vega', downsample=1,
-                       **kwargs):
-        if axes is None:
-            import matplotlib.pyplot as plt
-            fig, axes = plt.subplots(ncols=(self.num_filters-1), sharey=True)
-        names = self.filter_names
-        for age, feh, _, d_mod in galaxy.iter_SSPs():
-            _, mags = self.get_isochrone(age, feh, system=system,
-                                         downsample=downsample)
-            mags += d_mod
-            if self.num_filters == 2:
-                axes.plot(mags[1]-mags[0], mags[0], 'k-',
-                          label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
-                          **kwargs)
-                axes.set_xlabel('{0:s} - {1:s}'.format(names[1], names[0]),
-                                fontsize='x-large')
-                axes.set_ylabel(names[0], fontsize='x-large')
-                yl = axes.get_ylim()
-                axes.set_ylim([max(yl), min(yl)])
-            else:
-                for i, ax in enumerate(axes):
-                    ax.plot(mags[i+1]-mags[i], mags[0], 'k-',
-                            label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
-                            **kwargs)
-                    ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[i]),
-                                  fontsize='x-large')
-                    ax.set_ylabel(names[0], fontsize='x-large')
-                    yl = ax.get_ylim()
-                    ax.set_ylim([max(yl), min(yl)])
-        return axes

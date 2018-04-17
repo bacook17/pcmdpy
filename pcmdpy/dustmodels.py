@@ -31,7 +31,10 @@ class SingleDust(_DustModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5]]
 
-    def __init__(self, dust_params):
+    def __init__(self):
+        pass
+
+    def set_params(self, dust_params):
         self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
         self.sig_dust = 0.
         self.dust_frac = 1.0
@@ -43,7 +46,23 @@ class LogNormDust(_DustModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5], [0., 1.]]
 
-    def __init__(self, dust_params):
+    def __init__(self):
+        self.dust_frac = 0.5
+
+    def set_params(self, dust_params):
         self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
         self.sig_dust = dust_params[1]  # dimensionless standard-deviation
-        self.dust_frac = 0.5
+
+
+class FixedWidthLogNormDust(LogNormDust):
+
+    _param_names = ['logdust_med']
+    _num_params = len(_param_names)
+    _default_prior_bounds = [[-3., 0.5]]
+
+    def __init__(self, sig):
+        self.sig_dust = sig
+        super().__init__()
+
+    def set_params(self, dust_params):
+        self.mu_dust = dust_params[0] * np.log(10.)  # ln of median

@@ -8,7 +8,6 @@ __all__ = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
 
 import numpy as np
 from pcmdpy import utils
-from scipy.special import expi
 
 
 class _AgeModel:
@@ -16,6 +15,12 @@ class _AgeModel:
     _num_SFH_bins = len(default_edges) - 1
 
     def __init__(self):
+        if not hasattr(self, 'SFH'):
+            self.SFH = np.ones((self._num_params))
+        if not hasattr(self, 'ages'):
+            self.ages = np.ones((self._num_params))
+        if not hasattr(self, '_params'):
+            self._params = np.ones((self._num_params))
         self.Npix = np.sum(self.SFH)
 
     def get_vals(self):
@@ -36,11 +41,7 @@ class NonParam(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 3.0]] * _num_params
 
-    def __init__(self, age_params, iso_step=0.2):
-        """
-        age_params:
-           0:6 -- log SFH in age bin
-        """
+    def __init__(self, iso_step=0.2):
         if iso_step > 0:
             # construct list of ages, given isochrone spacing
             iso_edges = np.arange(6.0, 10.3, iso_step)
@@ -54,20 +55,25 @@ class NonParam(_AgeModel):
             iso_edges = self.default_edges
         self.ages = 0.5*(iso_edges[:-1] + iso_edges[1:])
         # which of the 7 bins does each isochrone belong to?
-        iso_sfh_bin = np.digitize(self.ages, self.default_edges) - 1
+        self.iso_sfh_bin = np.digitize(self.ages, self.default_edges) - 1
         # compute SFH in each isochrone, given the bin SFH
-        delta_t_iso = np.diff(10.**iso_edges)
-        delta_t_sfh = np.diff(10.**self.default_edges)
-        self.SFH = 10.**age_params[iso_sfh_bin] * delta_t_iso
-        self.SFH /= delta_t_sfh[iso_sfh_bin]
+        self.delta_t_iso = np.diff(10.**iso_edges)
+        self.delta_t_sfh = np.diff(10.**self.default_edges)
+        super().__init__()
+
+    def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "age_params for Galaxy_Model should be length %d" %
                         self._num_params)
+        self.SFH = 10.**age_params[self.iso_sfh_bin] * self.delta_t_iso
+        self.SFH /= self.delta_t_sfh[self.iso_sfh_bin]
         self._params = age_params
         super().__init__()
 
     def as_default(self):
-        return NonParam(self._params, iso_step=-1)
+        temp_model = NonParam(iso_step=-1)
+        temp_model.set_params(self._params)
+        return temp_model
 
 
 class ConstantSFR(_AgeModel):
@@ -76,29 +82,30 @@ class ConstantSFR(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0]]
 
-    def __init__(self, age_params, iso_step=0.2):
+    def __init__(self, iso_step=0.2):
         """
-        age_params:
-           0 -- log Npix
-        iso_step: 
         """
         if iso_step > 0:
-            iso_edges = np.arange(6.0, 10.3, iso_step)
+            self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
-            iso_edges = self.default_edges
-        self.ages = 0.5*(iso_edges[1:] + iso_edges[:-1])
+            self.iso_edges = self.default_edges
+        self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+
+    def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "age_params for Constant_SFR should be length %d" %
                         self._num_params)
 
         Npix = 10.**age_params[0]
-        SFH_term = 10.**iso_edges[1:] - 10.**iso_edges[:-1]
+        SFH_term = 10.**self.iso_edges[1:] - 10.**self.iso_edges[:-1]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
 
     def as_default(self):
-        return ConstantSFR(self._params, iso_step=-1)
+        temp_model = ConstantSFR(iso_step=-1)
+        temp_model.set_params(self._params)
+        return temp_model
 
 
 class TauModel(_AgeModel):
@@ -107,19 +114,18 @@ class TauModel(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     
-    def __init__(self, age_params, iso_step=0.2):
+    def __init__(self, iso_step=0.2):
         """
-        age_params:
-           0 -- log Npix
-           1 -- tau (SFH time-scale, in Gyr)
-        iso_step: 
         """
 
         if iso_step > 0:
-            iso_edges = np.arange(6.0, 10.3, iso_step)
+            self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
-            iso_edges = self.default_edges
-        self.ages = 0.5*(iso_edges[1:] + iso_edges[:-1])
+            self.iso_edges = self.default_edges
+        self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+        super().__init__()
+
+    def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "age_params for Tau_Model should be length %d" %
                         self._num_params)
@@ -127,14 +133,16 @@ class TauModel(_AgeModel):
         Npix = 10.**age_params[0]
         tau = age_params[1]
 
-        ages_linear = 10.**(iso_edges - 9.)  # convert to Gyrs
+        ages_linear = 10.**(self.iso_edges - 9.)  # convert to Gyrs
         SFH_term = np.exp(ages_linear[1:]/tau) - np.exp(ages_linear[:-1]/tau)
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
 
     def as_default(self):
-        return TauModel(self._params, iso_step=-1)
+        temp_model = TauModel(iso_step=-1)
+        temp_model.set_params(self._params)
+        return temp_model
 
 
 class RisingTau(_AgeModel):
@@ -143,35 +151,35 @@ class RisingTau(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
 
-    def __init__(self, age_params, iso_step=0.2):
+    def __init__(self, iso_step=0.2):
         """
-        age_params:
-           0 -- log Npix
-           1 -- tau (SFH time-scale, in Gyr)
-        iso_step: 
         """
 
         if iso_step > 0:
-            iso_edges = np.arange(6.0, 10.3, iso_step)
+            self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
-            iso_edges = self.default_edges
-        self.ages = 0.5*(iso_edges[1:] + iso_edges[:-1])
+            self.iso_edges = self.default_edges
+        self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+        super().__init__()
+
+    def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "gal_params for Rising_Tau should be length %d" %
                         self._num_params)
         Npix = 10.**age_params[0]
         tau = age_params[1]
 
-        ages_linear = 10.**(iso_edges - 9.)  # convert to Gyrs
+        ages_linear = 10.**(self.iso_edges - 9.)  # convert to Gyrs
         base_term = (ages_linear[-1]+tau-ages_linear) * np.exp(ages_linear/tau)
-        #base_term = expi(ages_linear / tau)
         SFH_term = base_term[:-1] - base_term[1:]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
 
     def as_default(self):
-        return RisingTau(self._params, iso_step=-1)
+        temp_model = RisingTau(iso_step=-1)
+        temp_model.set_params(self._params)
+        return temp_model
 
 
 class SSPModel(_AgeModel):
@@ -179,12 +187,12 @@ class SSPModel(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
     
-    def __init__(self, age_params, iso_step=None):
+    def __init__(self, iso_step=None):
         """
-        age_params:
-           0 -- log Npix
-           1 -- log age (in yrs)
         """
+        super().__init__()
+        
+    def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "gal_params for Galaxy_SSP should be length %d" %
                         self._num_params)

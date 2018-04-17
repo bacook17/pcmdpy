@@ -7,19 +7,18 @@ __all__ = ['CustomGalaxy', 'DefaultTau', 'DefaultSSP', 'DefaultNonParam',
            'MDFTau', 'LogNormTau']
 
 import numpy as np
-from pcmdpy import utils, priors, agemodels, dustmodels, metalmodels
+import pcmdpy as ppy
 
 
 class BaseGalaxy:
 
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
 
-    def __init__(self, ages, fehs, SFH, dust_model, dist_mod, params=None,
-                 param_names=None, metal_class=None, age_class=None):
-        utils.my_assert(len(ages) == len(fehs),
-                        "length of first param and second param must match")
-        utils.my_assert(len(ages) == len(SFH),
-                        "length of first param and third param must match")
+    def __init__(self, ages, fehs, SFH, dust_model, dist_mod, params=None):
+        ppy.utils.my_assert(len(ages) == len(fehs),
+                            "length of first param and second param must match")
+        ppy.utils.my_assert(len(ages) == len(SFH),
+                            "length of first param and third param must match")
         self.ages = ages
         self.fehs = fehs
         self.SFH = SFH
@@ -28,10 +27,6 @@ class BaseGalaxy:
         self.Npix = np.sum(self.SFH)
         self.num_SSPs = len(self.ages)
         self._params = params
-        if param_names is not None:
-            self._param_names = param_names
-        self.metal_model = metal_class
-        self.age_model = age_class
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):
@@ -43,7 +38,7 @@ class BaseGalaxy:
 
 class CustomGalaxy(BaseGalaxy):
 
-    def __init__(self, metal_model, dust_model, age_model):
+    def __init__(self, metal_model, dust_model, age_model, distance_model):
         # set the metallicity model
         self.metal_model = metal_model
         self.p_feh = metal_model._num_params
@@ -57,8 +52,10 @@ class CustomGalaxy(BaseGalaxy):
         self.p_age = age_model._num_params
         self._param_names += age_model._param_names
         # set the distance modulus
-        self._param_names += ['dist_mod']
-        self.p_total = self.p_feh + self.p_dust + self.p_age + 1
+        self.distance_model = distance_model
+        self.p_distance = distance_model._num_params
+        self._param_names += distance_model._param_names
+        self.p_total = self.p_feh + self.p_dust + self.p_age + self.p_distance
         self._num_params = len(self._param_names)
         assert self._num_params == self.p_total, ('galaxy parameter mismatch')
 
@@ -80,22 +77,31 @@ class CustomGalaxy(BaseGalaxy):
             assert(len(age_bounds) == self.p_age)
             bounds += age_bounds
         if dmod_bounds is None:
-            bounds += [[23.5, 30.]]  # 0.5 Mpc to 10 Mpc
+            bounds += self.distance_model._default_prior_bounds
         else:
-            assert len(dmod_bounds) == 1
+            assert len(dmod_bounds) == self.p_distance
             bounds += dmod_bounds
-        return priors.FlatPrior(bounds)
+        return ppy.priors.FlatPrior(bounds)
 
-    def get_model(self, gal_params, iso_step=0.2):
+    def set_params(self, gal_params):
         assert(len(gal_params) == self.p_total)
+        # set metal parameters
         feh_params = gal_params[:self.p_feh]
+        self.metal_model.set_params(feh_params)
+        fehs, feh_weights = self.metal_model.get_vals()
+        # set dust parameters
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
-        age_params = gal_params[self.p_feh+self.p_dust:-1]
-        dist_mod = gal_params[-1]
-        fehs, feh_weights = self.metal_model(feh_params).get_vals()
-        dust_model = self.dust_model(dust_params)
-        ages, age_weights = self.age_model(age_params,
-                                           iso_step=iso_step).get_vals()
+        self.dust_model.set_params(dust_params)
+        # set age parameters
+        age_params = gal_params[self.p_feh+self.p_dust:
+                                self.p_feh+self.p_dust+self.p_age]
+        self.age_model.set_params(age_params)
+        ages, age_weights = self.age_model.get_vals()
+        # set distance parameters
+        if self.p_dist > 0:
+            dist_mod = gal_params[self.p_feh]
+        else:
+            dist_mod = self.distance_model.dmod
         # merge the age and metallicity bins
         new_ages = []
         new_fehs = []
@@ -105,19 +111,25 @@ class CustomGalaxy(BaseGalaxy):
             new_ages += list(ages)
             new_fehs += [feh]*len(ages)
 
-        return BaseGalaxy(new_ages, new_fehs, SFH, dust_model, dist_mod,
-                          params=gal_params, param_names=self._param_names,
-                          metal_class=self.metal_model,
-                          age_class=self.age_model)
+        super().__init__(new_ages, new_fehs, SFH, self.dust_model, dist_mod,
+                         params=gal_params)
+
+    def describe(self):
+        pass
 
 
-DefaultTau = CustomGalaxy(metalmodels.SingleFeH, dustmodels.SingleDust,
-                          agemodels.TauModel)
-DefaultSSP = CustomGalaxy(metalmodels.SingleFeH, dustmodels.SingleDust,
-                          agemodels.SSPModel)
-DefaultNonParam = CustomGalaxy(metalmodels.SingleFeH, dustmodels.SingleDust,
-                               agemodels.NonParam)
-MDFTau = CustomGalaxy(metalmodels.NormMDF, dustmodels.SingleDust,
-                      agemodels.TauModel)
-LogNormTau = CustomGalaxy(metalmodels.SingleFeH, dustmodels.LogNormDust,
-                          agemodels.TauModel)
+DefaultTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
+                          ppy.dustmodels.SingleDust(),
+                          ppy.agemodels.TauModel())
+DefaultSSP = CustomGalaxy(ppy.metalmodels.SingleFeH(),
+                          ppy.dustmodels.SingleDust(),
+                          ppy.agemodels.SSPModel())
+DefaultNonParam = CustomGalaxy(ppy.metalmodels.SingleFeH(),
+                               ppy.dustmodels.SingleDust(),
+                               ppy.agemodels.NonParam())
+MDFTau = CustomGalaxy(ppy.metalmodels.NormMDF(),
+                      ppy.dustmodels.SingleDust(),
+                      ppy.agemodels.TauModel())
+LogNormTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
+                          ppy.dustmodels.LogNormDust(),
+                          ppy.agemodels.TauModel())

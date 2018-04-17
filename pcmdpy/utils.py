@@ -25,14 +25,14 @@ def my_assert(bool_statement, fail_message=None):
         sys.exit(1)
 
 
-def make_pcmd(data):
-    pcmd = np.copy(data)
+def make_pcmd(mags):
+    pcmd = np.copy(mags)
     n_filters = pcmd.shape[0]
     if (n_filters < 2):
         raise IndexError("Must be at least 2 images to create a PCMD")
     else:
         for i in range(1, n_filters):
-            pcmd[i] = (data[i] - data[i-1]).flatten()
+            pcmd[i] = (mags[i] - mags[i-1]).flatten()
     return pcmd
     
 
@@ -66,6 +66,7 @@ def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     
     return counts, hess, err
 
+
 def wrap_image(image, w_border):
     my_assert(image.ndim == 2,
               "images must be 2-dimensional")
@@ -79,6 +80,7 @@ def wrap_image(image, w_border):
     im_temp = np.roll(np.roll(im_temp, w_roll, axis=0), w_roll, axis=1)
 
     return im_temp[:Nx+w_border, :Ny+w_border]
+
 
 def subdivide_image(image, d_sub, w_border=0):
     my_assert(image.ndim == 2,
@@ -102,6 +104,7 @@ def subdivide_image(image, d_sub, w_border=0):
             y_slice = slice(Ny_sub*j, Ny_sub*(j+1) + w_border)
             sub_im_matrix[i,j] = image[x_slice, y_slice]
     return sub_im_matrix
+
 
 def subpixel_shift(image, dx, dy):
     assert(np.abs(dx)<= 1.)
@@ -729,23 +732,3 @@ class DataSet(object):
         return images, (ymin, ymax, xmin, xmax)
 
     
-def plot_rgb_image(images, extent=None, ax=None,
-                   clip_percent=98, r_index=0,
-                   g_index=1, b_index=2):
-    if ax is None:
-        fig, ax = plt.subplots()
-    if images.shape[-1] != 3:
-        assert images.shape[0] == 3, 'not proper RGB image shape'
-        ims_new = np.zeros((images.shape[1], images.shape[2], 3))
-        for i in range(3):
-            ims_new[:, :, i] = images[i]
-        images = np.copy(ims_new)
-    else:
-        images = np.copy(images)
-    for i in range(images.shape[-1]):
-        images[:, :, i] /= np.percentile(images[:, :, i], clip_percent)
-    images[images <= 0.] = 0.
-    images[images >= 1.] = 1.
-    ax.imshow(images, origin='lower', aspect='equal',
-              extent=extent)
-    return ax

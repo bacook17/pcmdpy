@@ -17,6 +17,7 @@ def sigterm_handler(sig, frame):
     print('Exiting due to external signal')
     sys.exit(0)
 
+
 if __name__ == "__main__":
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     args = {}
     args['pcmd'] = data_pcmd
 
-    required_keys = ['filters', 'N_im']
+    required_keys = ['filters', 'N_im', 'gal_model', 'prior']
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
