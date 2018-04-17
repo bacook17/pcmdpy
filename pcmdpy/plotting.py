@@ -37,7 +37,7 @@ def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={}):
         hist2d_kwargs['cmap'] = 'viridis'
     H, xbins, ybins, _ = ax.hist2d(pcmd[1], pcmd[0], bins=bins, norm=norm,
                                    **hist2d_kwargs)
-    return H, [xbins, ybins], norm
+    return ax, H, [xbins, ybins], norm
 
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
