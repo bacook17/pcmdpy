@@ -161,6 +161,9 @@ params['gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel, agemodel,
 # Add the binned hess values and the mean magnitude and color terms
 params['like_mode'] = 2
 
+# Factor to downsample the isochrones
+params['downsample'] = 5
+
 # Cut out stars brighter than some limit (of mean luminosity)
 params['lum_cut'] = np.inf
 

@@ -42,6 +42,7 @@ class NonParam(_AgeModel):
     _default_prior_bounds = [[-3.0, 3.0]] * _num_params
 
     def __init__(self, initial_params=None, iso_step=0.2):
+        self.iso_step = iso_step
         if iso_step > 0:
             # construct list of ages, given isochrone spacing
             iso_edges = np.arange(6.0, 10.3, iso_step)
@@ -81,8 +82,7 @@ class NonParam(_AgeModel):
                              for i in range(self._num_SFH_bins)]
         self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
-        self.__init__()
-        self.set_params(self._params)
+        self.__init__(self._params, iso_step=self.iso_step)
         
     def as_default(self):
         return type(self)(self._params, iso_step=-1)
@@ -97,6 +97,7 @@ class ConstantSFR(NonParam):
     def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
+        self.iso_step = iso_step
         if iso_step > 0:
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
@@ -119,8 +120,8 @@ class ConstantSFR(NonParam):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self.__init__()
-        self.set_params(self._params)
+        self.__init__(self._params, iso_step=self.iso_step)
+
 
 class TauModel(NonParam):
 
@@ -131,6 +132,7 @@ class TauModel(NonParam):
     def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
+        self.iso_step = iso_step
         if iso_step > 0:
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
@@ -157,8 +159,7 @@ class TauModel(NonParam):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self.__init__()
-        self.set_params(self._params)
+        self.__init__(self._params, iso_step=self.iso_step)
 
 
 class RisingTau(NonParam):
@@ -170,6 +171,7 @@ class RisingTau(NonParam):
     def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
+        self.iso_step = iso_step
         if iso_step > 0:
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
@@ -196,8 +198,7 @@ class RisingTau(NonParam):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self.__init__()
-        self.set_params(self._params)
+        self.__init__(self._params, iso_step=self.iso_step)
 
 
 class SSPModel(_AgeModel):
