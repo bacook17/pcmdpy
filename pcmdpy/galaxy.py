@@ -38,7 +38,8 @@ class BaseGalaxy:
 
 class CustomGalaxy(BaseGalaxy):
 
-    def __init__(self, metal_model, dust_model, age_model, distance_model):
+    def __init__(self, metal_model, dust_model, age_model, distance_model,
+                 initial_params=None):
         # set the metallicity model
         self.metal_model = metal_model
         self.p_feh = metal_model._num_params
@@ -58,6 +59,8 @@ class CustomGalaxy(BaseGalaxy):
         self.p_total = self.p_feh + self.p_dust + self.p_age + self.p_distance
         self._num_params = len(self._param_names)
         assert self._num_params == self.p_total, ('galaxy parameter mismatch')
+        if initial_params is not None:
+            self.set_params(initial_params)
 
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
                        age_bounds=None, dmod_bounds=None):
@@ -118,24 +121,49 @@ class CustomGalaxy(BaseGalaxy):
         pass
 
 
-DefaultTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
-                          ppy.dustmodels.SingleDust(),
-                          ppy.agemodels.TauModel(), 
-                          ppy.distancemodels.FixedDistance(30.))
-DefaultSSP = CustomGalaxy(ppy.metalmodels.SingleFeH(),
-                          ppy.dustmodels.SingleDust(),
-                          ppy.agemodels.SSPModel(),
-                          ppy.distancemodels.FixedDistance(30.))
-DefaultNonParam = CustomGalaxy(ppy.metalmodels.SingleFeH(),
-                               ppy.dustmodels.SingleDust(),
-                               ppy.agemodels.NonParam(),
-                               ppy.distancemodels.FixedDistance(30.))
-MDFTau = CustomGalaxy(ppy.metalmodels.NormMDF(),
-                      ppy.dustmodels.SingleDust(),
-                      ppy.agemodels.TauModel(),
-                      ppy.distancemodels.FixedDistance(30.))
-LogNormTau = CustomGalaxy(ppy.metalmodels.SingleFeH(),
-                          ppy.dustmodels.LogNormDust(),
-                          ppy.agemodels.TauModel(),
-                          ppy.distancemodels.FixedDistance(30.))
+class DefaultTau(CustomGalaxy):
 
+    def __init__(self, initial_params=None, dmod=30.):
+        super().__init__(ppy.metalmodels.SingleFeH(),
+                         ppy.dustmodels.SingleDust(),
+                         ppy.agemodels.TauModel(), 
+                         ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)
+
+class DefaultSSP(CustomGalaxy):
+    
+    def __init__(self, initial_params=None, dmod=30.):
+        super().__init__(ppy.metalmodels.SingleFeH(),
+                         ppy.dustmodels.SingleDust(),
+                         ppy.agemodels.SSPModel(),
+                         ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)
+
+
+class DefaultNonParam(CustomGalaxy):
+
+    def __init__(self, initial_params=None, dmod=30.):
+        super().__init__(ppy.metalmodels.SingleFeH(),
+                         ppy.dustmodels.SingleDust(),
+                         ppy.agemodels.NonParam(),
+                         ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)
+
+
+class MDFTau(CustomGalaxy):
+
+    def __init__(self, initial_params=None, dmod=30.):
+        super().__init__(ppy.metalmodels.NormMDF(),
+                         ppy.dustmodels.SingleDust(),
+                         ppy.agemodels.TauModel(),
+                         ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)
+
+class LogNormTau(CustomGalaxy):
+
+    def __init__(self, initial_params=None, dmod=30.):
+        super().__init__(ppy.metalmodels.SingleFeH(),
+                         ppy.dustmodels.LogNormDust(),
+                         ppy.agemodels.TauModel(),
+                         ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)

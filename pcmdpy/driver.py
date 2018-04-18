@@ -133,7 +133,7 @@ class Driver:
             return log_like
 
     def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
-                 shot_noise=False, noise=1e-10, **kwargs):
+                 shot_noise=False, noise=None, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
         dust_frac, dust_mean, dust_std = gal_model.dust_model.get_params()
@@ -141,7 +141,10 @@ class Driver:
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
-        images += noise
+        if noise is not None:
+            noise_image = np.random.normal(loc=noise, scale=np.sqrt(noise),
+                                           size=(im_scale, im_scale, self.n_filters)).T.reshape((self.n_filters, im_scale, im_scale))
+            images += noise_image
         if shot_noise:
             images = np.random.poisson(images)
         if psf:

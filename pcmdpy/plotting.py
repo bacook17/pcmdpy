@@ -44,8 +44,8 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
                        im_kwargs={}):
     if ax is None:
         fig, ax = plt.subplots()
-    if 'cmap' not in im_kwargs:
-        im_kwargs['cmap'] = 'RdBu_r'
+    kwargs = {'cmap': 'bwr_r'}
+    kwargs.update(im_kwargs)
     n_compare = pcmd_compare.shape[1]
     counts_compare, xbins, ybins = np.histogram2d(pcmd_compare[1],
                                                   pcmd_compare[0], bins=bins)
@@ -66,11 +66,12 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
     chi = (counts_model - counts_compare) / denom
     chi_max = np.max(np.abs(chi))
     if norm is None:
-        norm = mpl.colors.Normalize(vmin=-chi_max, vmax=chi_max)
-    ax.imshow(chi.T, norm=norm, origin='lower',
-              extent=(xbins[0], xbins[1],
-                      ybins[0], ybins[1]),
-              **im_kwargs)
+        norm = mpl.colors.SymLogNorm(vmin=-chi_max, vmax=chi_max, linthresh=1., linscale=0.1)
+    plt.subplot(ax)
+    plt.imshow(chi.T, norm=norm, origin='lower', aspect='auto',
+              extent=(xbins[0], xbins[-1],
+                      ybins[0], ybins[-1]),
+              **kwargs)
     return ax, chi, bins, norm
 
 
