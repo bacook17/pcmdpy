@@ -11,7 +11,7 @@ from pcmdpy import utils
 
 
 class _AgeModel:
-    default_edges = np.array([6., 7., 8., 8.5, 9., 9.5, 10., 10.2])
+    default_edges = np.array([6., 8., 8.5, 9., 9.5, 10., 10.2])
     _num_SFH_bins = len(default_edges) - 1
 
     def __init__(self):
@@ -37,7 +37,7 @@ class _AgeModel:
 class NonParam(_AgeModel):
 
     _param_names = ['logSFH0', 'logSFH1', 'logSFH2', 'logSFH3', 'logSFH4',
-                    'logSFH5', 'logSFH6']
+                    'logSFH5']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 3.0]] * _num_params
 
