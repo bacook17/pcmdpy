@@ -41,7 +41,7 @@ class NonParam(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 3.0]] * _num_params
 
-    def __init__(self, iso_step=0.2):
+    def __init__(self, initial_params=None, iso_step=0.2):
         if iso_step > 0:
             # construct list of ages, given isochrone spacing
             iso_edges = np.arange(6.0, 10.3, iso_step)
@@ -61,6 +61,17 @@ class NonParam(_AgeModel):
         # compute SFH in each isochrone, given the bin SFH
         self.delta_t_iso = np.diff(10.**iso_edges)
         self.delta_t_sfh = np.diff(10.**self.default_edges)
+        if initial_params is not None:
+            self.set_params(initial_params)
+        super().__init__()
+
+    def set_params(self, age_params):
+        utils.my_assert(len(age_params) == self._num_params,
+                        "age_params for Galaxy_Model should be length %d" %
+                        self._num_params)
+        self.SFH = 10.**age_params[self.iso_sfh_bin] * self.delta_t_iso
+        self.SFH /= self.delta_t_sfh[self.iso_sfh_bin]
+        self._params = age_params
         super().__init__()
 
     def update_edges(self, new_edges):
@@ -71,29 +82,19 @@ class NonParam(_AgeModel):
         self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
         self.__init__()
+        self.set_params(self._params)
         
-    def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "age_params for Galaxy_Model should be length %d" %
-                        self._num_params)
-        self.SFH = 10.**age_params[self.iso_sfh_bin] * self.delta_t_iso
-        self.SFH /= self.delta_t_sfh[self.iso_sfh_bin]
-        self._params = age_params
-        super().__init__()
-
     def as_default(self):
-        temp_model = NonParam(iso_step=-1)
-        temp_model.set_params(self._params)
-        return temp_model
+        return type(self)(self._params, iso_step=-1)
 
 
-class ConstantSFR(_AgeModel):
+class ConstantSFR(NonParam):
 
     _param_names = ['logNpix']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0]]
 
-    def __init__(self, iso_step=0.2):
+    def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
         if iso_step > 0:
@@ -101,32 +102,33 @@ class ConstantSFR(_AgeModel):
         else:
             self.iso_edges = self.default_edges
         self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+        if initial_params is not None:
+            self.set_params(initial_params)
         super().__init__()
 
     def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
                         "age_params for Constant_SFR should be length %d" %
                         self._num_params)
-
         Npix = 10.**age_params[0]
         SFH_term = 10.**self.iso_edges[1:] - 10.**self.iso_edges[:-1]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
 
-    def as_default(self):
-        temp_model = ConstantSFR(iso_step=-1)
-        temp_model.set_params(self._params)
-        return temp_model
+    def update_edges(self, new_edges):
+        self.default_edges = new_edges
+        self._num_SFH_bins = len(self.default_edges) - 1
+        self.__init__()
+        self.set_params(self._params)
 
-
-class TauModel(_AgeModel):
+class TauModel(NonParam):
 
     _param_names = ['logNpix', 'tau']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     
-    def __init__(self, iso_step=0.2):
+    def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
         if iso_step > 0:
@@ -134,6 +136,8 @@ class TauModel(_AgeModel):
         else:
             self.iso_edges = self.default_edges
         self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+        if initial_params is not None:
+            self.set_params(initial_params)
         super().__init__()
 
     def set_params(self, age_params):
@@ -150,19 +154,20 @@ class TauModel(_AgeModel):
         self._params = age_params
         super().__init__()
 
-    def as_default(self):
-        temp_model = TauModel(iso_step=-1)
-        temp_model.set_params(self._params)
-        return temp_model
+    def update_edges(self, new_edges):
+        self.default_edges = new_edges
+        self._num_SFH_bins = len(self.default_edges) - 1
+        self.__init__()
+        self.set_params(self._params)
 
 
-class RisingTau(_AgeModel):
+class RisingTau(NonParam):
 
     _param_names = ['logNpix', 'tau_rise']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
 
-    def __init__(self, iso_step=0.2):
+    def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
         if iso_step > 0:
@@ -170,6 +175,8 @@ class RisingTau(_AgeModel):
         else:
             self.iso_edges = self.default_edges
         self.ages = 0.5*(self.iso_edges[1:] + self.iso_edges[:-1])
+        if initial_params is not None:
+            self.set_params(initial_params)
         super().__init__()
 
     def set_params(self, age_params):
@@ -186,10 +193,11 @@ class RisingTau(_AgeModel):
         self._params = age_params
         super().__init__()
 
-    def as_default(self):
-        temp_model = RisingTau(iso_step=-1)
-        temp_model.set_params(self._params)
-        return temp_model
+    def update_edges(self, new_edges):
+        self.default_edges = new_edges
+        self._num_SFH_bins = len(self.default_edges) - 1
+        self.__init__()
+        self.set_params(self._params)
 
 
 class SSPModel(_AgeModel):
@@ -197,9 +205,11 @@ class SSPModel(_AgeModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
     
-    def __init__(self, iso_step=None):
+    def __init__(self, initial_params=None, iso_step=None):
         """
         """
+        if initial_params is not None:
+            self.set_params(initial_params)
         super().__init__()
         
     def set_params(self, age_params):
