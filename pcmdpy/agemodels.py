@@ -22,6 +22,7 @@ class _AgeModel:
         if not hasattr(self, '_params'):
             self._params = np.ones((self._num_params))
         self.Npix = np.sum(self.SFH)
+        self.logSFH = np.log10(self.SFH)
 
     def get_vals(self):
         return self.ages, self.SFH
@@ -88,7 +89,7 @@ class NonParam(_AgeModel):
         return type(self)(self._params, iso_step=-1)
 
 
-class ConstantSFR(NonParam):
+class ConstantSFR(_AgeModel):
 
     _param_names = ['logNpix']
     _num_params = len(_param_names)
@@ -122,8 +123,11 @@ class ConstantSFR(NonParam):
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
 
+    def as_default(self):
+        return type(self)(self._params, iso_step=-1)
 
-class TauModel(NonParam):
+
+class TauModel(_AgeModel):
 
     _param_names = ['logNpix', 'tau']
     _num_params = len(_param_names)
@@ -161,8 +165,11 @@ class TauModel(NonParam):
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
 
+    def as_default(self):
+        return type(self)(self._params, iso_step=-1)
 
-class RisingTau(NonParam):
+
+class RisingTau(_AgeModel):
 
     _param_names = ['logNpix', 'tau_rise']
     _num_params = len(_param_names)
@@ -199,6 +206,9 @@ class RisingTau(NonParam):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
+
+    def as_default(self):
+        return type(self)(self._params, iso_step=-1)
 
 
 class SSPModel(_AgeModel):
