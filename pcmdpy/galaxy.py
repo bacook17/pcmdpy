@@ -126,9 +126,10 @@ class DefaultTau(CustomGalaxy):
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.SingleFeH(),
                          ppy.dustmodels.SingleDust(),
-                         ppy.agemodels.TauModel(), 
+                         ppy.agemodels.TauModel(),
                          ppy.distancemodels.FixedDistance(dmod),
                          initial_params=initial_params)
+
 
 class DefaultSSP(CustomGalaxy):
     
@@ -158,6 +159,7 @@ class MDFTau(CustomGalaxy):
                          ppy.agemodels.TauModel(),
                          ppy.distancemodels.FixedDistance(dmod),
                          initial_params=initial_params)
+
 
 class LogNormTau(CustomGalaxy):
 

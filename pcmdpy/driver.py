@@ -98,7 +98,7 @@ class Driver:
         
         if use_gaussian:
             #add error in quadrature
-            combined_var = (self.err_data**2. + err_model**2.) 
+            combined_var = (self.err_data**2. + err_model**2.)
             hess_diff = (self.hess_data - hess_model)
             log_like = -np.sum(hess_diff**2. / combined_var)
 
