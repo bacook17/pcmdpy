@@ -217,7 +217,7 @@ class ACS_WFC_F435W(Filter):
     def __init__(self, **kwargs):
         args = {}
         # set defaults
-        args['exposure'] = 16320.0
+        args['exposure'] = 2720.
         args['zpt_vega'] = 25.7885  # see filter_setup.ipynb
         args['zpt_ab'] = 25.6903
         args['zpt_st'] = 25.1801
@@ -267,7 +267,7 @@ class ACS_WFC_F555W(Filter):
     def __init__(self, **kwargs):
         args = {}
         # set defaults
-        args['exposure'] = 8160.0
+        args['exposure'] = 1360.
         args['zpt_vega'] = 25.7318  # see filter_setup.ipynb
         args['zpt_ab'] = 25.7319
         args['zpt_st'] = 25.6857
@@ -292,7 +292,7 @@ class ACS_WFC_F814W(Filter):
     def __init__(self, **kwargs):
         args = {}
         # set defaults
-        args['exposure'] = 8160.
+        args['exposure'] = 1360.
         args['zpt_vega'] = 25.5283  # see filter_setup.ipynb
         args['zpt_ab'] = 25.9565
         args['zpt_st'] = 26.7927
