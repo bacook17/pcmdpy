@@ -68,9 +68,7 @@ class NonParam(_AgeModel):
         super().__init__()
 
     def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "age_params for Galaxy_Model should be length %d" %
-                        self._num_params)
+        assert (len(age_params) == self._num_params), "age_params for NonParam should be length {:d}".format(self._num_params)
         self.SFH = 10.**age_params[self.iso_sfh_bin] * self.delta_t_iso
         self.SFH /= self.delta_t_sfh[self.iso_sfh_bin]
         self._params = age_params
@@ -83,7 +81,7 @@ class NonParam(_AgeModel):
                              for i in range(self._num_SFH_bins)]
         self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
-        self.__init__(self._params, iso_step=self.iso_step)
+        self.__init__(iso_step=self.iso_step)
         
     def as_default(self):
         return type(self)(self._params, iso_step=-1)
@@ -110,7 +108,7 @@ class ConstantSFR(_AgeModel):
 
     def set_params(self, age_params):
         utils.my_assert(len(age_params) == self._num_params,
-                        "age_params for Constant_SFR should be length %d" %
+                        "age_params for ConstantSFR should be length %d" %
                         self._num_params)
         Npix = 10.**age_params[0]
         SFH_term = 10.**self.iso_edges[1:] - 10.**self.iso_edges[:-1]
