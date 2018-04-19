@@ -161,6 +161,13 @@ params['gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel, agemodel,
 # Add the binned hess values and the mean magnitude and color terms
 params['like_mode'] = 2
 
+# The hess bins to compute the likelihood in
+# The magnitude upper/lower bounds are very important to consider
+# relative to distance
+magbins = np.arange(10, 45, 0.05)
+colorbins = np.arange(-1.5, 4.6, 0.05)  # fairly insensitive to distance
+params['bins'] = [magbins, colorbins]
+
 # Factor to downsample the isochrones
 params['downsample'] = 5
 
@@ -199,7 +206,7 @@ prior_bounds['dust_bounds'] = [dust_med_bound]
 prior_bounds['age_bounds'] = SFH_bounds
 prior_bounds['dmod_bound'] = dmod_bound
 
-params['prior'] = params['gal_class'].get_flat_prior(**prior_bounds)
+params['prior'] = params['gal_model'].get_flat_prior(**prior_bounds)
 
 ###############################################
 # DATA / MOCK SETTINGS
@@ -226,8 +233,13 @@ model_mock.set_params(gal_params)
 # Create the mock data
 # temporary driver to make mock
 driv = ppy.driver.Driver(params['iso_model'], gpu=params['use_gpu'])
+
+# Insert sky noise to simulated data?
+noise = None
+
 # The mock data
 params['data_pcmd'], _ = driv.simulate(model_mock, N_mock,
-                                       fixed_seed=params['fixed_seed'])
+                                       fixed_seed=params['fixed_seed'],
+                                       shot_noise=True, noise=noise)
 
 del driv

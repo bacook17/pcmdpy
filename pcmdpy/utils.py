@@ -265,7 +265,7 @@ class ResultsPlotter(object):
                     'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
                     'logdust_med': 'log E(B-V)',
                     'dust_sig': r'$\sigma(E(B-V))$', 'tau': r'$\tau$',
-                    'tau_rise': r'$\tau$',
+                    'tau_rise': r'$\tau$', 'dmod': r'$\mu_{d}$',
                     'logNpix': r'$\log_{10} N_{pix}$'}
     param_labels.update({'logSFH{:d}'.format(i):
                          r'$\log_{10}$'+'SFH{:d}'.format(i) for i in range(7)})
@@ -301,10 +301,14 @@ class ResultsPlotter(object):
                         self.params.append(p)
             if 'logfeh_std' in self.params:
                 self.metal_model = metalmodels.NormMDF
+            elif 'logfeh_mean' in self.params:
+                self.metal_model = metalmodels.FixedWidthNormMDF
             else:
                 self.metal_model = metalmodels.SingleFeH
             if 'dust_sig' in self.params:
                 self.dust_model = dustmodels.LogNormDust
+            elif 'logdust_med' in self.params:
+                self.dust_model = dustmodels.FixedWidthLogNormDust
             else:
                 self.dust_model = dustmodels.SingleDust
             if 'logSFH0' in self.params:

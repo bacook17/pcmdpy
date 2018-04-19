@@ -4,6 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import pcmdpy as ppy
 
 
 def plot_rgb_image(images, extent=None, ax=None,
@@ -37,6 +38,8 @@ def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={}):
         hist2d_kwargs['cmap'] = 'viridis'
     H, xbins, ybins, _ = ax.hist2d(pcmd[1], pcmd[0], bins=bins, norm=norm,
                                    **hist2d_kwargs)
+    yl = ax.get_ylim()
+    ax.set_ylim([max(yl), min(yl)])
     return ax, H, [xbins, ybins], norm
 
 
@@ -69,18 +72,24 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
         norm = mpl.colors.SymLogNorm(vmin=-chi_max, vmax=chi_max, linthresh=1., linscale=0.1)
     plt.subplot(ax)
     plt.imshow(chi.T, norm=norm, origin='lower', aspect='auto',
-              extent=(xbins[0], xbins[-1],
-                      ybins[0], ybins[-1]),
-              **kwargs)
+               extent=(xbins[0], xbins[-1],
+                       ybins[0], ybins[-1]),
+               **kwargs)
+    yl = ax.get_ylim()
+    ax.set_ylim([max(yl), min(yl)])
     return ax, chi, bins, norm
 
 
-def plot_isochrone(galaxy, iso_model, axes=None, system='vega', **kwargs):
+def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
+                   system='vega', **kwargs):
     if axes is None:
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
+    if gal_model is None:
+        gal_model = ppy.galaxy.DefaultSSP(np.array([0., -2., 1., 10.]),
+                                          dmod=dmod)
     names = iso_model.filter_names
-    for age, feh, _, d_mod in galaxy.iter_SSPs():
+    for age, feh, _, d_mod in gal_model.iter_SSPs():
         _, mags = iso_model.get_isochrone(age, feh, system=system)
         mags += d_mod
         if iso_model.num_filters == 2:
@@ -103,7 +112,3 @@ def plot_isochrone(galaxy, iso_model, axes=None, system='vega', **kwargs):
                 yl = ax.get_ylim()
                 ax.set_ylim([max(yl), min(yl)])
     return axes
-
-
-
-              
