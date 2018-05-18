@@ -194,9 +194,15 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
     
     return result_front + result_behind*reddening
 
+
 def gpu_log10(array_in, verbose=False, **kwargs):
     if _GPU_AVAIL:
-        return cumath.log10(pycuda.gpuarray.to_gpu(array_in)).get()
+        if type(array_in) is not np.ndarray:
+            array_in = np.array(array_in)
+        if len(array_in) <= 1e6:
+            return np.log10(array_in)
+        else:
+            return cumath.log10(pycuda.gpuarray.to_gpu(array_in)).get()
     else:
         if verbose:
             warnings.warn('gpu_log10 using cpu, because gpu not available.',RuntimeWarning)

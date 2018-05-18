@@ -90,3 +90,5 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
     if (collector.out_df is not None):
         print('-Saving final results dataframe')
         collector.flush_to_csv()
+
+    return sampler

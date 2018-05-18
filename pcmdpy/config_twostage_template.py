@@ -1,9 +1,10 @@
-# Template configuration file
+# Template configuration file for Tau->NP 2 stage
 # Ben Cook (bcook@cfa.harvard.edu)
 
 ###############################################
 # CONFIG FILE for mock run
-# MOCK Galaxy: DETAILS HERE
+# MOCK Galaxy 1: DETAILS HERE
+# MOCK Galaxy 2: DETAILS HERE
 # MODEL Galaxy: DETAILS HERE
 
 import pcmdpy as ppy
@@ -18,8 +19,10 @@ import sys
 # IMPLEMENTATION SETTINGS
 
 params = {}  # arguments passed to pcmdpy_integrate
-sampler_params = {}  # arguments passed to dynesty sampler initialization
-run_params = {}  # arguments passed to sampler's run_nested()
+init_sampler_params = {}  # arguments passed to INITIAL RUN dynesty sampler
+init_run_params = {}  # arguments passed to INITIAL RUN sampler's run_nested()
+final_sampler_params = {}  # arguments passed to INITIAL RUN dynesty sampler
+final_run_params = {}  # arguments passed to INITIAL RUN sampler's run_nested()
 
 # Whether to use GPU acceleration
 params['use_gpu'] = True
@@ -40,7 +43,8 @@ if N_threads > 1:
         time.sleep(10)
     else:
         pool = multiprocessing.Pool(processes=N_threads)
-sampler_params['pool'] = pool
+init_sampler_params['pool'] = pool
+final_sampler_params['pool'] = pool
 
 # Initialize the GPU with pycuda
 if params['use_gpu']:
@@ -64,54 +68,57 @@ params['dynamic'] = DYNAMIC = True
 # The number of dynesty live points
 _nlive = 300
 if DYNAMIC:
-    run_params['nlive_init'] = _nlive
+    init_run_params['nlive_init'] = final_run_params['nlive_init'] = _nlive
 else:
-    sampler_params['nlive'] = _nlive
+    init_sampler_params['nlive'] = final_sampler_params['nlive'] = _nlive
 
 # How to bound the prior
-sampler_params['bound'] = 'multi'
+init_sampler_params['bound'] = final_sampler_params['bound'] = 'multi'
 
 # How to sample within the prior bounds
-sampler_params['method'] = 'unif'
+init_sampler_params['method'] = final_sampler_params['method'] = 'unif'
 
 # Number of parallel processes
-sampler_params['nprocs'] = N_threads
+init_sampler_params['nprocs'] = final_sampler_params['nprocs'] = N_threads
 
 # Only update the bounding distribution after this many calls
-sampler_params['update_interval'] = 1
+init_sampler_params['update_interval'] = final_sampler_params['update_interval'] =  1
 
 # Compute multiple realizations of bounding objects
-sampler_params['bootstrap'] = 0
+init_sampler_params['bootstrap'] = final_sampler_params['bootstrap'] = 0
 
 # Enlarge volume of bounding ellipsoids
-sampler_params['enlarge'] = 1.1
+init_sampler_params['enlarge'] = final_sampler_params['enlarge'] = 1.1
 
 # When should sampler update bounding from unit-cube
-sampler_params['first_update'] = {'min_eff': 30.}
+init_sampler_params['first_update'] = final_sampler_params['first_update'] =  {'min_eff': 30.}
 
 ###############################################
 # DYNESTY RUN_NESTED SETTINGS
 
-# The number of max calls for dynesty
-run_params['maxcall'] = 120000
+# The number of max calls for burn-in phase
+init_run_params['maxcall'] = 10000
+
+# The number of max calls for final phase
+final_run_params['maxcall'] = 120000
 
 # The error tolerance for dynesty stopping criterion
 _dlogz = 0.5
 if DYNAMIC:
-    run_params['dlogz_init'] = _dlogz
+    init_run_params['dlogz_init'] = final_run_params['dlogz_init'] = _dlogz
 else:
-    run_params['dlogz'] = _dlogz
-    sampler_params['add_live'] = True
+    init_run_params['dlogz'] = final_run_params['dlogz'] = _dlogz
+    init_sampler_params['add_live'] = final_sampler_params['add_live'] = True
 
 if DYNAMIC:
     # How many batches?
-    run_params['maxbatch'] = 10
+    init_run_params['maxbatch'] = final_run_params['maxbatch'] = 30
     # How many live points per batch?
-    run_params['nlive_batch'] = 100
+    init_run_params['nlive_batch'] = final_run_params['nlive_batch'] = 100
     # weight function parameters
-    run_params['wt_kwargs'] = {'pfrac': 1.0}
+    init_run_params['wt_kwargs'] = final_run_params['wt_kwargs'] = {'pfrac': 1.0}
     # How many max calls per iteration?
-    run_params['maxcall_per_it'] = 1000
+    init_run_params['maxcall_per_it'] = final_run_params['maxcall_per_it'] = 500
 
 ###############################################
 # PCMD MODELLING SETTINGS
@@ -134,30 +141,44 @@ params['filters'] = ppy.instrument.default_m31_filters()
 # Initialize the isochrone models for the current set of filters
 params['iso_model'] = ppy.isochrones.Isochrone_Model(params['filters'])
 
+# model for Initial (burn-in) phase
+params['init_gal_model'] = ppy.galaxy.TauFull()
+
+# model for Final phase
+params['final_gal_model'] = ppy.galaxy.NonParamFull()
+
+# ###### Alternative Method:
 # Set a custom Galaxy Model with four parts
 
-# Metallicity model
-metalmodel = ppy.metalmodels.SingleFeH()  # Single Metallicity
+# Metallicity model (select one)
+# metalmodel = ppy.metalmodels.SingleFeH()  # Single Metallicity
 # metalmodel = ppy.metalmodels.NormMDF()  # Gaussian MDF
 # metalmodel = ppy.metalmodels.FixedWidthNormMDF(0.3)  # fixed width MDF
 
-# Dust model
-dustmodel = ppy.dustmodels.SingleDust()  # single dust screen
+# Dust model (select one)
+# dustmodel = ppy.dustmodels.SingleDust()  # single dust screen
 # dustmodel = ppy.dustmodels.LogNormDust()  # lognormal screen
-# dustmodel = ppy.dustmodels.FixedWidthLogNormDust(0.3)  # fixed width lognorm
+# dustmodel = ppy.dustmodels.FixedWidthLogNormDust(0.2)  # fixed width lognorm
 
-# Age model
-agemodel = ppy.agemodels.NonParam()  # Fully non-parametric model
+# Age model (select one)
+# agemodel = ppy.agemodels.NonParam()  # Fully non-parametric model
 # agemodel = ppy.agemodels.ConstantSFR()  # constant Star Formation Rate
 # agemodel = ppy.agemodels.TauModel()  # exponential SFR decline
 # agemodel = ppy.agemodels.RisingTau()  # Linear x exponential decline
 # agemodel = ppy.agemodels.SSPModel()  # single age SSP
 
-# Distance model
-distancemodel = ppy.distancemodels.FixedDistance(30.)  # fixed dmod=30 (10 Mpc)
+# Distance model (select one)
+# distancemodel = ppy.distancemodels.FixedDistance(30.)  # fixed @ 10 Mpc
 # distancemodel = ppy.distancemodels.VariableDistance()  # dmod floats
-params['gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel, agemodel,
-                                              distancemodel)
+
+# model for Initial (burn-in) phase
+# params['init_gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel,
+#                                                    agemodel, distancemodel)
+
+# model for Final phase
+# agemodel = ppy.agemodels.NonParam()
+# params['final_gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel,
+#                                                     agemodel, distancemodel)
 
 # Add the binned hess values and the mean magnitude and color terms
 params['like_mode'] = 2
@@ -186,8 +207,8 @@ params['fixed_seed'] = True
 z_bound = [-1.5, 0.5]  # metallicity
 dust_med_bound = [-2.0, 0.5]  # log dust median
 # Only set the distance bounds if allowed to float
-dmod_bound = None
-# dmod_bound = [[28., 30.]]
+# dmod_bound = None
+dmod_bound = [[28., 30.]]
 
 # Compute the 7-param SFH bound using tau models to bound
 Npix_low, tau = 0.5, 1.
@@ -207,7 +228,8 @@ prior_bounds['dust_bounds'] = [dust_med_bound]
 prior_bounds['age_bounds'] = SFH_bounds
 prior_bounds['dmod_bound'] = dmod_bound
 
-params['prior'] = params['gal_model'].get_flat_prior(**prior_bounds)
+# Set the prior boundary for the Initial (burn-in) phase
+params['init_prior'] = params['init_gal_model'].get_flat_prior(**prior_bounds)
 
 ###############################################
 # DATA / MOCK SETTINGS

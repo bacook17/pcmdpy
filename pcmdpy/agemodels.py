@@ -11,7 +11,7 @@ from pcmdpy import utils
 
 
 class _AgeModel:
-    default_edges = np.array([6., 8., 8.5, 9., 9.5, 10., 10.2])
+    default_edges = np.array([6., 8., 8.5, 9., 9.5, 10., 10.14])
     _num_SFH_bins = len(default_edges) - 1
 
     def __init__(self):
@@ -27,12 +27,13 @@ class _AgeModel:
     def get_vals(self):
         return self.ages, self.SFH
 
-    def get_cum_sfh(self, inverted=True):
+    def get_cum_sfh(self):
+        """
+        Defined such that first age bin has 100% cum SFH
+        """
         normed_sfh = self.SFH / self.Npix
-        if inverted:
-            return np.append(0., np.cumsum(normed_sfh[::-1]))[::-1]
-        else:
-            return np.cumsum(normed_sfh)
+        cum_sfh = 1. - np.cumsum(normed_sfh)
+        return np.append(1., cum_sfh)
 
 
 class NonParam(_AgeModel):
@@ -46,22 +47,17 @@ class NonParam(_AgeModel):
         self.iso_step = iso_step
         if iso_step > 0:
             # construct list of ages, given isochrone spacing
-            iso_edges = np.arange(6.0, 10.3, iso_step)
-            in_range = np.logical_and((iso_edges+0.001 >=
-                                       self.default_edges[0]),
-                                      (iso_edges-0.001 <=
-                                       self.default_edges[-1]))
-            iso_edges = iso_edges[in_range]
+            self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
-            iso_edges = self.default_edges
-        self.ages = 0.5*(iso_edges[:-1] + iso_edges[1:])
+            self.iso_edges = self.default_edges
+        self.ages = 0.5*(self.iso_edges[:-1] + self.iso_edges[1:])
         # which of the 7 bins does each isochrone belong to?
         self.iso_sfh_bin = np.digitize(self.ages, self.default_edges) - 1
         # include right-most bin if needed
         self.iso_sfh_bin[-1] = np.digitize(self.ages, self.default_edges,
                                            right=True)[-1] - 1
         # compute SFH in each isochrone, given the bin SFH
-        self.delta_t_iso = np.diff(10.**iso_edges)
+        self.delta_t_iso = np.diff(10.**self.iso_edges)
         self.delta_t_sfh = np.diff(10.**self.default_edges)
         if initial_params is not None:
             self.set_params(initial_params)
@@ -73,6 +69,7 @@ class NonParam(_AgeModel):
         self.SFH /= self.delta_t_sfh[self.iso_sfh_bin]
         self._params = age_params
         super().__init__()
+        return self
 
     def update_edges(self, new_edges):
         self.default_edges = new_edges
@@ -82,9 +79,10 @@ class NonParam(_AgeModel):
         self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
         self.__init__(iso_step=self.iso_step)
+        return self
         
     def as_default(self):
-        return type(self)(self._params, iso_step=-1)
+        return type(self)(self._params, iso_step=-1).update_edges(self.default_edges)
 
 
 class ConstantSFR(_AgeModel):
@@ -107,19 +105,22 @@ class ConstantSFR(_AgeModel):
         super().__init__()
 
     def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "age_params for ConstantSFR should be length %d" %
-                        self._num_params)
+        assert len(age_params) == self._num_params, ("age_params for "
+                                                     "ConstantSFR should be "
+                                                     "length %d" %
+                                                     self._num_params)
         Npix = 10.**age_params[0]
         SFH_term = 10.**self.iso_edges[1:] - 10.**self.iso_edges[:-1]
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
+        return self
 
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
+        return self
 
     def as_default(self):
         return type(self)(self._params, iso_step=-1)
@@ -145,9 +146,9 @@ class TauModel(_AgeModel):
         super().__init__()
 
     def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "age_params for Tau_Model should be length %d" %
-                        self._num_params)
+        assert len(age_params) == self._num_params, ("age_params for Tau_Model"
+                                                     " should be length %d" %
+                                                     self._num_params)
 
         Npix = 10.**age_params[0]
         tau = age_params[1]
@@ -157,11 +158,13 @@ class TauModel(_AgeModel):
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
+        return self
 
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
+        return self
 
     def as_default(self):
         return type(self)(self._params, iso_step=-1)
@@ -187,9 +190,9 @@ class RisingTau(_AgeModel):
         super().__init__()
 
     def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "gal_params for Rising_Tau should be length %d" %
-                        self._num_params)
+        assert len(age_params) == self._num_params, ("gal_params for Rising_Tau"
+                                                     " should be length %d" %
+                                                     self._num_params)
         Npix = 10.**age_params[0]
         tau = age_params[1]
 
@@ -199,11 +202,13 @@ class RisingTau(_AgeModel):
         self.SFH = Npix * SFH_term / np.sum(SFH_term)
         self._params = age_params
         super().__init__()
+        return self
 
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
         self.__init__(self._params, iso_step=self.iso_step)
+        return self
 
     def as_default(self):
         return type(self)(self._params, iso_step=-1)
@@ -230,3 +235,4 @@ class SSPModel(_AgeModel):
         self.ages = np.array([age_params[1]])
         self._params = age_params
         super().__init__()
+        return self

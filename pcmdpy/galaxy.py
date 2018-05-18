@@ -121,7 +121,7 @@ class CustomGalaxy(BaseGalaxy):
         pass
 
 
-class DefaultTau(CustomGalaxy):
+class TauSimple(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.SingleFeH(),
@@ -131,7 +131,7 @@ class DefaultTau(CustomGalaxy):
                          initial_params=initial_params)
 
 
-class DefaultSSP(CustomGalaxy):
+class SSPSimple(CustomGalaxy):
     
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.SingleFeH(),
@@ -141,7 +141,7 @@ class DefaultSSP(CustomGalaxy):
                          initial_params=initial_params)
 
 
-class DefaultNonParam(CustomGalaxy):
+class NonParamSimple(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.SingleFeH(),
@@ -151,7 +151,7 @@ class DefaultNonParam(CustomGalaxy):
                          initial_params=initial_params)
 
 
-class MDFTau(CustomGalaxy):
+class TauMDF(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.NormMDF(),
@@ -161,11 +161,31 @@ class MDFTau(CustomGalaxy):
                          initial_params=initial_params)
 
 
-class LogNormTau(CustomGalaxy):
+class TauLogNorm(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
         super().__init__(ppy.metalmodels.SingleFeH(),
                          ppy.dustmodels.LogNormDust(),
                          ppy.agemodels.TauModel(),
                          ppy.distancemodels.FixedDistance(dmod),
+                         initial_params=initial_params)
+
+        
+class TauFull(CustomGalaxy):
+
+    def __init__(self, initial_params=None):
+        super().__init__(ppy.metalmodels.FixedWidthNormMDF(0.3),
+                         ppy.dustmodels.FixedWidthLogNormDust(0.2),
+                         ppy.agemodels.TauModel(),
+                         ppy.distancemodels.VariableDistance(),
+                         initial_params=initial_params)
+
+
+class NonParamFull(CustomGalaxy):
+
+    def __init__(self, initial_params=None):
+        super().__init__(ppy.metalmodels.FixedWidthNormMDF(0.3),
+                         ppy.dustmodels.FixedWidthLogNormDust(0.2),
+                         ppy.agemodels.NonParam(),
+                         ppy.distancemodels.VariableDistance(),
                          initial_params=initial_params)
