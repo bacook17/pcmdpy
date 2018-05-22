@@ -166,14 +166,14 @@ if $MOCK_RUN; then
 --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
     (pcmd_integrate_twostage.py --config $CONFIG_FILE \
 		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
-		      2> $STDERR_FILE | tee $STDOUT_FILE) &
+		      2> $STDERR_FILE > $STDOUT_FILE) &
     my_pid=$!
 else
     echo "exec: pcmd_integrate_twostage.py --config $CONFIG_FILE \
 --data $DATA_FILE --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
     (pcmd_integrate_twostage.py --config $CONFIG_FILE --data $DATA_FILE \
 		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
-		      2> $STDERR_FILE | tee $STDOUT_FILE) &
+		      2> $STDERR_FILE > $STDOUT_FILE) &
     my_pid=$!
 fi
 
@@ -184,6 +184,7 @@ if $USE_S3; then
     while ps -p $my_pid  # as long as the run is ongoing
     do
 	save_to_s3
+	tail -8 $STDOUT_FILE
 	sleep 2m
     done
 fi
@@ -198,7 +199,7 @@ if [ $CODE -eq 0 ]; then
 else
     echo "pcmdpy failed. Error logs printed below:"
     echo "---------------------------"
-    cat < $STDERR_FILE
+    cat $STDERR_FILE
     echo "---------------------------"
 fi
 

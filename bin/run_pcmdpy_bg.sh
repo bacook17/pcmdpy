@@ -153,14 +153,14 @@ fi
 if $MOCK_RUN; then
     echo "exec: pcmd_integrate.py --config $CONFIG_FILE \
 --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    pcmd_integrate.py --config $CONFIG_FILE \
-		      --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &
+    (pcmd_integrate.py --config $CONFIG_FILE \
+		      --results $RESULTS_FILE 2> $STDERR_FILE > tee $STDOUT_FILE) &
     my_pid=$!
 else
     echo "exec: pcmd_integrate.py --config $CONFIG_FILE \
 --data $DATA_FILE --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
-		      --results $RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &
+    (pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
+		      --results $RESULTS_FILE 2> $STDERR_FILE > tee $STDOUT_FILE) &
     my_pid=$!
 fi
 
@@ -168,9 +168,10 @@ echo "PID of process: $my_pid "
 
 # Periodically (every 2 minutes) upload results
 if $USE_S3; then
-    while ps | grep " $my_pid "   # as long as the run is ongoing
+    while ps -p $my_pid   # as long as the run is ongoing
     do
 	save_to_s3
+	tail -8 $STDOUT_FILE
 	sleep 2m
     done
 fi
