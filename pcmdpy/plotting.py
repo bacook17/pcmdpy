@@ -109,8 +109,8 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
     if gal_model is None:
-        gal_model = ppy.galaxy.DefaultSSP(np.array([0., -2., 1., 10.]),
-                                          dmod=dmod)
+        gal_model = ppy.galaxy.SSPSimple(np.array([0., -2., 1., 10.]),
+                                         dmod=dmod)
     names = iso_model.filter_names
     for age, feh, _, d_mod in gal_model.iter_SSPs():
         _, mags = iso_model.get_isochrone(age, feh, system=system)
