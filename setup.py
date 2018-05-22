@@ -37,7 +37,7 @@ class CleanCommand(Command):
 
 setup(
     name='pcmdpy',
-    version='0.3.1',
+    version='0.3.2',
     author='Ben Cook',
     author_email='bcook@cfa.harvard.edu',
     packages=['pcmdpy'],
@@ -46,7 +46,9 @@ setup(
     description="""Tools for modelling crowded-field photometry using the
        Pixel Color-Magnitude Diagram technique""",
     package_data={'pcmdpy': ['isoc_MIST_v1.1/*', 'psf/*.fits', 'src/*.c']},
-    scripts=['bin/run_pcmdpy.sh', 'pcmdpy/pcmd_integrate.py'],
+    scripts=['bin/run_pcmdpy.sh', 'bin/run_pcmdpy_bg.sh',
+             'bin/run_pcmdpy_twostage.sh', 'pcmdpy/pcmd_integrate.py',
+             'pcmdpy/pcmd_integrate_twostage.py'],
     include_package_data=True,
     cmdclass={'clean': CleanCommand, 'install': CustomInstall},
     install_requires=[
