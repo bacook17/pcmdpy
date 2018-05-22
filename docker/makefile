@@ -6,4 +6,9 @@ pcmdpy:
 base: Dockerfile_base
 	docker build -f Dockerfile_base -t bacook17/gpu_base .
 
+base_hard:
+	docker build -f Dockerfile_base -t bacook17/gpu_base --no-cache .
+
+overhaul: base_hard pcmdpy
+
 all: base pcmdpy
