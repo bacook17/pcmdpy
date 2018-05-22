@@ -162,16 +162,16 @@ fi
 
 # If a mock run
 if $MOCK_RUN; then
-    echo "exec: pcmd_integrate.py --config $CONFIG_FILE \
+    echo "exec: pcmd_integrate_twostage.py --config $CONFIG_FILE \
 --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    pcmd_integrate.py --config $CONFIG_FILE \
+    pcmd_integrate_twostage.py --config $CONFIG_FILE \
 		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
 		      2> $STDERR_FILE | tee $STDOUT_FILE &
     my_pid=$!
 else
     echo "exec: pcmd_integrate.py --config $CONFIG_FILE \
 --data $DATA_FILE --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    pcmd_integrate.py --config $CONFIG_FILE --data $DATA_FILE \
+    pcmd_integrate_twostage.py --config $CONFIG_FILE --data $DATA_FILE \
 		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
 		      2> $STDERR_FILE | tee $STDOUT_FILE &
     my_pid=$!
