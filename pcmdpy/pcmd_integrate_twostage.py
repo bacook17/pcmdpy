@@ -111,8 +111,8 @@ if __name__ == "__main__":
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
 
-    init_param_names = config.params['init_gal_model']._param_names
-    final_param_names = config.params['final_gal_model']._param_names
+    init_param_names = gal_init._param_names
+    final_param_names = gal_final._param_names
     
     init_results_cols = results_cols + list(init_param_names)
     final_results_cols = results_cols + list(final_param_names)
