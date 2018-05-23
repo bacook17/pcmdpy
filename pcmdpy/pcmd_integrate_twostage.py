@@ -89,12 +89,16 @@ if __name__ == "__main__":
     args = {}
     args['pcmd'] = data_pcmd
 
-    required_keys = ['filters', 'N_im', 'init_gal_model', 'final_gal_model',
+    gal_init = config.params.pop('init_gal_model')
+    gal_final = config.params.pop('final_gal_model')
+
+    required_keys = ['filters', 'N_im', 'gal_model',
                      'init_prior']
     
     # Load all parameters from configuration file
     # defaults are set by fit_model.nested_integrate
     args.update(config.params)
+    args['gal_model'] = gal_init
 
     for key in required_keys:
         if key not in args.keys():
@@ -106,8 +110,7 @@ if __name__ == "__main__":
     results_cols = ['nlive', 'niter', 'nc', 'eff',
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
-    gal_init = config.params['init_gal_model']
-    gal_final = config.params['final_gal_model']
+
     init_param_names = config.params['init_gal_model']._param_names
     final_param_names = config.params['final_gal_model']._param_names
     
@@ -188,6 +191,7 @@ if __name__ == "__main__":
         prior_bounds['age_bounds'].append([low, high])
     
     args['prior'] = gal_final.get_flat_prior(**prior_bounds)
+    args['gal_model'] = gal_final
     # Run the second model
 
     out_df = pd.DataFrame(columns=final_results_cols)
