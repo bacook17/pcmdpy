@@ -131,7 +131,8 @@ if __name__ == "__main__":
 
     print('Running Initial Nested Sampling Model')
     init_sampler = fit_model.nested_integrate(**args)
-
+    print('=================================')
+    print('Processing Burn-In Run')
     # Setup the prior object for the second model
     live_points = init_sampler.live_v
     bound_levels = [2.5, 97.5]  # compute 95% range
@@ -191,7 +192,10 @@ if __name__ == "__main__":
         low -= 0.5 * width
         high += 0.5 * width
         prior_bounds['age_bounds'].append([low, high])
-    
+
+    print('New prior bounds')
+    print(prior_bounds)
+        
     args['prior'] = gal_final.get_flat_prior(**prior_bounds)
     args['gal_model'] = gal_final
     # Run the second model
