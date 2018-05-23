@@ -185,7 +185,7 @@ if $USE_S3; then
     do
 	save_to_s3
 	tail -8 $STDOUT_FILE
-	sleep 2m
+	sleep 10m
     done
 fi
 

@@ -38,6 +38,7 @@ def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     counts = np.array(counts).flatten()
     # add "everything else" bin
     counts = np.append(counts, n - np.sum(counts))
+    counts[counts <= 0.] = 0.
     err = np.sqrt(counts)
     
     if charlie_err:
