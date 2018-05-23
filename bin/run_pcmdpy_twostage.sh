@@ -16,16 +16,13 @@ error_exit () {
 
 # Send results and output to S3
 save_to_s3() {
+    echo "Uploading results and logs to s3"
     if [ -f $FINAL_RESULTS_FILE ]; then
-	echo "Uploading final results to s3://pcmdpy/results/${FINAL_RESULTS_FILE}"
 	aws s3 cp $FINAL_RESULTS_FILE "s3://pcmdpy/results/${FINAL_RESULTS_FILE}" || echo "Unable to save results file to s3://pcmdpy/logs/${FINAL_RESULTS_FILE}"
     else
-	echo "Uploading inital results to s3://pcmdpy/results/${INIT_RESULTS_FILE}"
 	aws s3 cp $INIT_RESULTS_FILE "s3://pcmdpy/results/${INIT_RESULTS_FILE}" || echo "Unable to save results file to s3://pcmdpy/logs/${INIT_RESULTS_FILE}"
     fi
-    echo "Uploading STDOUT logs to s3://pcmdpy/logs/${STDOUT_FILE}"
     aws s3 cp $STDOUT_FILE "s3://pcmdpy/logs/${STDOUT_FILE}" || echo "Unable to save stdout file to s3://pcmdpy/logs/${STDOUT_FILE}"
-    echo "Uploading STDERR logs to s3://pcmdpy/logs/${STDERR_FILE}"
     aws s3 cp $STDERR_FILE "s3://pcmdpy/logs/${STDERR_FILE}" || echo "Unable to save stderr file to s3://pcmdpy/logs/${STDERR_FILE}"
 }
 
@@ -181,10 +178,10 @@ echo "PID of process: $my_pid "
 
 # Periodically (every 2 minutes) upload results
 if $USE_S3; then
-    while ps -p $my_pid  # as long as the run is ongoing
+    while ps -p $my_pid > /dev/null 2> /dev/null # as long as the run is ongoing
     do
 	save_to_s3
-	tail -8 $STDOUT_FILE
+	tail -9 $STDOUT_FILE
 	sleep 10m
     done
 fi
