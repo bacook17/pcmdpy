@@ -108,7 +108,7 @@ class Driver:
         var_pcmd = np.append([var_mag],
                              [var_color for _ in range(1, self.n_filters)])
         mean_term = - (mean_pcmd_model - self.mean_pcmd_data)**2 / (2*var_pcmd)
-        log_like += mean_term
+        log_like += mean_term.sum()
         return log_like
             
 
