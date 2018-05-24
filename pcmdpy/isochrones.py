@@ -17,9 +17,9 @@ from pkg_resources import resource_filename
 
 
 def salpeter_IMF(mass, lower=0.08, upper=300., norm_by_mass=True, **kwargs):
-    dm = np.diff(mass)
-    m_low = mass - 0.5*np.append([0.], dm)  # (lowest bin stays same)
-    m_high = mass + 0.5*np.append(dm, [0.])  # (highest bin stays same)
+    mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
+    m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
+    m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
     imf = (np.power(m_low, -1.35) - np.power(m_high, -1.35)) / 1.35
     imf[mass < lower] = 0.
     min_mass = max(lower, mass[0])
@@ -93,6 +93,27 @@ def _z_to_str(z):
     return result
 
 
+def _interp_df_by_mass(df, dm_min):
+    ages = np.unique(df.age.values)
+    fehs = np.unique(df['[Fe/H]_init'].values)
+    new_rows = []
+    for age in ages:
+        for feh in fehs:
+            iso_df = df[np.isclose(df.age, age) & np.isclose(df['[Fe/H]_init'], feh)]
+            # add more points until reached desired spacing
+            mass = iso_df.initial_mass.values
+            frac_dm = np.diff(mass) / mass[:-1]
+            id_too_large = np.where(frac_dm > dm_min)[0]
+            for i_max in id_too_large:
+                # add additional 5 points spacing by interpolating 0.1 between points
+                row_low = iso_df.iloc[i_max]
+                row_high = iso_df.iloc[i_max + 1]
+                for f in np.linspace(0.1, 0.9, 5):
+                    new_rows.append(f*row_low + (1-f)*row_high)
+    df = df.append(pd.DataFrame(new_rows))
+    return df
+
+
 class Isochrone_Model:
     """Models Isochrones (IMF, and magnitudes in particular Filters) using
        linear interpolation of MIST models
@@ -111,7 +132,8 @@ class Isochrone_Model:
        __init__ -- Pass a list of Filter objects, path to MIST model files,
                    and array of metallicities.
     """
-    def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd"):
+    def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd",
+                 dm_interp=-1):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
         Arguments:
@@ -119,6 +141,7 @@ class Isochrone_Model:
         Keyword Arguments:
            MIST_path -- directory containing MIST model files
            z_arr -- array of MIST metallicity values to use
+           dm_interp -- 
         """
 
         # Locate MIST files
@@ -159,6 +182,13 @@ class Isochrone_Model:
         self._z_arr = np.sort(_z_arr)
         self.MIST_df.rename(columns={'log10_isochrone_age_yr': 'age'},
                             inplace=True)
+        if dm_interp > 0.:
+            print('starting manual interpolation')
+            self.MIST_df = _interp_df_by_mass(self.MIST_df, dm_interp)
+            print('done with interpolation')
+        self.MIST_df = self.MIST_df.sort_values(by=['[Fe/H]_init', 'age',
+                                                    'initial_mass'])
+        self.MIST_df = self.MIST_df.reset_index(drop=True)
         self.ages = self.MIST_df.age.unique()
         # The MIST columns that will be interpolated (mass, logIMF,
         # and all input filters)
@@ -203,10 +233,10 @@ class Isochrone_Model:
         # Find closest age in MIST database
         if age not in self.ages:
             age = self.ages[np.abs(self.ages - age).argmin()]
-        this_age = self.MIST_df[self.MIST_df.age == age]
+        this_age = self.MIST_df[np.isclose(self.MIST_df.age.values, age)]
         # Output MIST values for known metallicities
         if z in self._z_arr:
-            inter = this_age[this_age.z == z][self._interp_cols].values
+            inter = this_age[np.isclose(this_age.z.values, z)][self._interp_cols].values
         # Interpolate/extrapolate for other metallicities
         else:
             i = self._z_arr.searchsorted(z)
@@ -219,8 +249,8 @@ class Isochrone_Model:
             if (frac_between >= 2) or (frac_between <= -1):
                 raise ValueError('Extrapolating metallicity more than one '
                                  'entire metallicity bin')
-            dflow = this_age[this_age.z == zlow][self._interp_cols]
-            dfhigh = this_age[this_age.z == zhigh][self._interp_cols]
+            dflow = this_age[np.isclose(this_age.z.values, zlow)][self._interp_cols]
+            dfhigh = this_age[np.isclose(this_age.z.values, zhigh)][self._interp_cols]
             inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
             
         IMF = imf_func(inter[::downsample, 0], **kwargs)

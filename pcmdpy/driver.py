@@ -2,8 +2,6 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from scipy.stats import poisson
-from scipy.misc import logsumexp
 from pcmdpy import utils
 from pcmdpy import gpu_utils
 import warnings
@@ -30,7 +28,7 @@ class Driver:
         #No data has been initialized
         self._data_init = False
         
-    def initialize_data(self, pcmd, bins=None, charlie_err=False, **kwargs):
+    def initialize_data(self, pcmd, bins=None, **kwargs):
         if bins is None:
             magbins = np.arange(-12, 15.6, 0.05)
             colorbins = np.arange(-1.5, 4.6, 0.05)
@@ -48,89 +46,71 @@ class Driver:
         self.gaussian_data = multivariate_normal(mean=means, cov=cov)
 
         # compute the mean magnitudes
-        mags = np.copy(pcmd)
-        for i in range(1, self.n_filters):
-            mags[i] += mags[0]
-        mag_factor = -0.4 * np.log(10)  # convert from base 10 to base e
-        weights = float(1) / mags.shape[1]  # evenly weight each pixel
-        self.mean_mags_data = logsumexp(mag_factor*mags, b=weights, axis=1)
+        self.mean_mags_data = utils.mean_mags(pcmd)
+        self.mean_pcmd_data = utils.make_pcmd(self.mean_mags_data)
         
-        counts, hess, err = utils.make_hess(pcmd, self.hess_bins,
-                                            charlie_err=charlie_err)
+        counts, hess, err = utils.make_hess(pcmd, self.hess_bins, log=False)
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
+        counts, log_hess, log_err = utils.make_hess(pcmd, self.hess_bins,
+                                                    log=True)
+        self.log_hess_data = log_hess
+        self.log_err_data = log_err
         self._data_init = True
         self.pcmd_data = pcmd
 
-    def loglike(self, pcmd, use_gaussian=True, charlie_err=False, like_mode=2, **kwargs):
-        try:
-            assert(self._data_init)
-        except AssertionError:
-            print('Cannot evaluate, as data has not been initialized (use driver.initialize_data)')
-            return
+    def loglike(self, pcmd, like_mode=2, **kwargs):
+        assert self._data_init, ('Cannot evaluate, as data has not been '
+                                 'initialized (use driver.initialize_data)')
 
-        #fit a multi-D gaussian to the points
+        # fit a multi-D gaussian to the points
         means = np.mean(pcmd, axis=1)
         cov = np.cov(pcmd)
 
         normal_model = multivariate_normal(mean=means, cov=cov)
         normal_term = np.sum(normal_model.logpdf(self.pcmd_data.T))
         
+        # ONLY use the normal approximation
         if like_mode == 0:
-            #ONLY use the normal approximation
             log_like = normal_term
             return log_like
-        
-        #compute the mean magnitudes
-        mags = np.copy(pcmd)
-        mags[0] += mags[1]
-        mag_factor = -0.4 * np.log(10) #convert from base 10 to base e
-        weights = float(1) / mags.shape[1] #evenly weight each pixel
-        mean_mags_model = logsumexp(mag_factor*mags, b=weights, axis=1)
-        
-        counts_model, hess_model, err_model = utils.make_hess(pcmd, self.hess_bins, charlie_err=charlie_err)
-        n_model = pcmd.shape[1]
 
-        #the fraction of bins populated by both the model and the data
-        #NOT including the "everything else" bin
-        frac_common = np.logical_and(counts_model, self.counts_data)[:-1].mean()
-        
-        if use_gaussian:
-            #add error in quadrature
+        elif like_mode == 1:
+            use_log = True
+
+        elif (like_mode == 2):
+            use_log = False
+            
+        # compute the mean magnitudes
+        mean_mags_model = utils.mean_mags(pcmd)
+        mean_pcmd_model = utils.make_pcmd(mean_mags_model)
+
+        # compute hess diagram
+        counts_model, hess_model, err_model = utils.make_hess(pcmd,
+                                                              self.hess_bins,
+                                                              log=use_log)
+
+        # add error in quadrature
+        if like_mode == 1:
+            combined_var = (self.log_err_data**2. + err_model**2.)
+            hess_diff = (self.log_hess_data - hess_model)
+        elif like_mode == 2:
             combined_var = (self.err_data**2. + err_model**2.)
             hess_diff = (self.hess_data - hess_model)
-            log_like = -np.sum(hess_diff**2. / combined_var)
-
         else:
-            #Poisson Likelihood
-            counts_model += 1e-3 #get NANs if model has zeros
-            counts_model *= float(self.n_data) / n_model #normalize to same number of pixels as data
-            log_like = np.sum(poisson.logpmf(self.counts_data, counts_model))
+            raise NotImplementedError('like_mode only defined for [0, 1, 2]')
+        log_like = -np.sum(hess_diff**2. / (2*combined_var))
 
-        if like_mode==1:
-            return log_like
-
-        elif like_mode==2:
-            #add terms relating to mean magnitude and color
-            mag_data = self.mean_mags_data[0]
-            mag_model = mean_mags_model[0]
-            color_data = mag_data - self.mean_mags_data[1]
-            color_model = mag_model - mean_mags_model[1]
-            var_mag = 0.01**2
-            var_color = 0.05**2
-            log_like -= (mag_data - mag_model)**2. / (2.*var_mag)
-            log_like -= (color_data - color_model)**2. / (2.*var_color)
-            return log_like
-
-        elif like_mode==3:
-            #combine the two terms, weighted by the amount of overlap
-            log_like = frac_common*log_like +  (1 - frac_common) * normal_term
-            return log_like
-
-        else:
-            #default to like_mode == 1
-            return log_like
+        # add terms relating to mean magnitude and colors
+        var_mag = 0.01**2
+        var_color = 0.05**2
+        var_pcmd = np.append([var_mag],
+                             [var_color for _ in range(1, self.n_filters)])
+        mean_term = - (mean_pcmd_model - self.mean_pcmd_data)**2 / (2*var_pcmd)
+        log_like += mean_term
+        return log_like
+            
 
     def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
                  shot_noise=False, sky_noise=None, **kwargs):

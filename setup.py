@@ -54,7 +54,7 @@ setup(
     install_requires=[
         'astropy>=2.0.2', 'dynesty>=0.9.1', 'scipy>=0.19.1',
         'pandas>=0.20.3', 'matplotlib>=2.0.2', 'numpy>=1.13.1',
-        'corner>=2.0.0'
+        'corner>=2.0.0', 'sklearn'
     ],
     extras_require={"GPU": ['pycuda']},
 )

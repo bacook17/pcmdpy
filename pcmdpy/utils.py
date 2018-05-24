@@ -2,6 +2,7 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
+from scipy.misc import logsumexp
 import sys
 import pandas as pd
 from datetime import datetime
@@ -21,11 +22,26 @@ def make_pcmd(mags):
         raise IndexError("Must be at least 2 images to create a PCMD")
     else:
         for i in range(1, n_filters):
-            pcmd[i] = (mags[i] - mags[i-1]).flatten()
+            pcmd[i] = mags[i] - mags[i-1]
     return pcmd
-    
 
-def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
+
+def pcmd_to_mags(pcmd):
+    mags = np.copy(pcmd)
+    n_filters = mags.shape[0]
+    for i in range(1, n_filters):
+        mags[i] = pcmd[i] + mags[i-1]
+    return mags
+
+
+def mean_mags(pcmd):
+    mags = pcmd_to_mags(pcmd)
+    mag_factor = -0.4 * np.log(10)  # convert from base 10 to base e
+    weights = float(1) / mags.shape[1]  # evenly weight each pixel
+    return logsumexp(mag_factor*mags, b=weights, axis=1)
+
+
+def make_hess(pcmd, bins, log=False, err_min=2.):
     mags = pcmd[0]
     colors = pcmd[1:]
     n_colors = colors.shape[0]
@@ -39,19 +55,19 @@ def make_hess(pcmd, bins, charlie_err=False, err_min=2.):
     # add "everything else" bin
     counts = np.append(counts, n*n_colors - np.sum(counts))
     counts[counts <= 0.] = 0.
+    if log:
+        counts = np.log(counts + 1.)
     err = np.sqrt(counts)
     
-    if charlie_err:
-        # this is Charlie's method for inflating errors
-        err[counts < 1.] = 0.1
-        err[counts < 2.] *= 10.
-    else:
-        # inflate small errors, with inflation decreasing
-        # exponentially at higher counts
-        err += err_min * np.exp(-err)
+    # inflate small errors, with inflation decreasing
+    # exponentially at higher counts
+    err += err_min * np.exp(-err)
 
     # normalize by number of pixels
-    hess = counts / n
+    if log:
+        hess = counts - np.log(n)
+    else:
+        hess = counts / n
     err /= n
     
     return counts, hess, err
