@@ -36,26 +36,34 @@ def plot_rgb_image(images, extent=None, ax=None,
     return ax
 
 
-def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={},
+def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
               title=None):
-    if ax is None:
-        fig, ax = plt.subplots()
+    n_bands = pcmd.shape[0]
+    if bins is None:
+        mins = np.min(pcmd, axis=-1)
+        maxs = np.max(pcmd, axis=-1)
+        bins = [np.arange(mins[i], maxs, 0.05) for i in range(n_bands)]
+    if axes is None:
+        fig, axes = plt.subplots(ncols=n_bands-1)
+    if n_bands == 2:
+        axes = [axes]
     if norm is None:
         norm = mpl.colors.LogNorm()
     if 'cmap' not in hist2d_kwargs:
         hist2d_kwargs['cmap'] = 'viridis'
-    # record original axis limits, in case overwritten by hist2d
-    xl = ax.get_xlim()
-    yl = ax.get_ylim()
-    H, xbins, ybins, _ = ax.hist2d(pcmd[1], pcmd[0], bins=bins, norm=norm,
-                                   **hist2d_kwargs)
-    xl += ax.get_xlim()
-    yl += ax.get_ylim()
-    ax.set_xlim([min(xl), max(xl)])
-    ax.set_ylim([max(yl), min(yl)])
+    for i, ax in enumerate(axes):
+        # record original axis limits, in case overwritten by hist2d
+        xl = ax.get_xlim()
+        yl = ax.get_ylim()
+        H, xbins, ybins, _ = ax.hist2d(pcmd[1], pcmd[0], bins=bins, norm=norm,
+                                       **hist2d_kwargs)
+        xl += ax.get_xlim()
+        yl += ax.get_ylim()
+        ax.set_xlim([min(xl), max(xl)])
+        ax.set_ylim([max(yl), min(yl)])
     if title is not None:
-        ax.set_title(title)
-    return ax, H, [xbins, ybins], norm
+        axes[0].set_title(title)
+    return axes, H, bins, norm
 
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
@@ -72,7 +80,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         combo = np.append(pcmd_model, pcmd_compare, axis=-1)
         mins = np.min(combo, axis=-1)
         maxs = np.max(combo, axis=-1)
-        bins = [np.arange(mins[i], maxs, 0.05) for i in range(n_bands)]
+        bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
     counts_model, hess_model, err_model = ppy.utils.make_hess(pcmd_model, bins, boundary=False)
     counts_compare, hess_compare, err_compare = ppy.utils.make_hess(pcmd_compare, bins, boundary=False)
     
