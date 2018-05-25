@@ -109,7 +109,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         # record original axis limits, in case overwritten by hist2d
         kwargs = {'cmap': 'bwr_r'}
         kwargs.update(im_kwargs)
-        plt.imshow((chi_sign*chi2)[i].T, norm=norm, origin='lower',
+        plt.imshow((chi_sign*chi2)[i], norm=norm, origin='lower',
                    aspect='auto', extent=(bins[i+1][0], bins[i+1][-1],
                                           bins[0][0], bins[0][-1]),
                    **kwargs)
