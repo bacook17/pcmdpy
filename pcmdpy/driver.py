@@ -53,10 +53,6 @@ class Driver:
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
-        counts, log_hess, log_err = utils.make_hess(pcmd, self.hess_bins,
-                                                    log=True)
-        self.log_hess_data = log_hess
-        self.log_err_data = log_err
         self._data_init = True
         self.pcmd_data = pcmd
 
@@ -76,42 +72,40 @@ class Driver:
             log_like = normal_term
             return log_like
 
-        elif like_mode == 1:
-            use_log = True
-
-        elif (like_mode == 2):
-            use_log = False
-            
         # compute the mean magnitudes
         mean_mags_model = utils.mean_mags(pcmd)
         mean_pcmd_model = utils.make_pcmd(mean_mags_model)
 
         # compute hess diagram
         counts_model, hess_model, err_model = utils.make_hess(pcmd,
-                                                              self.hess_bins,
-                                                              log=use_log)
-
-        # add error in quadrature
-        if like_mode == 1:
-            combined_var = (self.log_err_data**2. + err_model**2.)
-            hess_diff = (self.log_hess_data - hess_model)
-        elif like_mode == 2:
-            combined_var = (self.err_data**2. + err_model**2.)
-            hess_diff = (self.hess_data - hess_model)
-        else:
-            raise NotImplementedError('like_mode only defined for [0, 1, 2]')
-        log_like = -np.sum(hess_diff**2. / (2*combined_var))
+                                                              self.hess_bins)
 
         # add terms relating to mean magnitude and colors
         var_mag = 0.01**2
         var_color = 0.05**2
         var_pcmd = np.append([var_mag],
                              [var_color for _ in range(1, self.n_filters)])
-        mean_term = - (mean_pcmd_model - self.mean_pcmd_data)**2 / (2*var_pcmd)
-        log_like += mean_term.sum()
-        return log_like
-            
+        mean_term = - np.sum((mean_pcmd_model - self.mean_pcmd_data)**2 / (2*var_pcmd))
 
+        if like_mode == 1:
+            n_model = pcmd.shape[1]
+            root_nn = np.sqrt(n_model * self.n_data)
+            term1 = np.log(root_nn + self.n_data * counts_model)
+            term2 = np.log(root_nn + self.n_model * self.counts_data)
+            log_like = -np.sum((term1 - term2)**2.)
+            log_like += mean_term
+            return log_like
+            
+        # add error in quadrature
+        if like_mode == 2:
+            combined_var = (self.err_data**2. + err_model**2.)
+            hess_diff = (self.hess_data - hess_model)
+            log_like = -np.sum(hess_diff**2. / (2*combined_var))
+            log_like += mean_term
+            return log_like
+        else:
+            raise NotImplementedError('like_mode only defined for [0, 1, 2]')
+            
     def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
                  shot_noise=False, sky_noise=None, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)

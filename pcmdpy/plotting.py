@@ -58,38 +58,33 @@ def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={},
     return ax, H, [xbins, ybins], norm
 
 
-def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
-                       norm=None, title='', im_kwargs={}, cbar_kwargs={}):
-    if ax is None:
-        fig, ax = plt.subplots()
+def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
+                       axes=None, norm=None, title='', im_kwargs={},
+                       cbar_kwargs={}):
+    n_bands = pcmd_model.shape[0]
     n_compare = pcmd_compare.shape[1]
-    counts_compare, xbins, ybins = np.histogram2d(pcmd_compare[1],
-                                                  pcmd_compare[0], bins=bins)
-    if log:
-        counts_compare = np.log(counts_compare + 1.)
-    err_compare = np.sqrt(counts_compare)
-    err_compare += 2. * np.exp(-err_compare)
-    if log:
-        counts_compare -= np.log(n_compare)
-    else:
-        counts_compare /= n_compare
-    err_compare /= n_compare
-    bins = [xbins, ybins]
     n_model = pcmd_model.shape[1]
-    counts_model, _, _ = np.histogram2d(pcmd_model[1], pcmd_model[0],
-                                        bins=bins)
-    if log:
-        counts_model = np.log(counts_model + 1.)
-    err_model = np.sqrt(counts_model)
-    err_model += 2. * np.exp(-err_model)
-    if log:
-        counts_model -= np.log(n_model)
-    else:
-        counts_model /= n_model
-    err_model /= n_model
-
-    denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
-    chi = (counts_model - counts_compare) / denom
+    if axes is None:
+        fig, axes = plt.subplots(ncols=n_bands-1)
+    if n_bands == 2:
+        axes = [axes]
+    if bins is None:
+        combo = np.append(pcmd_model, pcmd_compare, axis=-1)
+        mins = np.min(combo, axis=-1)
+        maxs = np.max(combo, axis=-1)
+        bins = [np.arange(mins[i], maxs, 0.05) for i in range(n_bands)]
+    counts_model, hess_model, err_model = ppy.utils.make_hess(pcmd_model, bins, boundary=False)
+    counts_compare, hess_compare, err_compare = ppy.utils.make_hess(pcmd_compare, bins, boundary=False)
+    
+    if like_mode == 1:
+        root_nn = np.sqrt(n_model * n_compare)
+        term1 = np.log(root_nn + n_compare * counts_model)
+        term2 = np.log(root_nn + n_model * counts_compare)
+        chi = term1 - term2
+    elif like_mode == 2:
+        denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
+        hess_diff = (hess_model - hess_compare)
+        chi = hess_diff / denom
     chi_sign = np.sign(chi)
     chi2 = chi**2
     chi2_max = np.max(chi2)
@@ -98,22 +93,23 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
         kwargs.update(cbar_kwargs)
         norm = mpl.colors.SymLogNorm(vmin=-chi2_max, vmax=chi2_max,
                                      **kwargs)
-    plt.subplot(ax)
-    # record original axis limits, in case overwritten by hist2d
-    xl = ax.get_xlim()
-    yl = ax.get_ylim()
-    kwargs = {'cmap': 'bwr_r'}
-    kwargs.update(im_kwargs)
-    plt.imshow((chi_sign*chi2).T, norm=norm, origin='lower', aspect='auto',
-               extent=(xbins[0], xbins[-1],
-                       ybins[0], ybins[-1]),
-               **kwargs)
-    xl += ax.get_xlim()
-    yl += ax.get_ylim()
-    ax.set_xlim([min(xl), max(xl)])
-    ax.set_ylim([max(yl), min(yl)])
-    ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(chi2)))
-    return ax, chi, bins, norm
+    for i, ax in enumerate(axes):
+        xl = ax.get_xlim()
+        yl = ax.get_ylim()
+        plt.subplot(ax)
+        # record original axis limits, in case overwritten by hist2d
+        kwargs = {'cmap': 'bwr_r'}
+        kwargs.update(im_kwargs)
+        plt.imshow((chi_sign*chi2)[i].T, norm=norm, origin='lower',
+                   aspect='auto', extent=(bins[i+1][0], bins[i+1][-1],
+                                          bins[0][0], bins[0][-1]),
+                   **kwargs)
+        xl += ax.get_xlim()
+        yl += ax.get_ylim()
+        ax.set_xlim([min(xl), max(xl)])
+        ax.set_ylim([max(yl), min(yl)])
+        ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(chi2)))
+    return axes, chi, bins, norm
 
 
 def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
@@ -507,3 +503,7 @@ class ResultsPlotter(object):
         self.plot_cum_sfh(ax=axes[1], **cum_sfh_kwargs)
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
         return (chain_axes, axes, (corner_fig, corner_axes))
+
+
+    def get_chains(self):
+        return self.df[self.params]

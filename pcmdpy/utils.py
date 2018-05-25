@@ -41,7 +41,7 @@ def mean_mags(pcmd):
     return logsumexp(mag_factor*mags, b=weights, axis=1)
 
 
-def make_hess(pcmd, bins, log=False, err_min=2.):
+def make_hess(pcmd, bins, err_min=2., boundary=True):
     mags = pcmd[0]
     colors = pcmd[1:]
     n_colors = colors.shape[0]
@@ -51,12 +51,11 @@ def make_hess(pcmd, bins, log=False, err_min=2.):
         c, _, _ = np.histogram2d(mags, colors[i],
                                  bins=[bins[0], bins[i+1]])
         counts.append(c)
-    counts = np.array(counts).flatten()
-    # add "everything else" bin
-    counts = np.append(counts, n*n_colors - np.sum(counts))
+    counts = np.array(counts)
+    if boundary:
+        # add "everything else" bin
+        counts = np.append(counts, n*n_colors - np.sum(counts))
     counts[counts <= 0.] = 0.
-    if log:
-        counts = np.log(counts + 1.)
     err = np.sqrt(counts)
     
     # inflate small errors, with inflation decreasing
@@ -64,10 +63,7 @@ def make_hess(pcmd, bins, log=False, err_min=2.):
     err += err_min * np.exp(-err)
 
     # normalize by number of pixels
-    if log:
-        hess = counts - np.log(n)
-    else:
-        hess = counts / n
+    hess = counts / n
     err /= n
     
     return counts, hess, err
