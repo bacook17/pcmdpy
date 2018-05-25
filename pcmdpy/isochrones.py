@@ -133,7 +133,7 @@ class Isochrone_Model:
                    and array of metallicities.
     """
     def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd",
-                 dm_interp=-1):
+                 dm_interp=0.15):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
         Arguments:
