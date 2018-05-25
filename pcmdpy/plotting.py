@@ -55,7 +55,8 @@ def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
         # record original axis limits, in case overwritten by hist2d
         xl = ax.get_xlim()
         yl = ax.get_ylim()
-        H, xbins, ybins, _ = ax.hist2d(pcmd[1], pcmd[0], bins=bins, norm=norm,
+        H, xbins, ybins, _ = ax.hist2d(pcmd[i+1], pcmd[0],
+                                       bins=[bins[i+1], bins[0]], norm=norm,
                                        **hist2d_kwargs)
         xl += ax.get_xlim()
         yl += ax.get_ylim()
@@ -78,9 +79,9 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         axes = [axes]
     if bins is None:
         combo = np.append(pcmd_model, pcmd_compare, axis=-1)
-        mins = np.min(combo, axis=-1)
-        maxs = np.max(combo, axis=-1)
-        bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
+        mag_bins = [np.min(combo[0]), np.max(combo[0])]
+        color_bins = [np.min(combo[1:]), np.max(combo[1:])]
+        bins = np.append([mag_bins], [color_bins for _ in range(1, n_bands)])
     counts_model, hess_model, err_model = ppy.utils.make_hess(pcmd_model, bins, boundary=False)
     counts_compare, hess_compare, err_compare = ppy.utils.make_hess(pcmd_compare, bins, boundary=False)
     
