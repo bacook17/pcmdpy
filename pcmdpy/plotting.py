@@ -58,8 +58,8 @@ def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={},
     return ax, H, [xbins, ybins], norm
 
 
-def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
-                       title='', im_kwargs={}):
+def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
+                       norm=None, title='', im_kwargs={}):
     if ax is None:
         fig, ax = plt.subplots()
     kwargs = {'cmap': 'bwr_r'}
@@ -67,17 +67,27 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, bins=100, ax=None, norm=None,
     n_compare = pcmd_compare.shape[1]
     counts_compare, xbins, ybins = np.histogram2d(pcmd_compare[1],
                                                   pcmd_compare[0], bins=bins)
+    if log:
+        counts_compare = np.log(counts_compare + 1.)
     err_compare = np.sqrt(counts_compare)
     err_compare += 2. * np.exp(-err_compare)
-    counts_compare /= n_compare
+    if log:
+        counts_compare -= np.log(n_compare)
+    else:
+        counts_compare /= n_compare
     err_compare /= n_compare
     bins = [xbins, ybins]
     n_model = pcmd_model.shape[1]
     counts_model, _, _ = np.histogram2d(pcmd_model[1], pcmd_model[0],
                                         bins=bins)
+    if log:
+        counts_model = np.log(counts_model + 1.)
     err_model = np.sqrt(counts_model)
     err_model += 2. * np.exp(-err_model)
-    counts_model /= n_model
+    if log:
+        counts_compare -= np.log(n_compare)
+    else:
+        counts_model /= n_model
     err_model /= n_model
 
     denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
