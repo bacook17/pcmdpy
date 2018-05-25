@@ -21,6 +21,7 @@ def sigterm_handler(sig, frame):
 if __name__ == "__main__":
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
+    warnings.simplefilter(action='ignore', category=UserWarning)
     
     signal.signal(signal.SIGTERM, sigterm_handler)
     signal.signal(signal.SIGINT, sigterm_handler)
