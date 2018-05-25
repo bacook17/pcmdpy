@@ -85,7 +85,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
     err_model = np.sqrt(counts_model)
     err_model += 2. * np.exp(-err_model)
     if log:
-        counts_compare -= np.log(n_compare)
+        counts_model -= np.log(n_model)
     else:
         counts_model /= n_model
     err_model /= n_model
