@@ -59,11 +59,9 @@ def plot_pcmd(pcmd, bins=100, ax=None, norm=None, hist2d_kwargs={},
 
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
-                       norm=None, title='', im_kwargs={}):
+                       norm=None, title='', im_kwargs={}, cbar_kwargs={}):
     if ax is None:
         fig, ax = plt.subplots()
-    kwargs = {'cmap': 'bwr_r'}
-    kwargs.update(im_kwargs)
     n_compare = pcmd_compare.shape[1]
     counts_compare, xbins, ybins = np.histogram2d(pcmd_compare[1],
                                                   pcmd_compare[0], bins=bins)
@@ -92,16 +90,21 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
 
     denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
     chi = (counts_model - counts_compare) / denom
-    chi_max = np.max(np.abs(chi))
-    chi2 = np.sum(chi**2)
+    chi_sign = np.sign(chi)
+    chi2 = chi**2
+    chi2_max = np.max(chi2)
     if norm is None:
-        norm = mpl.colors.SymLogNorm(vmin=-chi_max, vmax=chi_max,
-                                     linthresh=1., linscale=0.1)
+        kwargs = {'linthresh': 1., 'linscale': 0.1}
+        kwargs.update(cbar_kwargs)
+        norm = mpl.colors.SymLogNorm(vmin=-chi2_max, vmax=chi2_max,
+                                     **kwargs)
     plt.subplot(ax)
     # record original axis limits, in case overwritten by hist2d
     xl = ax.get_xlim()
     yl = ax.get_ylim()
-    plt.imshow(chi.T, norm=norm, origin='lower', aspect='auto',
+    kwargs = {'cmap': 'bwr_r'}
+    kwargs.update(im_kwargs)
+    plt.imshow((chi_sign*chi2).T, norm=norm, origin='lower', aspect='auto',
                extent=(xbins[0], xbins[-1],
                        ybins[0], ybins[-1]),
                **kwargs)
@@ -109,7 +112,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, log=False, bins=100, ax=None,
     yl += ax.get_ylim()
     ax.set_xlim([min(xl), max(xl)])
     ax.set_ylim([max(yl), min(yl)])
-    ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(chi2))
+    ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(chi2)))
     return ax, chi, bins, norm
 
 
