@@ -49,7 +49,7 @@ class Driver:
         self.mean_mags_data = utils.mean_mags(pcmd)
         self.mean_pcmd_data = utils.make_pcmd(self.mean_mags_data)
         
-        counts, hess, err = utils.make_hess(pcmd, self.hess_bins, log=False)
+        counts, hess, err = utils.make_hess(pcmd, self.hess_bins)
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
@@ -91,7 +91,7 @@ class Driver:
             n_model = pcmd.shape[1]
             root_nn = np.sqrt(n_model * self.n_data)
             term1 = np.log(root_nn + self.n_data * counts_model)
-            term2 = np.log(root_nn + self.n_model * self.counts_data)
+            term2 = np.log(root_nn + n_model * self.counts_data)
             log_like = -np.sum((term1 - term2)**2.)
             log_like += mean_term
             return log_like

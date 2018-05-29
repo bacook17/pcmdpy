@@ -87,7 +87,9 @@ class CustomGalaxy(BaseGalaxy):
         return ppy.priors.FlatPrior(bounds)
 
     def set_params(self, gal_params):
+        # make sure is array, with right length
         assert(len(gal_params) == self.p_total)
+        gal_params = np.array(gal_params)
         # set metal parameters
         feh_params = gal_params[:self.p_feh]
         self.metal_model.set_params(feh_params)
