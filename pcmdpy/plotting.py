@@ -42,7 +42,7 @@ def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
     if bins is None:
         mins = np.min(pcmd, axis=-1)
         maxs = np.max(pcmd, axis=-1)
-        bins = [np.arange(mins[i], maxs, 0.05) for i in range(n_bands)]
+        bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
     if axes is None:
         fig, axes = plt.subplots(ncols=n_bands-1)
     if n_bands == 2:

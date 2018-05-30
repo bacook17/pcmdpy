@@ -266,14 +266,22 @@ class DataSet(object):
         self.n_bands = len(filter_classes)
         headers = []
         with fits.open(file_names[0]) as hdu:
-            self.im_shape = hdu[0].data.shape
+            if len(hdu) > 1:
+                data = hdu['SCI'].data
+            else:
+                data = hdu['PRIMARY'].data
+            self.im_shape = data.shape
             self.images = np.zeros((self.im_shape[0], self.im_shape[1],
                                     self.n_bands))
             headers.append(hdu[0].header)
-            self.images[:, :, 0] = hdu[0].data
+            self.images[:, :, 0] = data
         for i, f in enumerate(file_names[1:]):
             with fits.open(f) as hdu:
-                self.images[:, :, i+1] = hdu[0].data
+                if len(hdu) > 1:
+                    data = hdu['SCI'].data
+                else:
+                    data = hdu['PRIMARY'].data
+                self.images[:, :, i+1] = data
                 headers.append(hdu[0].header)
         self.headers = np.array(headers)
         assert(self.images.ndim == 3)  # else the images weren't matching sizes
