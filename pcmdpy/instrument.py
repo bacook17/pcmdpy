@@ -309,8 +309,35 @@ class ACS_WFC_F814W(Filter):
         super().__init__(**args)
 
 
-m31_filters = [ACS_WFC_F814W, ACS_WFC_F475W]
-m51_filters = [ACS_WFC_F814W, ACS_WFC_F555W, ACS_WFC_F435W]
+class ACS_WFC_F850LP(Filter):
+    """Return a Filter with HST F850LP default params
+    Arguments:
+    Output: Filter with default F850LP attributes
+    """
+
+    def __init__(self, **kwargs):
+        args = {}
+        # set defaults
+        args['exposure'] = 1210.0
+        args['zpt_vega'] = 24.3430
+        args['zpt_ab'] = 24.8788
+        args['zpt_st'] = 25.9668
+        args['red_per_ebv'] = 1.243
+        psf_path = resource_filename('pcmdpy', 'psf/')
+        psf_file = psf_path + 'ACS_WFC_F850LP.fits'
+        args['psf'] = fits.open(psf_file)[0].data.astype(float)
+        args['name'] = 'F850LP'
+        args['tex_name'] = r'z$_{850}$'
+        args['MIST_column'] = 'ACS_WFC_F850LP'
+        args['MIST_column_alt'] = 'zmag'
+        # update with manual entries
+        args.update(kwargs)
+        super().__init__(**args)
+
+
+m31_filter_sets = [ACS_WFC_F814W, ACS_WFC_F475W]
+m51_filter_sets = [ACS_WFC_F814W, ACS_WFC_F555W, ACS_WFC_F435W]
+m49_filter_sets = [ACS_WFC_F850LP, ACS_WFC_F475W]
 
 
 def default_m31_filters():
@@ -319,3 +346,9 @@ def default_m31_filters():
 
 def default_m51_filters():
     return [f() for f in m51_filters]
+
+def default_m49_filters():
+    filts = [ACS_WFC_F850LP()]
+    filts += [ACS_WFC_F475W(exposure=750., zpt_vega=26.1746,
+                            zpt_ab=26.0820, zpt_st=25.7713)]
+    return filts
