@@ -10,7 +10,7 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
 import numpy as np
 from astropy.io import fits
 from pcmdpy import utils
-from pcmdpy.gpu_utils import gpu_log10
+from pcmdpy.gpu_utils import gpu_log10 as log10
 from scipy.signal import fftconvolve, gaussian
 from pkg_resources import resource_filename
 from warnings import warn
@@ -127,7 +127,7 @@ class Filter:
                   'conversions. Reverting to Vega'.format(system)))
             zpt = self._zpts['vega']
 
-        return -2.5*gpu_log10(counts / self._exposure, **kwargs) + zpt
+        return -2.5*log10(counts / self._exposure, **kwargs) + zpt
 
     def psf_convolve(self, image, multi_psf=True, convolve_func=None, **kwargs):
         """Convolve image with instrumental PSF
@@ -318,8 +318,8 @@ class ACS_WFC_F850LP(Filter):
     def __init__(self, **kwargs):
         args = {}
         # set defaults
-        args['exposure'] = 1210.0
-        args['zpt_vega'] = 24.3430
+        args['exposure'] = 560.0
+        args['zpt_vega'] = 24.3530
         args['zpt_ab'] = 24.8788
         args['zpt_st'] = 25.9668
         args['red_per_ebv'] = 1.243
@@ -349,6 +349,6 @@ def default_m51_filters():
 
 def default_m49_filters():
     filts = [ACS_WFC_F850LP()]
-    filts += [ACS_WFC_F475W(exposure=750., zpt_vega=26.1746,
+    filts += [ACS_WFC_F475W(exposure=375., zpt_vega=26.1746,
                             zpt_ab=26.0820, zpt_st=25.7713)]
     return filts
