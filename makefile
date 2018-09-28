@@ -4,6 +4,8 @@ gpu: pcmdpy_gpu
 
 cpu: pcmdpy_cpu
 
+update: pcmdpy_only
+
 pcmdpy_only: 
 	@echo "---------------------------------------"
 	@echo "installing pcmdpy only, NO dependencies"

@@ -133,7 +133,7 @@ class Isochrone_Model:
                    and array of metallicities.
     """
     def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd",
-                 dm_interp=0.15):
+                 dm_interp=-1):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
         Arguments:
@@ -146,7 +146,7 @@ class Isochrone_Model:
 
         # Locate MIST files
         if MIST_path is None:
-            MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.1/')
+            MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.2/')
         
         # Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()
@@ -171,7 +171,8 @@ class Isochrone_Model:
                 z = _z_from_str(z_str)
                 new_df = pd.read_table(MIST_doc, names=self.colnames,
                                        comment='#', delim_whitespace=True,
-                                       dtype=float)
+                                       dtype=float, na_values=['Infinity'])
+                new_df[new_df.isna()] = 100.
                 new_df['z'] = z
                 self.MIST_df = self.MIST_df.append([new_df], ignore_index=True)
                 _z_arr.append(_z_from_str(z_str))
