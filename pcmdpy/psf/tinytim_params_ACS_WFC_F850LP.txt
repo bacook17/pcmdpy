@@ -1,4 +1,4 @@
-Camera |WFC3 UVIS channel
+Camera |ACS - Wide Field Channel
 Chip|1
 Pixel Position|2048 1024
 Filter|F850LP
