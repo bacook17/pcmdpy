@@ -341,11 +341,12 @@ m49_filter_sets = [ACS_WFC_F850LP, ACS_WFC_F475W]
 
 
 def default_m31_filters():
-    return [f() for f in m31_filters]
+    return [f() for f in m31_filter_sets]
 
 
 def default_m51_filters():
-    return [f() for f in m51_filters]
+    return [f() for f in m51_filter_sets]
+
 
 def default_m49_filters():
     filts = [ACS_WFC_F850LP()]

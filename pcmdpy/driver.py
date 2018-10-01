@@ -116,7 +116,9 @@ class Driver:
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
         if sky_noise is not None:
-            images += sky_noise
+            # add sky level (in counts) to each image
+            for im, sky in zip(images, sky_noise):
+                im += sky
         if shot_noise:
             images = np.random.poisson(images)
 #        if sky_noise is not None:
