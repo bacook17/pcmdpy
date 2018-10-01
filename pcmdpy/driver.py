@@ -115,6 +115,8 @@ class Driver:
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
+        if psf:
+            images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
         if sky_noise is not None:
             # add sky level (in counts) to each image
             for im, sky in zip(images, sky_noise):
@@ -124,8 +126,6 @@ class Driver:
 #        if sky_noise is not None:
 #            images += np.random.poisson(lam=sky_noise,
 #                                        size=(im_scale, im_scale, self.n_filters)).T.reshape((self.n_filters, im_scale, im_scale))
-        if psf:
-            images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
 
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
         
