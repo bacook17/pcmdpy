@@ -106,7 +106,7 @@ class Driver:
         else:
             raise NotImplementedError('like_mode only defined for [0, 1, 2]')
             
-    def simulate(self, gal_model, im_scale, psf=True, psf_first=False,
+    def simulate(self, gal_model, im_scale, psf=True, psf_after=False,
                  fixed_seed=False, shot_noise=False, sky_noise=None, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
@@ -115,7 +115,7 @@ class Driver:
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,
                                       **kwargs)
-        if psf_first:
+        if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
         if sky_noise is not None:
             # add sky level (in counts) to each image
@@ -123,7 +123,8 @@ class Driver:
                 im += sky
         if shot_noise:
             images = np.random.poisson(images)
-        if psf and not psf_first:
+        if psf_after and not psf:
+            # This is deprecated. Believe this to be the wrong behavior
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
         
