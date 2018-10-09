@@ -35,13 +35,12 @@ _CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
 
-def initialize_gpu(n=None):
+def initialize_gpu(n=0):
     """
     This function makes pycuda use GPU number n in the system. If no n is provided, will use the current
     multiprocessing process number
     """
-    my_assert(_GPU_AVAIL,
-              "Can\'t initialize GPU, _GPU_AVAIL is set to False")
+    assert _GPU_AVAIL, "Can\'t initialize GPU, _GPU_AVAIL is set to False"
     if n is None:
         n = multiprocessing.current_process()._identity[0] - 1
         print(('for process id: {0:d}'.format(n)))
@@ -78,10 +77,13 @@ def initialize_gpu(n=None):
         print('Something Failed in Compiling C Source')
         print(e.msg)
         print(e.stderr)
+        _GPU_ACTIVE = False
     else:
         global _CUDAC_AVAIL
         _CUDAC_AVAIL = True
         print('CUDAC Available')
+    return _CUDAC_AVAIL
+    
 
 def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
     if gpu:
@@ -91,9 +93,9 @@ def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
     return func(*args, **kwargs)
 
 def seed_getter_fixed(N, value=None):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
-              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
-               "_GPU_ACTIVE are set to False"))
+    assert _GPU_AVAIL & _GPU_ACTIVE, ("Can\'t use seed_getter_fixed: either "
+                                      "_GPU_AVAIL_ or _GPU_ACTIVE are set to "
+                                      "False")
     result = pycuda.gpuarray.empty([N], np.int32)
     if value is None:
         #This will draw the same number every time

@@ -15,3 +15,9 @@ from . import instrument
 from . import isochrones
 from . import priors
 from . import plotting
+
+if gpu_utils._GPU_AVAIL:
+    try:
+        gpu_utils.initialize_gpu()
+    except Exception as e:
+        print('No GPU Acceleration Available')
