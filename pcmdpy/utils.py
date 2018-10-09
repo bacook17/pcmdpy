@@ -213,6 +213,7 @@ class ResultsCollector(object):
                 print_str += "batch: {:d} | ".format(nbatch)
             print_str += "nc: {:d} | ".format(nc)
             print_str += "ncalls: {:d} | ".format(ncall)
+            print_str += "bounds: {:d} | ".format(bounditer)
             print_str += "eff(%): {:6.3f} | ".format(eff)
             print_str += "logz: {:.1e} +/- {:.1e} | ".format(logz, logzerr)
             if dlogz is not None:

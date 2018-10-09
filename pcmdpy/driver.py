@@ -56,55 +56,60 @@ class Driver:
         self._data_init = True
         self.pcmd_data = pcmd
 
+    def loglike_map(self, pcmd):
+        counts_model, hess_model, err_model = utils.make_hess(
+            pcmd, self.hess_bins, boundary=False)
+        combined_var = (self.err_data**2. + err_model**2.)
+        hess_diff = (hess_model - self.hess_data)
+        loglike = np.sign(hess_diff) * hess_diff**2 / (2. * combined_var)
+        return loglike
+
     def loglike(self, pcmd, like_mode=2, **kwargs):
         assert self._data_init, ('Cannot evaluate, as data has not been '
                                  'initialized (use driver.initialize_data)')
-
-        # fit a multi-D gaussian to the points
-        means = np.mean(pcmd, axis=1)
-        cov = np.cov(pcmd)
-
-        normal_model = multivariate_normal(mean=means, cov=cov)
-        normal_term = np.sum(normal_model.logpdf(self.pcmd_data.T))
-        
-        # ONLY use the normal approximation
-        if like_mode == 0:
-            log_like = normal_term
-            return log_like
 
         # compute the mean magnitudes
         mean_mags_model = utils.mean_mags(pcmd)
         mean_pcmd_model = utils.make_pcmd(mean_mags_model)
 
-        # compute hess diagram
-        counts_model, hess_model, err_model = utils.make_hess(pcmd,
-                                                              self.hess_bins)
-
         # add terms relating to mean magnitude and colors
-        var_mag = 0.01**2
+        var_mag = 0.05**2
         var_color = 0.05**2
         var_pcmd = np.append([var_mag],
                              [var_color for _ in range(1, self.n_filters)])
-        mean_term = - np.sum((mean_pcmd_model - self.mean_pcmd_data)**2 / (2*var_pcmd))
+        mean_term = -1. * np.sum((mean_pcmd_model - self.mean_pcmd_data)**2 /
+                                 (2*var_pcmd))
 
-        if like_mode == 1:
+        # ONLY use the normal approximation
+        if like_mode == 0:
+            # fit a multi-D gaussian to the points
+            means = np.mean(pcmd, axis=1)
+            cov = np.cov(pcmd)
+
+            normal_model = multivariate_normal(mean=means, cov=cov)
+            normal_term = np.sum(normal_model.logpdf(self.pcmd_data.T))
+        
+            log_like = normal_term
+
+        elif like_mode == 1:
+            # compute hess diagram
+            counts_model, _, _ = utils.make_hess(
+                pcmd,
+                self.hess_bins,
+                boundary=kwargs.get('boundary', True))
+            
             n_model = pcmd.shape[1]
             root_nn = np.sqrt(n_model * self.n_data)
             term1 = np.log(root_nn + self.n_data * counts_model)
             term2 = np.log(root_nn + n_model * self.counts_data)
-            log_like = -np.sum((term1 - term2)**2.)
-            log_like += mean_term
-            return log_like
+            log_like = mean_term - np.sum((term1 - term2)**2.)
             
-        # add error in quadrature
-        if like_mode == 2:
-            combined_var = (self.err_data**2. + err_model**2.)
-            hess_diff = (self.hess_data - hess_model)
-            log_like = -np.sum(hess_diff**2. / (2*combined_var))
-            log_like += mean_term
-            return log_like
+        elif like_mode == 2:
+            log_like = mean_term - np.sum(np.abs(self.loglike_map(pcmd)))
         else:
             raise NotImplementedError('like_mode only defined for [0, 1, 2]')
+
+        return log_like
             
     def simulate(self, gal_model, im_scale, psf=True, psf_after=False,
                  fixed_seed=False, shot_noise=False, sky_noise=None, **kwargs):
