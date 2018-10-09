@@ -49,10 +49,7 @@ class Driver:
         self.mean_mags_data = utils.mean_mags(pcmd)
         self.mean_pcmd_data = utils.make_pcmd(self.mean_mags_data)
         
-        self.hess_boundary = kwargs.get('boundary', True)
-
-        counts, hess, err = utils.make_hess(pcmd, self.hess_bins,
-                                            boundary=self.hess_boundary)
+        counts, hess, err = utils.make_hess(pcmd, self.hess_bins)
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
@@ -61,11 +58,7 @@ class Driver:
 
     def loglike_map(self, pcmd):
         _, hess_model, err_model = utils.make_hess(
-            pcmd, self.hess_bins, boundary=self.hess_boundary)
-        if self.hess_boundary:
-            im_shape = [len(bs) for bs in self.hess_bins]
-            hess_model = hess_model[:, :-1].reshape(im_shape)
-            err_model = err_model[:, :-1].reshape(im_shape)
+            pcmd, self.hess_bins)
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
         loglike = np.sign(hess_diff) * hess_diff**2 / (2. * combined_var)
@@ -102,8 +95,7 @@ class Driver:
             # compute hess diagram
             counts_model, _, _ = utils.make_hess(
                 pcmd,
-                self.hess_bins,
-                boundary=self.hess_boundary)
+                self.hess_bins)
             
             n_model = pcmd.shape[1]
             root_nn = np.sqrt(n_model * self.n_data)
