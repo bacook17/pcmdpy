@@ -49,7 +49,10 @@ class Driver:
         self.mean_mags_data = utils.mean_mags(pcmd)
         self.mean_pcmd_data = utils.make_pcmd(self.mean_mags_data)
         
-        counts, hess, err = utils.make_hess(pcmd, self.hess_bins)
+        self.hess_boundary = kwargs.get('boundary', True)
+
+        counts, hess, err = utils.make_hess(pcmd, self.hess_bins,
+                                            boundary=self.hess_boundary)
         self.counts_data = counts
         self.hess_data = hess
         self.err_data = err
@@ -57,8 +60,12 @@ class Driver:
         self.pcmd_data = pcmd
 
     def loglike_map(self, pcmd):
-        counts_model, hess_model, err_model = utils.make_hess(
-            pcmd, self.hess_bins, boundary=False)
+        _, hess_model, err_model = utils.make_hess(
+            pcmd, self.hess_bins, boundary=self.hess_boundary)
+        if self.hess_boundary:
+            im_shape = [len(bs) for bs in self.hess_bins]
+            hess_model = hess_model[:, :-1].reshape(im_shape)
+            err_model = err_model[:, :-1].reshape(im_shape)
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
         loglike = np.sign(hess_diff) * hess_diff**2 / (2. * combined_var)
@@ -96,7 +103,7 @@ class Driver:
             counts_model, _, _ = utils.make_hess(
                 pcmd,
                 self.hess_bins,
-                boundary=kwargs.get('boundary', True))
+                boundary=self.hess_boundary)
             
             n_model = pcmd.shape[1]
             root_nn = np.sqrt(n_model * self.n_data)
@@ -112,8 +119,11 @@ class Driver:
         return log_like
             
     def simulate(self, gal_model, im_scale, psf=True, psf_after=False,
-                 fixed_seed=False, shot_noise=False, sky_noise=None, **kwargs):
-        IMF, mags = self.iso_model.model_galaxy(gal_model, **kwargs)
+                 fixed_seed=False, shot_noise=False, sky_noise=None, downsample=5, mag_system='vega',
+                 **kwargs):
+        IMF, mags = self.iso_model.model_galaxy(
+            gal_model,
+            downsample=downsample, mag_system=mag_system, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
         dust_frac, dust_mean, dust_std = gal_model.dust_model.get_params()
         images = gpu_utils.draw_image(IMF, fluxes, im_scale, self.filters,

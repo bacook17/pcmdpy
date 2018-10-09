@@ -7,12 +7,13 @@ import dynesty
 
 
 def lnlike(gal_params, driv, N_im, lnprior_func,
-           gal_model, **kwargs):
+           gal_model, downsample=5, mag_system='vega', **kwargs):
     pri = lnprior_func(gal_params)
     if np.isinf(pri):
         return -np.inf
     gal_model.set_params(gal_params)
-    pcmd, _ = driv.simulate(gal_model, N_im, **kwargs)
+    pcmd, _ = driv.simulate(gal_model, N_im, downsample=downsample,
+                            mag_system=mag_system, **kwargs)
     like = driv.loglike(pcmd, **kwargs)
 
     return like
@@ -32,13 +33,10 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
                      use_gpu=True, iso_model=None, bins=None, verbose=False,
                      dynamic=False, out_df=None, out_file=None, save_every=10,
                      param_names=None, prior=None, sampler_kwargs={},
-                     run_kwargs={}, **ln_kwargs):
+                     run_kwargs={}, downsample=5, mag_system='vega', **ln_kwargs):
     # Default sampler arguments
     run_kwargs['print_progress'] = True
     run_kwargs['save_bounds'] = False
-    print('dynamic: ', dynamic)
-    print(sampler_kwargs)
-    print(run_kwargs)
 
     print('-initializing models')
     n_filters = len(filters)
@@ -58,8 +56,9 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
     lnprior_func = prior.lnprior
 
     def this_lnlike(gal_params):
-        return lnlike(gal_params, driv, N_im, lnprior_func,
-                      gal_model, **ln_kwargs)
+        return lnlike(gal_params, driv, N_im, lnprior_func, gal_model,
+                      downsample=downsample, mag_system=mag_system,
+                      **ln_kwargs)
 
     # Initialize the nestle sampler with a different random state than global
     # This is important because the driver resets the global seed

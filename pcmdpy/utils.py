@@ -50,11 +50,11 @@ def make_hess(pcmd, bins, err_min=2., boundary=True):
     for i in range(n_colors):
         c, _, _ = np.histogram2d(mags, colors[i],
                                  bins=[bins[0], bins[i+1]])
-        counts.append(c)
+        if boundary:
+            # add "everything else" bin
+            c = np.append(c, n*n_colors - np.sum(counts))
+        counts += [c]
     counts = np.array(counts)
-    if boundary:
-        # add "everything else" bin
-        counts = np.append(counts, n*n_colors - np.sum(counts))
     counts[counts <= 0.] = 0.
     err = np.sqrt(counts)
     
