@@ -129,7 +129,8 @@ class Driver:
             for im, sky in zip(images, sky_noise):
                 im += sky
         if shot_noise:
-            images = np.random.poisson(images)
+            images = np.random.poisson(images).astype(np.float32)
+            images[images <= 0.] = 1e-10  # avoid nan issues
         if psf_after and not psf:
             # This is deprecated. Believe this to be the wrong behavior
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])

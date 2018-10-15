@@ -18,11 +18,8 @@ def my_assert(bool_statement, fail_message=None):
 def make_pcmd(mags):
     pcmd = np.copy(mags)
     n_filters = pcmd.shape[0]
-    if (n_filters < 2):
-        raise IndexError("Must be at least 2 images to create a PCMD")
-    else:
-        for i in range(1, n_filters):
-            pcmd[i] = mags[i] - mags[i-1]
+    for i in range(1, n_filters):
+        pcmd[i] = mags[i] - mags[i-1]
     return pcmd
 
 
@@ -50,6 +47,9 @@ def make_hess(pcmd, bins, err_min=2.):
     for i in range(n_colors):
         c, _, _ = np.histogram2d(mags, colors[i],
                                  bins=[bins[0], bins[i+1]])
+        counts += [c]
+    if n_colors == 0:
+        c, _ = np.histogram(mags, bins=bins[0])
         counts += [c]
     counts = np.array(counts)
     counts[counts <= 0.] = 0.
