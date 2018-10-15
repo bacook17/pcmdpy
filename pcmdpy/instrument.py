@@ -355,3 +355,23 @@ def default_m49_filters():
     filts += [ACS_WFC_F475W(exposure=375., zpt_vega=26.1746,
                             zpt_ab=26.0820, zpt_st=25.7713)]
     return filts
+
+
+def m31_narrow_psf(F814W=True, F475W=True, extra=False):
+    psf_path = resource_filename('pcmdpy', 'psf/')
+    if extra:
+        psf1 = fits.open(psf_path + 'F814W_25p_narrow.fits')[0].data.astype(float)
+        psf2 = fits.open(psf_path + 'F475W_25p_narrow.fits')[0].data.astype(float)
+    else:
+        psf1 = fits.open(psf_path + 'F814W_10p_narrow.fits')[0].data.astype(float)
+        psf2 = fits.open(psf_path + 'F475W_10p_narrow.fits')[0].data.astype(float)
+    filts = []
+    if F814W:
+        filts.append(ACS_WFC_F814W(exposure=3235., psf=psf1))
+    else:
+        filts.append(ACS_WFC_F814W(exposure=3235.))
+    if F475W:
+        filts.append(ACS_WFC_F475W(exposure=3620., psf=psf2))
+    else:
+        filts.append(ACS_WFC_F475W(exposure=3620.))
+    return filts
