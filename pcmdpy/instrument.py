@@ -95,7 +95,7 @@ class Filter:
     #########################
     # Filter methods
     
-    def mag_to_counts(self, mags, system='vega'):
+    def mag_to_counts(self, mags, mag_system='vega'):
         """Convert apparent magnitudes to photon counts (no reddening assumed)
 
         Arguments:
@@ -103,16 +103,16 @@ class Filter:
         Output:
            counts -- photon counts (same type as input)
         """
-        if system in self._zpts:
-            zpt = self._zpts[system]
+        if mag_system in self._zpts:
+            zpt = self._zpts[mag_system]
         else:
-            warn(('system {0:s} not in list of magnitude '
-                  'conversions. Reverting to Vega'.format(system)))
+            warn(('mag_system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(mag_system)))
             zpt = self._zpts['vega']
 
         return 10.**(-0.4 * (mags - zpt)) * self._exposure
 
-    def counts_to_mag(self, counts, system='vega', **kwargs):
+    def counts_to_mag(self, counts, mag_system='vega', **kwargs):
         """Convert photon counts to apparent magnitudes
 
         Arguments:
@@ -120,11 +120,11 @@ class Filter:
         Output:
            mags -- apparent magnitudes (same type as input)
         """
-        if system in self._zpts:
-            zpt = self._zpts[system]
+        if mag_system in self._zpts:
+            zpt = self._zpts[mag_system]
         else:
-            warn(('system {0:s} not in list of magnitude '
-                  'conversions. Reverting to Vega'.format(system)))
+            warn(('mag_system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(mag_system)))
             zpt = self._zpts['vega']
 
         return -2.5*log10(counts / self._exposure, **kwargs) + zpt
@@ -341,7 +341,9 @@ m49_filter_sets = [ACS_WFC_F850LP, ACS_WFC_F475W]
 
 
 def default_m31_filters():
-    return [f() for f in m31_filter_sets]
+    filts = [ACS_WFC_F814W(exposure=3235.),
+             ACS_WFC_F475W(exposure=3620.)]
+    return filts
 
 
 def default_m51_filters():

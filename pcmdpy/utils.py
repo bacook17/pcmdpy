@@ -41,7 +41,7 @@ def mean_mags(pcmd):
     return logsumexp(mag_factor*mags, b=weights, axis=1)
 
 
-def make_hess(pcmd, bins, err_min=2., boundary=True):
+def make_hess(pcmd, bins, err_min=2.):
     mags = pcmd[0]
     colors = pcmd[1:]
     n_colors = colors.shape[0]
@@ -50,11 +50,8 @@ def make_hess(pcmd, bins, err_min=2., boundary=True):
     for i in range(n_colors):
         c, _, _ = np.histogram2d(mags, colors[i],
                                  bins=[bins[0], bins[i+1]])
-        counts.append(c)
+        counts += [c]
     counts = np.array(counts)
-    if boundary:
-        # add "everything else" bin
-        counts = np.append(counts, n*n_colors - np.sum(counts))
     counts[counts <= 0.] = 0.
     err = np.sqrt(counts)
     
@@ -213,6 +210,7 @@ class ResultsCollector(object):
                 print_str += "batch: {:d} | ".format(nbatch)
             print_str += "nc: {:d} | ".format(nc)
             print_str += "ncalls: {:d} | ".format(ncall)
+            print_str += "bounds: {:d} | ".format(bounditer)
             print_str += "eff(%): {:6.3f} | ".format(eff)
             print_str += "logz: {:.1e} +/- {:.1e} | ".format(logz, logzerr)
             if dlogz is not None:

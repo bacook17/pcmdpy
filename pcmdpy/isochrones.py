@@ -207,7 +207,7 @@ class Isochrone_Model:
         return None
     
     def get_isochrone(self, age, z, imf_func=salpeter_IMF, rare_cut=0.,
-                      downsample=1, system="vega", **kwargs):
+                      downsample=1, mag_system="vega", **kwargs):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
@@ -216,20 +216,20 @@ class Isochrone_Model:
            imf_func ---
            rare_cut ---
            downsample --- 
-           system ---
+           mag_system ---
         Output:
            imf ---
            mags -- 2D array of magnitudes (DxN, where D is number of filters
                    the model was initialized with)
         """
 
-        system = system.lower()
-        if system not in self.conversions.keys():
-            warn(('system {0:s} not in list of magnitude '
-                  'conversions. Reverting to Vega'.format(system)))
+        mag_system = mag_system.lower()
+        if mag_system not in self.conversions.keys():
+            warn(('mag_system {0:s} not in list of magnitude '
+                  'conversions. Reverting to Vega'.format(mag_system)))
             conversions = self.conversions['vega']
         else:
-            conversions = self.conversions[system]
+            conversions = self.conversions[mag_system]
         
         # Find closest age in MIST database
         if age not in self.ages:
@@ -265,14 +265,14 @@ class Isochrone_Model:
 
         return IMF[to_keep], mags[:, to_keep]
 
-    def model_galaxy(self, galaxy, lum_cut=np.inf, system='vega',
+    def model_galaxy(self, galaxy, lum_cut=np.inf, mag_system='vega',
                      downsample=1,
                      **kwargs):
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh, d_mod in galaxy.iter_SSPs():
-            imf, m = self.get_isochrone(age, feh, system=system,
+            imf, m = self.get_isochrone(age, feh, mag_system=mag_system,
                                         downsample=downsample, **kwargs)
             weights = np.append(weights, imf*sfh)
             m += d_mod
