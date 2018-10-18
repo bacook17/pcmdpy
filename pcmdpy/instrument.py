@@ -360,11 +360,11 @@ def default_m49_filters():
 def m31_narrow_psf(F814W=True, F475W=True, extra=False):
     psf_path = resource_filename('pcmdpy', 'psf/')
     if extra:
-        psf1 = fits.open(psf_path + 'F814W_25p_narrow.fits')[0].data.astype(float)
-        psf2 = fits.open(psf_path + 'F475W_25p_narrow.fits')[0].data.astype(float)
+        psf1 = fits.open(psf_path + 'F814W_25p_narrow.fits')[1].data.astype(float)
+        psf2 = fits.open(psf_path + 'F475W_25p_narrow.fits')[1].data.astype(float)
     else:
-        psf1 = fits.open(psf_path + 'F814W_10p_narrow.fits')[0].data.astype(float)
-        psf2 = fits.open(psf_path + 'F475W_10p_narrow.fits')[0].data.astype(float)
+        psf1 = fits.open(psf_path + 'F814W_10p_narrow.fits')[1].data.astype(float)
+        psf2 = fits.open(psf_path + 'F475W_10p_narrow.fits')[1].data.astype(float)
     filts = []
     if F814W:
         filts.append(ACS_WFC_F814W(exposure=3235., psf=psf1))

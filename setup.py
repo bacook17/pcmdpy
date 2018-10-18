@@ -37,7 +37,7 @@ class CleanCommand(Command):
 
 setup(
     name='pcmdpy',
-    version='0.4.1',
+    version='0.4.2',
     author='Ben Cook',
     author_email='bcook@cfa.harvard.edu',
     packages=['pcmdpy'],
