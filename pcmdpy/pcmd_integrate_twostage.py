@@ -77,7 +77,7 @@ if __name__ == "__main__":
                   "data_is_mock set to True".format(config_file)))
             sys.exit(1)
     else:
-        data = np.loadtxt(data_file, unpack=True)  # Data columns are Mag-Color
+        data = np.atleast_2d(np.loadtxt(data_file, unpack=True))  # Data columns are Mag-Color
         data_pcmd = data
         # data_pcmd = data[::-1, :]  # swap to Mag-Color order
     

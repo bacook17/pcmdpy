@@ -40,7 +40,8 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
 
     print('-initializing models')
     n_filters = len(filters)
-    assert pcmd.shape[0] == n_filters, "pcmd shape must match filter numbers"
+    assert pcmd.shape[0] == n_filters, (
+        "pcmd shape ({:d}) must match filter numbers ({:d})".format(pcmd.shape[0], n_filters))
     n_dim = gal_model._num_params
 
     if iso_model is None:
