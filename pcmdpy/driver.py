@@ -111,7 +111,7 @@ class Driver:
         return log_like
             
     def simulate(self, gal_model, im_scale, psf=True, psf_after=False,
-                 fixed_seed=False, shot_noise=False, sky_noise=None, downsample=5, mag_system='vega',
+                 fixed_seed=False, shot_noise=True, sky_noise=None, downsample=5, mag_system='vega',
                  **kwargs):
         IMF, mags = self.iso_model.model_galaxy(
             gal_model,
