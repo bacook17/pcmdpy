@@ -22,4 +22,4 @@ if gpu_utils._GPU_AVAIL:
     except Exception as e:
         print('No GPU Acceleration Available')
 
-__version__ = "0.4.4"
+__version__ = "0.4.5"
