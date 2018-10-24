@@ -5,9 +5,17 @@
 #        python setup.py clean
 
 import os
+import re
 
 from setuptools import setup, Command
 from setuptools.command.install import install
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
+init_string = open(os.path.join(dir_path, 'pcmdpy', '__init__.py')).read()
+VERS = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VERS, init_string, re.M)
+__version__ = mo.group(1)
 
 
 class CustomInstall(install):
@@ -37,7 +45,7 @@ class CleanCommand(Command):
 
 setup(
     name='pcmdpy',
-    version='0.4.3',
+    version=__version__,
     author='Ben Cook',
     author_email='bcook@cfa.harvard.edu',
     packages=['pcmdpy'],

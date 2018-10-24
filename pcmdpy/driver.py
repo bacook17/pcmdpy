@@ -6,7 +6,7 @@ from pcmdpy import utils
 from pcmdpy import gpu_utils
 import warnings
 
-from scipy.stats import multivariate_normal
+from scipy.stats import multivariate_normal, poisson, norm
 
 
 class Driver:
@@ -56,12 +56,20 @@ class Driver:
         self._data_init = True
         self.pcmd_data = pcmd
 
-    def loglike_map(self, pcmd):
+    def loglike_map(self, pcmd, like_mode=2):
         _, hess_model, err_model = utils.make_hess(
             pcmd, self.hess_bins)
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
-        loglike = np.sign(hess_diff) * hess_diff**2 / (2. * combined_var)
+        term1 = hess_diff**2 / (2.*combined_var)
+        if like_mode == 2:
+            loglike = np.sign(hess_diff) * (term1)
+        elif like_mode == 3:
+            loglike = np.sign(hess_diff) * norm.logpdf(self.hess_data,
+                                                       loc=hess_model,
+                                                       scale=np.sqrt(combined_var))
+        else:
+            raise NotImplementedError('like_mode only defined for [2,3]')
         return loglike
 
     def loglike(self, pcmd, like_mode=2, **kwargs):
@@ -103,10 +111,12 @@ class Driver:
             term2 = np.log(root_nn + n_model * self.counts_data)
             log_like = mean_term - np.sum((term1 - term2)**2.)
             
-        elif like_mode == 2:
-            log_like = mean_term - np.sum(np.abs(self.loglike_map(pcmd)))
+        elif like_mode in [2, 3]:
+            log_like = mean_term - np.sum(np.abs(
+                self.loglike_map(pcmd, like_mode=like_mode))
+            )
         else:
-            raise NotImplementedError('like_mode only defined for [0, 1, 2]')
+            raise NotImplementedError('like_mode only defined for [0,1,2,3]')
 
         return log_like
             

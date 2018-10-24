@@ -37,9 +37,12 @@ def plot_rgb_image(images, extent=None, ax=None,
 
 
 def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
-              title=None):
+              title=None, keep_limits=False):
     n_bands = pcmd.shape[0]
     if bins is None:
+        bins = []
+        for i in range(n_bands):
+            
         mins = np.min(pcmd, axis=-1)
         maxs = np.max(pcmd, axis=-1)
         bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
@@ -60,8 +63,9 @@ def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
                                        **hist2d_kwargs)
         xl += ax.get_xlim()
         yl += ax.get_ylim()
-        ax.set_xlim([min(xl), max(xl)])
-        ax.set_ylim([max(yl), min(yl)])
+        if keep_limits:
+            ax.set_xlim([min(xl), max(xl)])
+            ax.set_ylim([max(yl), min(yl)])
     if title is not None:
         axes[0].set_title(title)
     return axes, H, bins, norm
