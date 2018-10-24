@@ -40,9 +40,6 @@ def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
               title=None, keep_limits=False):
     n_bands = pcmd.shape[0]
     if bins is None:
-        bins = []
-        for i in range(n_bands):
-            
         mins = np.min(pcmd, axis=-1)
         maxs = np.max(pcmd, axis=-1)
         bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]

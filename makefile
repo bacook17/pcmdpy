@@ -4,8 +4,7 @@ gpu: pcmdpy_gpu
 
 cpu: pcmdpy_cpu
 
-update:
-	python setup.py install
+update: pcmdpy_only
 
 pcmdpy_only: 
 	@echo "---------------------------------------"

@@ -11,7 +11,7 @@ from pcmdpy import utils
 
 
 class _AgeModel:
-    default_edges = np.array([6., 8., 8.5, 9., 9.5, 10., 10.14])
+    default_edges = np.array([6., 8., 9., 9.5, 10., 10.14])
     _num_SFH_bins = len(default_edges) - 1
 
     def __init__(self):
