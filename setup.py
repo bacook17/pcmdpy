@@ -28,15 +28,6 @@ def find_version(*file_paths):
     raise RuntimeError("Unable to find version string.")
 
 
-class CustomInstall(install):
-    """
-    Updates the given installer to create the __init__.py file and
-    store the path to the package.
-    """
-    def run(self):
-        install.run(self)
-
-
 class CleanCommand(Command):
     
     """Custom clean command to tidy up the project root.
@@ -64,15 +55,13 @@ setup(
     description="""Tools for modelling crowded-field photometry using the
        Pixel Color-Magnitude Diagram technique""",
     package_data={'pcmdpy': ['isoc_MIST_v1.2/*', 'psf/*.fits', 'src/*.c']},
-    scripts=['bin/run_pcmdpy.sh', 'bin/run_pcmdpy_bg.sh',
-             'bin/run_pcmdpy_twostage.sh', 'pcmdpy/pcmd_integrate.py',
-             'pcmdpy/pcmd_integrate_twostage.py'],
+    scripts=['bin/run_pcmdpy', 'bin/run_pcmdpy_twostage',
+             'bin/pcmd_integrate', 'bin/pcmd_integrate_twostage'],
     include_package_data=True,
-    cmdclass={'clean': CleanCommand, 'install': CustomInstall},
+    cmdclass={'clean': CleanCommand},
     install_requires=[
-        'astropy', 'dynesty', 'scipy',
-        'pandas', 'matplotlib', 'numpy',
-        'corner', 'sklearn'
+        'numpy', 'scipy', 'pandas', 'matplotlib', 'astropy', 'dynesty',
+        'corner', 'sklearn',
     ],
     python_requires='>=3',
     extras_require={"GPU": ['pycuda']},

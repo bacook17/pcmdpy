@@ -3,10 +3,21 @@
 # The abbreviated name of the script running
 BASENAME="${0##*/}"
 
+USE_S3=false
+CLOBBER=false
+MOCK_RUN=false
+LOG_DIR="./logs/"
+RESULTS_DIR="./results/"
+
+CONFIG_FILE=
+DATA_FILE=
+RUN_NAME=
+
 INIT_RESULTS_FILE=
 FINAL_RESULTS_FILE=
 STDOUT_FILE=
 STDERR_FILE=
+MEM_FILE=
 
 # Standard function to print an error and exit with a failing return code
 error_exit () {
@@ -24,6 +35,7 @@ save_to_s3() {
     fi
     aws s3 cp $STDOUT_FILE "s3://pcmdpy/logs/${STDOUT_FILE}" || echo "Unable to save stdout file to s3://pcmdpy/logs/${STDOUT_FILE}"
     aws s3 cp $STDERR_FILE "s3://pcmdpy/logs/${STDERR_FILE}" || echo "Unable to save stderr file to s3://pcmdpy/logs/${STDERR_FILE}"
+    aws s3 cp $MEM_FILE "s3://pcmdpy/logs/${MEM_FILE}" || echo "Unable to save mem file to s3://pcmdpy/logs/${MEM_FILE}"
 }
 
 # Handle external SIGINT or SIGTERM commands
@@ -39,10 +51,10 @@ trap exit_script INT TERM EXIT
 # Usage info
 show_help() {
 error_exit "
-Usage: ${BASENAME} [-h] --config-file CONFIG_FILE --run-name RUN_NAME [--data-file DATA_FILE] [--use-s3] [--clobber] [--mock]
+Usage: ${BASENAME} [-h] --config CONFIG_FILE --run-name RUN_NAME [--data-file DATA_FILE] [--results-dir RESULTS_DIR] [--log-dir LOG_DIR] [--use-s3] [--clobber] [--mock]
 Run pcmdpy analysis, intialized with options in CONFIG_FILE. If --data-file not provided, must be a mock run.
-Results will be saved to RUN_NAME.csv, stdout copied to RUN_NAME.out, and stderr redirected to RUN_NAME.err.
-Unless --clobber is given, will exit if RUN_NAME.csv, RUN_NAME.out, or RUN_NAME.err exist.
+Results will be saved to RESULTS_DIR/RUN_NAME_(init/final).csv, stdout copied to LOG_DIR/RUN_NAME.out, stderr redirected to LOG_DIR/RUN_NAME.err, and memory profile to LOG_DIR/RUN_NAME.mem .
+Unless --clobber is given, will exit if results or log files exist.
 
      -h / --help   display this help and exit
      --use-s3      if given, download CONFIG_FILE and DATA_FILE from AWS s3, and upload results/logs to s3
@@ -51,12 +63,6 @@ Unless --clobber is given, will exit if RUN_NAME.csv, RUN_NAME.out, or RUN_NAME.
 "
 }
 
-USE_S3=false
-CLOBBER=false
-MOCK_RUN=false
-CONFIG_FILE=
-DATA_FILE=
-RUN_NAME=
 
 # Iterate through all options
 while :; do
@@ -90,6 +96,24 @@ while :; do
 		shift
 	    else
 		error_exit "-r or --run-name requires a non-empty option argument."
+	    fi
+	    ;;
+	# Set the results directory.
+	--results-dir)
+	    if [ "$2" ]; then
+		RESULTS_DIR=$2
+		shift
+	    else
+		error_exit "--results-dir requires a non-empty option argument."
+	    fi
+	    ;;
+	# Set the logs directory.
+	--log-dir)
+	    if [ "$2" ]; then
+		LOG_DIR=$2
+		shift
+	    else
+		error_exit "--log-dir requires a non-empty option argument."
 	    fi
 	    ;;
 	# Should files be downloaded/uploaded from S3?
@@ -132,63 +156,56 @@ if $USE_S3; then
    fi
 fi
 
-INIT_RESULTS_FILE="${RUN_NAME}_init.csv"
-FINAL_RESULTS_FILE="${RUN_NAME}_final.csv"
-STDOUT_FILE="$RUN_NAME.out"
-STDERR_FILE="$RUN_NAME.err"
+INIT_RESULTS_FILE="${RESULTS_DIR}/${RUN_NAME}_init.csv"
+FINAL_RESULTS_FILE="${RESULTS_DIR}/${RUN_NAME}_final.csv"
+STDOUT_FILE="${LOG_DIR}/${RUN_NAME}.out"
+STDERR_FILE="${LOG_DIR}/${RUN_NAME}.err"
+MEM_FILE="${LOG_DIR}/${RUN_NAME}.mem"
 
 # If clobber mode not activated, check if any output files exist
 if ! $CLOBBER; then
-    if [ -f $INIT_RESULTS_FILE ]; then
-	error_exit "$INIT_RESULTS_FILE exists, and --clobber not activated"
-    fi
-    if [ -f $FINAL_RESULTS_FILE ]; then
-	error_exit "$FINAL_RESULTS_FILE exists, and --clobber not activated"
-    fi
-    if [ -f $STDOUT_FILE ]; then
-	error_exit "$STDOUT_FILE exists, and --clobber not activated"
-    fi
-    if [ -f $STDERR_FILE ]; then
-	error_exit "$STDERR_FILE exists, and --clobber not activated"
-    fi
+    for FILE in "$INIT_RESULTS_FILE" "$FINAL_RESULTS_FILE" "$STDOUT_FILE" \
+				     "$STDERR_FILE" "$MEM_FILE"; do
+	if [ -f $FILE ]; then
+	    error_exit "$FILE exists, and --clobber not activated"
+	fi
+    done
 fi
 
 # Run pcmdpy on given config and datafile.
 # Saves results to RESULTS_FILE, redirects stderr to STDERR_FILE,
 # and !COPIES! stdout to STDOUT_FILE
 
-# If a mock run
 if $MOCK_RUN; then
-    echo "exec: pcmd_integrate_twostage.py --config $CONFIG_FILE \
---results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    (pcmd_integrate_twostage.py --config $CONFIG_FILE \
-		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
-		      2> $STDERR_FILE > $STDOUT_FILE) &
-    my_pid=$!
+    DATA_COMMAND=""
 else
-    echo "exec: pcmd_integrate_twostage.py --config $CONFIG_FILE \
---data $DATA_FILE --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE 2> $STDERR_FILE | tee $STDOUT_FILE &"
-    (pcmd_integrate_twostage.py --config $CONFIG_FILE --data $DATA_FILE \
-		      --results-init $INIT_RESULTS_FILE --results-final $FINAL_RESULTS_FILE \
-		      2> $STDERR_FILE > $STDOUT_FILE) &
-    my_pid=$!
+    DATA_COMMAND="--data ${DATA_FILE}"
 fi
 
-echo "PID of process: $my_pid "
+COMMAND="mprof run --nopython -T 10 -o ${MEM_FILE} pcmd_integrate_twostage --config ${CONFIG_FILE} ${DATA_COMMAND} --results-init ${INIT_RESULTS_FILE} --results-final ${FINAL_RESULTS_FILE} 2> ${STDERR_FILE} | tee ${STDOUT_FILE}"
+echo $COMMAND
 
-# Periodically (every 2 minutes) upload results
+# If working on AWS, run in background so we can periodically upload results
 if $USE_S3; then
-    while ps -p $my_pid > /dev/null 2> /dev/null # as long as the run is ongoing
+    
+    ($COMMAND) &
+    my_pid=$!
+    echo "PID of process: $my_pid "
+
+    # Periodically (every 10 minutes) upload results
+    while ps -p $my_pid > /dev/null 2> /dev/null   # as long as the run is ongoing
     do
 	save_to_s3
 	tail -9 $STDOUT_FILE
 	sleep 10m
     done
+    wait $my_pid
+    CODE=$?
+# Otherwise, just run in foreground
+else
+    $COMMAND
+    CODE=$?
 fi
-
-# Either wait until done (if not using S3), or run should be done (if using S3)
-wait $my_pid
-CODE=$?
 
 # Check if completed successfully
 if [ $CODE -eq 0 ]; then
