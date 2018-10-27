@@ -5,6 +5,7 @@ import multiprocessing
 from pcmdpy.utils import my_assert
 from pcmdpy import dustmodels
 from pkg_resources import resource_filename
+from sys import stderr
 
 try:
     import pycuda
@@ -14,38 +15,41 @@ try:
     from pycuda import cumath
 
 except ImportError as e:
-    print('GPU acceleration not available, sorry')
     _GPU_AVAIL = False
-    mess = e.__str__() #error message
-    if 'No module named pycuda' in mess:
-        warnings.warn('pycuda not installed.',ImportWarning)
-        print('pycuda not installed.')
+    mess = e.__str__()  # error message
+    _GPU_FAIL_REASON = ""
+    if 'No module named \'pycuda\'' in mess:
+        _GPU_FAIL_REASON = (
+            'pycuda not installed.\nPlease ensure you are using a machine with an '
+            'NVidia GPU and CUDA installed, then install pycuda\n(such as via '
+            ' "pip install pycuda")')
     elif 'libcuda' in mess:
-        warnings.warn('libcuda not found, likely because no GPU available.', RuntimeWarning)
-        print('libcuda not found, likely because no GPU available.')
+        _GPU_FAIL_REASON = (
+            'libcuda not found.\nPlease ensure you are using a machine with an '
+            'NVidia GPU and CUDA installed.\nSee https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html'
+        )
     else:
-        warnings.warn(mess, ImportWarning)
-        print(mess)
+        _GPU_FAIL_REASON = mess
+    stderr.flush()
 else:
     _GPU_AVAIL = True
-    print('GPU acceleration enabled')
 
 _GPU_ACTIVE = False
-_CUDAC_AVAIL = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
+
 
 def initialize_gpu(n=0):
     """
     This function makes pycuda use GPU number n in the system. If no n is provided, will use the current
     multiprocessing process number
     """
-    assert _GPU_AVAIL, "Can\'t initialize GPU, _GPU_AVAIL is set to False"
+    assert _GPU_AVAIL, (
+        "Requested GPU acceleration unavailable, for reason:\n   {}".format(_GPU_FAIL_REASON)
+    )
     if n is None:
         n = multiprocessing.current_process()._identity[0] - 1
         print(('for process id: {0:d}'.format(n)))
-    else:
-        print(('using given n: {0:d}'.format(n)))
     
     src_file = resource_filename('pcmdpy', 'src/') + 'poisson_sum.c'
 
@@ -53,10 +57,12 @@ def initialize_gpu(n=0):
         src_code = f.read()
 
     os.environ['CUDA_DEVICE'] = '{0:d}'.format(n)
-    import pycuda.autoinit
-
-    global _GPU_ACTIVE
-    _GPU_ACTIVE = True
+    try:
+        import pycuda.autoinit
+    except ImportError as e:
+        raise ImportError(
+            "Requested GPU acceleration unavailable, for reason:\n"
+            "   failed to autoinitialize pycuda")
 
     global _MAX_THREADS_PER_BLOCK
     global _MAX_2D_BLOCK_DIM
@@ -64,26 +70,22 @@ def initialize_gpu(n=0):
         _MAX_THREADS_PER_BLOCK = pycuda.autoinit.device.get_attribute(cuda.device_attribute.MAX_THREADS_PER_BLOCK)
         _MAX_2D_BLOCK_DIM = int(np.floor(np.sqrt(_MAX_THREADS_PER_BLOCK)))
     except:
+        warnings.warn('Reverting to default MAX_THREADS_PER_BLOCK '
+                      'and MAX_2D_BLOCK_DIM', RuntimeWarning)
         _MAX_THREADS_PER_BLOCK = 1024
         _MAX_2D_BLOCK_DIM = 32
     
     try:
-        print('Starting SourceModule Code')
         module = SourceModule(src_code, keep=False, no_extern_c=True)
         global poisson_sum_gpu
         poisson_sum_gpu = module.get_function('poisson_sum')
-        print('Past the SourceModule code')
     except cuda.CompileError as e:
-        print('Something Failed in Compiling C Source')
-        print(e.msg)
-        print(e.stderr)
-        _GPU_ACTIVE = False
-    else:
-        global _CUDAC_AVAIL
-        _CUDAC_AVAIL = True
-        print('CUDAC Available')
-    return _CUDAC_AVAIL
-    
+        raise RuntimeError(
+            'Something failed in compiling C source.\n'
+            '{}'.format(e.msg))
+    _GPU_ACTIVE = True
+    return _GPU_ACTIVE
+
 
 def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
     if gpu:
@@ -92,26 +94,26 @@ def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
         func = _draw_image_numpy
     return func(*args, **kwargs)
 
+
 def seed_getter_fixed(N, value=None):
-    assert _GPU_AVAIL & _GPU_ACTIVE, ("Can\'t use seed_getter_fixed: either "
-                                      "_GPU_AVAIL_ or _GPU_ACTIVE are set to "
-                                      "False")
+    assert _GPU_ACTIVE, (
+        "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
+        "likely because initialization not run or failed")
     result = pycuda.gpuarray.empty([N], np.int32)
     if value is None:
-        #This will draw the same number every time
+        # This will draw the same number every time
         np.random.seed(0)
         return pycuda.gpuarray.to_gpu(np.random.randint(0, 2**31 - 1, N).astype(np.int32))
     else:
         return result.fill(value)
-        
+
+    
 def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
                     dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
                     **kwargs):
-    my_assert(_GPU_AVAIL & _GPU_ACTIVE,
-              ("Can\'t use seed_getter_fixed: either _GPU_AVAIL_ or "
-               "_GPU_ACTIVE are set to False"))
-    my_assert(_CUDAC_AVAIL, ("Trying to use cudac implementation, but "
-                             "_CUDAC_AVAIL set to False"))
+    my_assert(_GPU_ACTIVE,
+              ("Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
+               "likely because initialization not run or failed"))
 
     my_assert(len(expected_nums) == fluxes.shape[1],
               "expected_nums must have same shape as fluxes")
@@ -161,6 +163,7 @@ def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
 
     return result_front + result_behind*reddening
 
+
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
@@ -198,7 +201,7 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
 
 
 def gpu_log10(array_in, verbose=False, **kwargs):
-    if _GPU_AVAIL:
+    if _GPU_ACTIVE:
         if type(array_in) is not np.ndarray:
             array_in = np.array(array_in)
         if len(array_in) <= 1e6:
@@ -207,7 +210,7 @@ def gpu_log10(array_in, verbose=False, **kwargs):
             return cumath.log10(pycuda.gpuarray.to_gpu(array_in)).get()
     else:
         if verbose:
-            warnings.warn('gpu_log10 using cpu, because gpu not available.',RuntimeWarning)
+            warnings.warn('gpu_log10 using cpu, because gpu not available.', RuntimeWarning)
         return np.log10(array_in)
 
 #class PSFConvolver():

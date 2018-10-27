@@ -4,12 +4,12 @@ gpu: pcmdpy_gpu
 
 cpu: pcmdpy_cpu
 
-update: pcmdpy_only
+update: develop
 
-pcmdpy_only: 
+develop: 
 	@echo "---------------------------------------"
 	@echo "installing pcmdpy only, NO dependencies"
-	python -m pip install . --user --upgrade --no-deps
+	python -m pip install -e . --no-deps
 	@echo "successfully completed installing pcmdpy with NO dependencies"
 	@echo "---------------------------------------"
 

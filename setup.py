@@ -6,16 +6,26 @@
 
 import os
 import re
-
-from setuptools import setup, Command
+import codecs
+from setuptools import setup, Command, find_packages
 from setuptools.command.install import install
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
-init_string = open(os.path.join(dir_path, 'pcmdpy', '__init__.py')).read()
-VERS = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VERS, init_string, re.M)
-__version__ = mo.group(1)
+
+def read(*parts):
+    with codecs.open(os.path.join(here, *parts), 'r') as fp:
+        return fp.read()
+
+
+# https://packaging.python.org/guides/single-sourcing-package-version/
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
 
 
 class CustomInstall(install):
@@ -42,13 +52,13 @@ class CleanCommand(Command):
     def run(self):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
-
+        
 setup(
     name='pcmdpy',
-    version=__version__,
+    version=find_version('pcmdpy', '__init__.py'),
     author='Ben Cook',
     author_email='bcook@cfa.harvard.edu',
-    packages=['pcmdpy'],
+    packages=find_packages(),
     url='https://github.com/bacook17/pcmdpy',
     license='LICENSE',
     description="""Tools for modelling crowded-field photometry using the
@@ -60,9 +70,16 @@ setup(
     include_package_data=True,
     cmdclass={'clean': CleanCommand, 'install': CustomInstall},
     install_requires=[
-        'astropy>=2.0.2', 'dynesty>=0.9.1', 'scipy>=0.19.1',
-        'pandas>=0.20.3', 'matplotlib>=2.0.2', 'numpy>=1.13.1',
-        'corner>=2.0.0', 'sklearn'
+        'astropy', 'dynesty', 'scipy',
+        'pandas', 'matplotlib', 'numpy',
+        'corner', 'sklearn'
     ],
+    python_requires='>=3',
     extras_require={"GPU": ['pycuda']},
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Astronomy',
+    ]
 )
