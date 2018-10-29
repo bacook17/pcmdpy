@@ -2,7 +2,9 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-import pcmdpy as ppy
+from ..isochrones import Isochrone_Model
+from ..simulation.driver import Driver
+from ..utils.utils import ResultsCollector
 import dynesty
 
 
@@ -33,7 +35,8 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
                      use_gpu=True, iso_model=None, bins=None, verbose=False,
                      dynamic=False, out_df=None, out_file=None, save_every=10,
                      param_names=None, prior=None, sampler_kwargs={},
-                     run_kwargs={}, downsample=5, mag_system='vega', **ln_kwargs):
+                     run_kwargs={}, downsample=5, mag_system='vega',
+                     **ln_kwargs):
     # Default sampler arguments
     run_kwargs['print_progress'] = True
     run_kwargs['save_bounds'] = False
@@ -41,12 +44,13 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
     print('-initializing models')
     n_filters = len(filters)
     assert pcmd.shape[0] == n_filters, (
-        "pcmd shape ({:d}) must match filter numbers ({:d})".format(pcmd.shape[0], n_filters))
+        "pcmd shape ({:d}) does not match filter numbers ({:d})".format(
+            pcmd.shape[0], n_filters))
     n_dim = gal_model._num_params
 
     if iso_model is None:
-        iso_model = ppy.isochrones.Isochrone_Model(filters)
-    driv = ppy.driver.Driver(iso_model, gpu=use_gpu)
+        iso_model = Isochrone_Model(filters)
+    driv = Driver(iso_model, gpu=use_gpu)
             
     driv.initialize_data(pcmd, bins=bins)
 
@@ -80,9 +84,9 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
                                         **sampler_kwargs)
         print('Traditional Sampler Initialized')
 
-    collector = ppy.utils.ResultsCollector(n_dim, out_file=out_file,
-                                           save_every=save_every,
-                                           param_names=param_names)
+    collector = ResultsCollector(n_dim, out_file=out_file,
+                                 save_every=save_every,
+                                 param_names=param_names)
     
     run_kwargs['print_func'] = collector.collect
     sampler.run_nested(**run_kwargs)

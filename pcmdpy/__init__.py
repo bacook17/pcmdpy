@@ -3,19 +3,19 @@ __all__ = ['priors', 'gpu_utils', 'utils', 'driver',
            'metalmodels', 'agemodels', 'dustmodels', 'distancemodels',
            '__version__']
 
-from . import gpu_utils
-from . import utils
-from . import driver
-from . import fit_model
-from . import metalmodels
-from . import dustmodels
-from . import agemodels
-from . import distancemodels
-from . import galaxy
+from .simulation import driver
+from .simulation import gpu_utils
+from .sampling import fit_model
+from .sampling import priors
+from .galaxy import metalmodels
+from .galaxy import dustmodels
+from .galaxy import agemodels
+from .galaxy import distancemodels
+from .galaxy import galaxy
 from . import instrument
-from . import isochrones
-from . import priors
-from . import plotting
+from .isochrones import isochrones, Isochrone_Model
+from .utils import plotting
+from .utils import utils
 
 if gpu_utils._GPU_AVAIL:
     import warnings
@@ -25,4 +25,4 @@ if gpu_utils._GPU_AVAIL:
         RuntimeWarning
     )
 
-__version__ = "0.4.8"
+__version__ = "0.4.9"

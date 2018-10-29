@@ -2,8 +2,6 @@ import numpy as np
 import warnings
 import os
 import multiprocessing
-from pcmdpy.utils import my_assert
-from pcmdpy import dustmodels
 from pkg_resources import resource_filename
 from sys import stderr
 
@@ -51,7 +49,7 @@ def initialize_gpu(n=0):
         n = multiprocessing.current_process()._identity[0] - 1
         print(('for process id: {0:d}'.format(n)))
     
-    src_file = resource_filename('pcmdpy', 'src/') + 'poisson_sum.c'
+    src_file = resource_filename('pcmdpy', 'simulation/') + 'poisson_sum.c'
 
     with open(src_file, 'r') as f:
         src_code = f.read()
@@ -111,12 +109,12 @@ def seed_getter_fixed(N, value=None):
 def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
                     dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
                     **kwargs):
-    my_assert(_GPU_ACTIVE,
-              ("Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
-               "likely because initialization not run or failed"))
+    assert _GPU_ACTIVE, (
+        "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
+        "likely because initialization not run or failed")
 
-    my_assert(len(expected_nums) == fluxes.shape[1],
-              "expected_nums must have same shape as fluxes")
+    assert (len(expected_nums) == fluxes.shape[1]), (
+        "expected_nums must have same shape as fluxes")
 
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
@@ -167,8 +165,8 @@ def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
 def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
-    my_assert(N_bins == fluxes.shape[1],
-              "fluxes.shape[1] should match number of bins")
+    assert (N_bins == fluxes.shape[1]), (
+        "fluxes.shape[1] should match number of bins")
     if (tolerance < 0.):
         upper_lim = np.inf
     else:

@@ -2,10 +2,9 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from pcmdpy import utils
-from pcmdpy import gpu_utils
+from ..utils import utils
+from . import gpu_utils
 import warnings
-
 from scipy.stats import multivariate_normal, poisson, norm
 
 

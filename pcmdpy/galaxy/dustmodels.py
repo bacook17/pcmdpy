@@ -3,15 +3,26 @@
 
 """Define the DustModel classses to integrate with GalaxyModel"""
 
-__all__ = ['SingleDust', 'LogNormDust']
+__all__ = ['BaseDustModel', 'SingleDust', 'LogNormDust',
+           'FixedWidthLogNormDust', 'get_dust_model', 'all_dust_models']
 
 import numpy as np
-from pcmdpy import utils
-###### REPLACE ALL ASSERTS WITH MY_ASSERT
-from scipy.stats import lognorm
 
 
-class _DustModel:
+def get_dust_model(name, *args, **kwargs):
+    if name.lower() == 'single':
+        return SingleDust(*args, **kwargs)
+    elif name.lower() == 'lognorm':
+        return LogNormDust(*args, **kwargs)
+    elif name.lower() == 'fixedwidth':
+        return FixedWidthLogNormDust(*args, **kwargs)
+    else:
+        raise NotImplementedError(
+            "given name {} not an acceptable dust model. Choose one of:\n"
+            "{}".format(name.lower(), ['single', 'fixedwidth', 'lognorm']))
+
+    
+class BaseDustModel:
 
     def __init__(self):
         pass
@@ -25,7 +36,7 @@ class _DustModel:
         return mean, np.sqrt(var)
 
 
-class SingleDust(_DustModel):
+class SingleDust(BaseDustModel):
 
     _param_names = ['logdust']
     _num_params = len(_param_names)
@@ -40,7 +51,7 @@ class SingleDust(_DustModel):
         self.dust_frac = 1.0
 
 
-class LogNormDust(_DustModel):
+class LogNormDust(BaseDustModel):
     
     _param_names = ['logdust_med', 'dust_sig']
     _num_params = len(_param_names)
@@ -60,9 +71,12 @@ class FixedWidthLogNormDust(LogNormDust):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5]]
 
-    def __init__(self, sig):
+    def __init__(self, sig=0.2):
         self.sig_dust = sig
         super().__init__()
 
     def set_params(self, dust_params):
         self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
+
+
+all_dust_models = [SingleDust, LogNormDust, FixedWidthLogNormDust]

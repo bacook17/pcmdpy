@@ -3,11 +3,15 @@
 
 """Define the Galaxy_Model class"""
 
-__all__ = ['CustomGalaxy', 'DefaultTau', 'DefaultSSP', 'DefaultNonParam',
-           'MDFTau', 'LogNormTau']
+__all__ = ['BaseGalaxy', 'CustomGalaxy', 'SSPSimple', 'TauSimple',
+           'NonParamSimple', 'TauFull', 'NonParamFull']
 
 import numpy as np
-import pcmdpy as ppy
+from ..sampling import priors
+from .metalmodels import (BaseMetalModel, get_metal_model)
+from .agemodels import (BaseAgeModel, get_age_model)
+from .distancemodels import (BaseDistanceModel, get_distance_model)
+from .dustmodels import (BaseDustModel, get_dust_model)
 
 
 class BaseGalaxy:
@@ -15,13 +19,15 @@ class BaseGalaxy:
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
 
     def __init__(self, ages, fehs, SFH, dust_model, dist_mod, params=None):
-        ppy.utils.my_assert(len(ages) == len(fehs),
-                            "length of first param and second param must match")
-        ppy.utils.my_assert(len(ages) == len(SFH),
-                            "length of first param and third param must match")
+        assert (len(ages) == len(fehs)), (
+            "length of first param and second param must match")
+        assert (len(ages) == len(SFH)), (
+            "length of first param and third param must match")
         self.ages = ages
         self.fehs = fehs
         self.SFH = SFH
+        assert isinstance(dust_model, BaseDustModel), (
+            "the dust_model is not a valid _DustModel object")
         self.dust_model = dust_model
         self.dist_mod = dist_mod
         self.Npix = np.sum(self.SFH)
@@ -39,23 +45,47 @@ class BaseGalaxy:
 class CustomGalaxy(BaseGalaxy):
 
     def __init__(self, metal_model, dust_model, age_model, distance_model,
+                 mdf_sig=None,
+                 dust_sig=None,
+                 dmod=None,
                  initial_params=None):
         # set the metallicity model
+        if not isinstance(metal_model, BaseMetalModel):
+            kwargs = {}
+            if mdf_sig is not None:
+                kwargs['sig'] = mdf_sig
+            metal_model = get_metal_model(metal_model, **kwargs)  # parse a passed string
         self.metal_model = metal_model
         self.p_feh = metal_model._num_params
         self._param_names = list(metal_model._param_names)
+
         # set the dust model
+        if not isinstance(dust_model, BaseDustModel):
+            kwargs = {}
+            if dust_sig is not None:
+                kwargs['sig'] = dust_sig
+            dust_model = get_dust_model(dust_model, **kwargs)
         self.dust_model = dust_model
         self.p_dust = dust_model._num_params
         self._param_names += dust_model._param_names
+
         # set the age model
+        if not isinstance(age_model, BaseAgeModel):
+            age_model = get_age_model(age_model)
         self.age_model = age_model
         self.p_age = age_model._num_params
         self._param_names += age_model._param_names
+
         # set the distance modulus
+        if not isinstance(distance_model, BaseDistanceModel):
+            kwargs = {}
+            if dmod is not None:
+                kwargs['dmod'] = dmod
+            distance_model = get_distance_model(distance_model, **kwargs)
         self.distance_model = distance_model
         self.p_distance = distance_model._num_params
         self._param_names += distance_model._param_names
+        
         self.p_total = self.p_feh + self.p_dust + self.p_age + self.p_distance
         self._num_params = len(self._param_names)
         assert self._num_params == self.p_total, ('galaxy parameter mismatch')
@@ -84,7 +114,7 @@ class CustomGalaxy(BaseGalaxy):
         else:
             assert len(dmod_bounds) == self.p_distance
             bounds += dmod_bounds
-        return ppy.priors.FlatPrior(bounds)
+        return priors.FlatPrior(bounds)
 
     def set_params(self, gal_params):
         # make sure is array, with right length
@@ -126,68 +156,60 @@ class CustomGalaxy(BaseGalaxy):
 class TauSimple(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
-        super().__init__(ppy.metalmodels.SingleFeH(),
-                         ppy.dustmodels.SingleDust(),
-                         ppy.agemodels.TauModel(),
-                         ppy.distancemodels.FixedDistance(dmod),
-                         initial_params=initial_params)
+        super().__init__(
+            metal_model='single',
+            dust_model='single',
+            age_model='tau',
+            distance_model='fixed',
+            dmod=dmod,
+            initial_params=initial_params)
 
 
 class SSPSimple(CustomGalaxy):
     
     def __init__(self, initial_params=None, dmod=30.):
-        super().__init__(ppy.metalmodels.SingleFeH(),
-                         ppy.dustmodels.SingleDust(),
-                         ppy.agemodels.SSPModel(),
-                         ppy.distancemodels.FixedDistance(dmod),
-                         initial_params=initial_params)
+        super().__init__(
+            metal_model='single',
+            dust_model='single',
+            age_model='ssp',
+            distance_model='fixed',
+            dmod=dmod,
+            initial_params=initial_params)
 
 
 class NonParamSimple(CustomGalaxy):
 
     def __init__(self, initial_params=None, dmod=30.):
-        super().__init__(ppy.metalmodels.SingleFeH(),
-                         ppy.dustmodels.SingleDust(),
-                         ppy.agemodels.NonParam(),
-                         ppy.distancemodels.FixedDistance(dmod),
-                         initial_params=initial_params)
+        super().__init__(
+            metal_model='single',
+            dust_model='single',
+            age_model='nonparam',
+            distance_model='fixed',
+            dmod=dmod,
+            initial_params=initial_params)
 
 
-class TauMDF(CustomGalaxy):
-
-    def __init__(self, initial_params=None, dmod=30.):
-        super().__init__(ppy.metalmodels.NormMDF(),
-                         ppy.dustmodels.SingleDust(),
-                         ppy.agemodels.TauModel(),
-                         ppy.distancemodels.FixedDistance(dmod),
-                         initial_params=initial_params)
-
-
-class TauLogNorm(CustomGalaxy):
-
-    def __init__(self, initial_params=None, dmod=30.):
-        super().__init__(ppy.metalmodels.SingleFeH(),
-                         ppy.dustmodels.LogNormDust(),
-                         ppy.agemodels.TauModel(),
-                         ppy.distancemodels.FixedDistance(dmod),
-                         initial_params=initial_params)
-
-        
 class TauFull(CustomGalaxy):
 
     def __init__(self, initial_params=None):
-        super().__init__(ppy.metalmodels.FixedWidthNormMDF(0.3),
-                         ppy.dustmodels.FixedWidthLogNormDust(0.2),
-                         ppy.agemodels.TauModel(),
-                         ppy.distancemodels.VariableDistance(),
-                         initial_params=initial_params)
+        super().__init__(
+            metal_model='fixedwidth',
+            dust_model='fixedwidth',
+            age_model='tau',
+            distance_model='variable',
+            mdf_sig=0.3,
+            dust_sig=0.2,
+            initial_params=initial_params)
 
 
 class NonParamFull(CustomGalaxy):
 
     def __init__(self, initial_params=None):
-        super().__init__(ppy.metalmodels.FixedWidthNormMDF(0.3),
-                         ppy.dustmodels.FixedWidthLogNormDust(0.2),
-                         ppy.agemodels.NonParam(),
-                         ppy.distancemodels.VariableDistance(),
-                         initial_params=initial_params)
+        super().__init__(
+            metal_model='fixedwidth',
+            dust_model='fixedwidth',
+            age_model='nonparam',
+            distance_model='variable',
+            mdf_sig=0.3,
+            dust_sig=0.2,
+            initial_params=initial_params)

@@ -3,14 +3,31 @@
 
 """Define AgeModel classes to integrate with Galaxy Models"""
 
-__all__ = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
-           'SSPModel']
+__all__ = ['BaseAgeModel', 'NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
+           'SSPModel', 'get_age_model', 'all_age_models']
 
 import numpy as np
-from pcmdpy import utils
 
 
-class _AgeModel:
+def get_age_model(name, *args, **kwargs):
+    if name.lower() == 'nonparam':
+        return NonParam(*args, **kwargs)
+    elif name.lower() == 'constant':
+        return ConstantSFR(*args, **kwargs)
+    elif name.lower() == 'tau':
+        return TauModel(*args, **kwargs)
+    elif name.lower() == 'risingtau':
+        return RisingTau(*args, **kwargs)
+    elif name.lower() == 'ssp':
+        return SSPModel(*args, **kwargs)
+    else:
+        raise NotImplementedError(
+            "given name {} not an acceptable age model. Choose one of:\n"
+            "{}".format(name.lower(), ['nonparam', 'constant', 'tau',
+                                       'risingtau', 'ssp']))
+
+
+class BaseAgeModel:
     default_edges = np.array([6., 8., 9., 9.5, 10., 10.14])
     _num_SFH_bins = len(default_edges) - 1
 
@@ -36,12 +53,7 @@ class _AgeModel:
         return np.append(1., cum_sfh)
 
 
-class NonParam(_AgeModel):
-
-    _param_names = ['logSFH0', 'logSFH1', 'logSFH2', 'logSFH3', 'logSFH4',
-                    'logSFH5']
-    _num_params = len(_param_names)
-    _default_prior_bounds = [[-3.0, 3.0]] * _num_params
+class NonParam(BaseAgeModel):
 
     def __init__(self, initial_params=None, iso_step=0.2):
         self.iso_step = iso_step
@@ -63,6 +75,22 @@ class NonParam(_AgeModel):
             self.set_params(initial_params)
         super().__init__()
 
+    @property
+    def _num_params(self):
+        return len(self.default_edges)
+
+    @property
+    def _param_names(self):
+        return ['logSFH{:d}'.format(i) for i in range(self._num_params)]
+
+    @property
+    def _fancy_names(self):
+        return [r'$\log_{10}$' + 'SFH{:d}'.format(i) for i in range(self.num_params)]
+
+    @property
+    def _default_prior_bounds(self):
+        return [[-3.0, 3.0]] * self._num_params
+
     def set_params(self, age_params):
         assert (len(age_params) == self._num_params), "age_params for NonParam should be length {:d}".format(self._num_params)
         self.SFH = 10.**age_params[self.iso_sfh_bin] * self.delta_t_iso
@@ -74,8 +102,6 @@ class NonParam(_AgeModel):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self._param_names = ['logSFH{:d}'.format(i)
-                             for i in range(self._num_SFH_bins)]
         self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
         self.__init__(iso_step=self.iso_step)
@@ -85,9 +111,10 @@ class NonParam(_AgeModel):
         return type(self)(self._params, iso_step=-1).update_edges(self.default_edges)
 
 
-class ConstantSFR(_AgeModel):
+class ConstantSFR(BaseAgeModel):
 
     _param_names = ['logNpix']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0]]
 
@@ -126,9 +153,10 @@ class ConstantSFR(_AgeModel):
         return type(self)(self._params, iso_step=-1)
 
 
-class TauModel(_AgeModel):
+class TauModel(BaseAgeModel):
 
     _param_names = ['logNpix', 'tau']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     
@@ -170,9 +198,10 @@ class TauModel(_AgeModel):
         return type(self)(self._params, iso_step=-1)
 
 
-class RisingTau(_AgeModel):
+class RisingTau(BaseAgeModel):
 
     _param_names = ['logNpix', 'tau_rise']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
 
@@ -214,8 +243,9 @@ class RisingTau(_AgeModel):
         return type(self)(self._params, iso_step=-1)
 
 
-class SSPModel(_AgeModel):
+class SSPModel(BaseAgeModel):
     _param_names = ['logNpix', 'logage']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\log_{10}$ age (yr)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
     
@@ -227,12 +257,16 @@ class SSPModel(_AgeModel):
         super().__init__()
         
     def set_params(self, age_params):
-        utils.my_assert(len(age_params) == self._num_params,
-                        "gal_params for Galaxy_SSP should be length %d" %
-                        self._num_params)
+        assert (len(age_params) == self._num_params), (
+            "gal_params for Galaxy_SSP should be length {}, "
+            "is length {}".format(self._num_params), len(age_params))
         Npix = 10.**age_params[0]
         self.SFH = np.array([Npix])
         self.ages = np.array([age_params[1]])
         self._params = age_params
         super().__init__()
         return self
+
+
+all_age_models = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
+                  'SSPModel']

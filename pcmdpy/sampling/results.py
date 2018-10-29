@@ -1,199 +1,19 @@
-# plotting.py
-# Ben Cook (bcook@cfa.harvard.edu)
-
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-import pcmdpy as ppy
 from corner import corner
 import pandas as pd
 from scipy.misc import logsumexp
+from ..utils.plotting import step_plot, step_fill
+from ..galaxy.agemodels import all_age_models, NonParam, SSPModel
+from ..galaxy.dustmodels import all_dust_models
+from ..galaxy.distancemodels import all_distance_models
+from ..galaxy.metalmodels import all_metal_models
 
 
-def plot_rgb_image(images, extent=None, ax=None,
-                   clip_percent=98, clip_vals=None, r_index=0,
-                   g_index=1, b_index=2):
-    if ax is None:
-        fig, ax = plt.subplots()
-    if images.shape[-1] != 3:
-        assert images.shape[0] == 3, 'not proper RGB image shape'
-        ims_new = np.zeros((images.shape[1], images.shape[2], 3))
-        for i in range(3):
-            ims_new[:, :, i] = images[i]
-        images = np.copy(ims_new)
-    else:
-        images = np.copy(images)
-    if clip_vals is not None:
-        for i in range(3):
-            images[:, :, i] /= clip_vals[i]
-    else:
-        for i in range(3):
-            images[:, :, i] /= np.percentile(images[:, :, i], clip_percent)
-    images[images <= 0.] = 0.
-    images[images >= 1.] = 1.
-    ax.imshow(images, origin='lower', aspect='equal',
-              extent=extent, interpolation='none')
-    return ax
-
-
-def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
-              title=None, keep_limits=False):
-    n_bands = pcmd.shape[0]
-    if bins is None:
-        mins = np.min(pcmd, axis=-1)
-        maxs = np.max(pcmd, axis=-1)
-        bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
-    if axes is None:
-        fig, axes = plt.subplots(ncols=n_bands-1)
-    if n_bands == 2:
-        axes = [axes]
-    if norm is None:
-        norm = mpl.colors.LogNorm()
-    if 'cmap' not in hist2d_kwargs:
-        hist2d_kwargs['cmap'] = 'viridis'
-    for i, ax in enumerate(axes):
-        # record original axis limits, in case overwritten by hist2d
-        xl = ax.get_xlim()
-        yl = ax.get_ylim()
-        H, xbins, ybins, _ = ax.hist2d(pcmd[i+1], pcmd[0],
-                                       bins=[bins[i+1], bins[0]], norm=norm,
-                                       **hist2d_kwargs)
-        xl += ax.get_xlim()
-        yl += ax.get_ylim()
-        if keep_limits:
-            ax.set_xlim([min(xl), max(xl)])
-            ax.set_ylim([max(yl), min(yl)])
-    if title is not None:
-        axes[0].set_title(title)
-    return axes, H, bins, norm
-
-
-def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
-                       axes=None, norm=None, title='', im_kwargs={},
-                       cbar_kwargs={}):
-    n_bands = pcmd_model.shape[0]
-    n_compare = pcmd_compare.shape[1]
-    n_model = pcmd_model.shape[1]
-    if axes is None:
-        fig, axes = plt.subplots(ncols=n_bands-1)
-    if n_bands == 2:
-        axes = [axes]
-    if bins is None:
-        combo = np.append(pcmd_model, pcmd_compare, axis=-1)
-        mag_bins = [np.min(combo[0]), np.max(combo[0])]
-        color_bins = [np.min(combo[1:]), np.max(combo[1:])]
-        bins = np.append([mag_bins], [color_bins for _ in range(1, n_bands)])
-    counts_model, hess_model, err_model = ppy.utils.make_hess(pcmd_model, bins, boundary=False)
-    counts_compare, hess_compare, err_compare = ppy.utils.make_hess(pcmd_compare, bins, boundary=False)
-    
-    if like_mode == 1:
-        root_nn = np.sqrt(n_model * n_compare)
-        term1 = np.log(root_nn + n_compare * counts_model)
-        term2 = np.log(root_nn + n_model * counts_compare)
-        chi = term1 - term2
-    elif like_mode == 2:
-        denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
-        hess_diff = (hess_model - hess_compare)
-        chi = hess_diff / denom
-    chi_sign = np.sign(chi)
-    chi2 = chi**2
-    chi2_max = np.max(chi2)
-    if norm is None:
-        kwargs = {'linthresh': 1., 'linscale': 0.1}
-        kwargs.update(cbar_kwargs)
-        norm = mpl.colors.SymLogNorm(vmin=-chi2_max, vmax=chi2_max,
-                                     **kwargs)
-    for i, ax in enumerate(axes):
-        xl = ax.get_xlim()
-        yl = ax.get_ylim()
-        plt.subplot(ax)
-        # record original axis limits, in case overwritten by hist2d
-        kwargs = {'cmap': 'bwr_r'}
-        kwargs.update(im_kwargs)
-        plt.imshow((chi_sign*chi2)[i], norm=norm, origin='lower',
-                   aspect='auto', extent=(bins[i+1][0], bins[i+1][-1],
-                                          bins[0][0], bins[0][-1]),
-                   **kwargs)
-        xl += ax.get_xlim()
-        yl += ax.get_ylim()
-        ax.set_xlim([min(xl), max(xl)])
-        ax.set_ylim([max(yl), min(yl)])
-        ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(chi2)))
-    return axes, chi, bins, norm
-
-
-def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
-                   mag_system='vega', update_axes=True, **kwargs):
-    if axes is None:
-        import matplotlib.pyplot as plt
-        fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
-    if gal_model is None:
-        gal_model = ppy.galaxy.SSPSimple(np.array([0., -2., 1., 10.]),
-                                         dmod=dmod)
-    names = iso_model.filter_names
-    for age, feh, _, d_mod in gal_model.iter_SSPs():
-        _, mags = iso_model.get_isochrone(age, feh, mag_system=mag_system)
-        mags += d_mod
-        if iso_model.num_filters == 2:
-            axes.plot(mags[1]-mags[0], mags[0], 'k-',
-                      label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
-                      **kwargs)
-            if update_axes:
-                axes.set_xlabel('{0:s} - {1:s}'.format(names[1], names[0]),
-                                fontsize='x-large')
-                axes.set_ylabel(names[0], fontsize='x-large')
-                yl = axes.get_ylim()
-                axes.set_ylim([max(yl), min(yl)])
-        else:
-            for i, ax in enumerate(axes):
-                ax.plot(mags[i+1]-mags[i], mags[0], 'k-',
-                        label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
-                        **kwargs)
-                if update_axes:
-                    ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[i]),
-                                  fontsize='x-large')
-                    ax.set_ylabel(names[0], fontsize='x-large')
-                    yl = ax.get_ylim()
-                    ax.set_ylim([max(yl), min(yl)])
-    return axes
-
-
-def step_plot(x, y, ax=None, **kwargs):
-    assert len(x) == len(y) + 1
-    y = np.append(y, y[-1])
-    if ax is None:
-        ax = plt
-    kwargs['linestyle'] = kwargs.pop('ls', '-')
-    ax.step(x, y, where='post', **kwargs)
-
-
-def step_fill(x, y1, y2, ax=None, **kwargs):
-    assert len(x) == len(y1) + 1
-    assert len(y1) == len(y2)
-    x = np.repeat(x, 2)[1:-1]
-    y1 = np.repeat(y1, 2)
-    y2 = np.repeat(y2, 2)
-    if ax is None:
-        ax = plt
-    kwargs['linestyle'] = kwargs.pop('ls', '-')
-    ax.fill_between(x, y1=y1, y2=y2, **kwargs)
-
-    
 class ResultsPlotter(object):
 
-    param_labels = {'logfeh': '[Fe/H]', 'logfeh_mean': '[Fe/H]',
-                    'logfeh_std': r'$\sigma([Fe/H])$',
-                    'logzh': '[Z/H]', 'logdust': 'log E(B-V)',
-                    'logdust_med': 'log E(B-V)',
-                    'dust_sig': r'$\sigma(E(B-V))$', 'tau': r'$\tau$',
-                    'tau_rise': r'$\tau$', 'dmod': r'$\mu_{d}$',
-                    'logNpix': r'$\log_{10} N_{pix}$'}
-    param_labels.update({'logSFH{:d}'.format(i):
-                         r'$\log_{10}$'+'SFH{:d}'.format(i) for i in range(7)})
-
     def __init__(self, df_file, true_model=None, prior=None,
-                 run_name=None, params=None,
-                 labels=None):
+                 run_name=None):
         try:
             self.df = pd.read_csv(df_file)
         except UnicodeDecodeError:
@@ -206,7 +26,6 @@ class ResultsPlotter(object):
         self.prior = prior
 
         if true_model is not None:
-            self.params = list(true_model._param_names)
             self.metal_model = true_model.metal_model
             self.dust_model = true_model.dust_model
             self.age_model = true_model.age_model
@@ -214,44 +33,55 @@ class ResultsPlotter(object):
             self.true_params = list(true_model._params)
 
         else:
-            if params is not None:
-                self.params = list(params)
-            else:
-                self.params = []
-                for p in self.param_labels.keys():
-                    if p in self.df.columns:
-                        self.params.append(p)
-            if 'logfeh_std' in self.params:
-                self.metal_model = ppy.metalmodels.NormMDF()
-            elif 'logfeh_mean' in self.params:
-                self.metal_model = ppy.metalmodels.FixedWidthNormMDF(0.3)
-            else:
-                self.metal_model = ppy.metalmodels.SingleFeH()
-            if 'dust_sig' in self.params:
-                self.dust_model = ppy.dustmodels.LogNormDust()
-            elif 'logdust_med' in self.params:
-                self.dust_model = ppy.dustmodels.FixedWidthLogNormDust(0.3)
-            else:
-                self.dust_model = ppy.dustmodels.SingleDust()
-            if 'logSFH0' in self.params:
-                self.age_model = ppy.agemodels.NonParam()
-            elif 'tau' in self.params:
-                self.age_model = ppy.agemodels.TauModel()
-            elif 'tau_rise' in self.params:
-                self.age_model = ppy.agemodels.RisingTau()
-            elif 'logage' in self.params:
-                self.age_model = ppy.agemodels.SSPModel()
-            else:
-                self.age_model = ppy.agemodels.ConstantSFR()
-            if 'dmod' in self.params:
-                self.distance_model = ppy.distancemodels.VariableDistance()
-            else:
-                self.distance_model = ppy.distancemodels.FixedDistance(30.)
+            cols = self.df.columns
+            # Identify the metal model from parameters found
+            self.metal_model = None
+            for mm in all_metal_models:
+                if np.all(np.in1d(mm._param_names, cols)):
+                    self.metal_model = mm()
+                    break
+            if self.metal_model is None:
+                raise ValueError(
+                    'params found to not match a known metal model:\n'
+                    '{}'.format(cols))
+
+            # Identify the dust model from parameters found
+            self.dust_model = None
+            for dm in all_dust_models:
+                if np.all(np.in1d(dm._param_names, cols)):
+                    self.dust_model = dm()
+                    break
+            if self.dust_model is None:
+                raise ValueError(
+                    'params found to not match a known dust model:\n'
+                    '{}'.format(cols))
+            
+            # Identify the age model from parameters found
+            self.age_model = None
+            for am in all_age_models:
+                if np.all(np.in1d(am._param_names, cols)):
+                    self.age_model = am()
+                    break
+            if self.age_model is None:
+                raise ValueError(
+                    'params found to not match a known age model:\n'
+                    '{}'.format(cols))
+            
+            # Identify the distance model from parameters found
+            self.distance_model = None
+            for dm in all_distance_models:
+                if np.all(np.in1d(dm._param_names, cols)):
+                    self.distance_model = dm()
+                    break
+            if self.distance_model is None:
+                raise ValueError(
+                    'params found to not match a known distance model:\n'
+                    '{}'.format(cols))
 
             # set iso_step to be -1
             self.age_model = self.age_model.as_default()
 
-        if type(self.age_model) is ppy.agemodels.NonParam:
+        if isinstance(self.age_model, NonParam):
             nbins = self.age_model._num_params
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(nbins)]]
             self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
@@ -259,10 +89,11 @@ class ResultsPlotter(object):
             if self.true_params is not None:
                 self.true_params += [np.log10(true_model.Npix)]
             
-        if labels is not None:
-            self.labels = list(labels)
-        else:
-            self.labels = [self.param_labels[p] for p in self.params]
+        self.params, self.labels = []
+        for m in [self.metal_model, self.dust_model, self.age_model,
+                  self.distance_model]:
+            self.params.extend(m._param_names)
+            self.labels.extend(m._fancy_names)
             
         self.n_params = len(self.params)
             
@@ -325,7 +156,7 @@ class ResultsPlotter(object):
     def plot_sfr(self, width=68., ax=None, title=None,
                  burn=0, stop_after=None, show_prior=False, **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
-        if type(self.age_model) is ppy.agemodels.SSPModel:
+        if isinstance(self.age_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
         cols = self.age_model._param_names
@@ -387,7 +218,7 @@ class ResultsPlotter(object):
     def plot_cum_sfh(self, width=68., ax=None, title=None,
                      burn=0, stop_after=None, show_prior=False, **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
-        if type(self.age_model) is ppy.agemodels.SSPModel:
+        if isinstance(self.age_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
         cols = self.age_model._param_names
@@ -513,7 +344,6 @@ class ResultsPlotter(object):
         self.plot_cum_sfh(ax=axes[1], **cum_sfh_kwargs)
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
         return (chain_axes, axes, (corner_fig, corner_axes))
-
 
     def get_chains(self):
         return self.df[self.params]

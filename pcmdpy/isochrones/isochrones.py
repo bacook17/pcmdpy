@@ -5,7 +5,6 @@
 
 import numpy as np
 import pandas as pd
-from pcmdpy import utils
 import os
 import glob
 import sys
@@ -40,9 +39,9 @@ def _interp_arrays(arr1, arr2, f):
     f -- linear interpolation fraction (float between 0 and 1)
     Output: interpolated array (len max(N1,N2) or max(N1,N2)xD)
     """
-    utils.my_assert(arr1.ndim == arr2.ndim,
-                    "The two interpolated arrays must have same dimensions")
-    
+    assert (arr1.ndim == arr2.ndim), (
+        "The two interpolated arrays must have same dimensions")
+
     l1, l2 = len(arr1), len(arr2)
     # If arrays are unequal length, extrapolate shorter using trend of longer
     if (l1 < l2):
@@ -146,7 +145,7 @@ class Isochrone_Model:
 
         # Locate MIST files
         if MIST_path is None:
-            MIST_path = resource_filename('pcmdpy', 'isoc_MIST_v1.2/')
+            MIST_path = resource_filename('pcmdpy', 'MIST_v1.2/')
         
         # Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()
