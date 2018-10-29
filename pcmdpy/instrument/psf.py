@@ -31,8 +31,8 @@ class PSF_Model:
         self._d_psf = psf.shape[-1]
         self.psf = np.copy(psf) / np.sum(psf)
         self.dithered_psf = _generate_dithered_images(psf, norm=True)
-        self.n_dither = self._dithered_psf.shape[0]
-        assert self._dithered_psf.shape[1] == self.n_dither, (
+        self.n_dither = self.dithered_psf.shape[0]
+        assert self.dithered_psf.shape[1] == self.n_dither, (
             "Should never reach here. Dithering should be symmetric")
         self.dither_by_default = dither_by_default
 
@@ -83,7 +83,7 @@ class PSF_Model:
 
     @classmethod
     def from_fits(cls, filter_name, dither_by_default=True):
-        psf_file = resource_filename('pcmdpy', 'psf/') + filter_name + '.fits'
+        psf_file = resource_filename('pcmdpy', 'instrument/PSFs/') + filter_name + '.fits'
         psf = fits.open(psf_file)[0].data.astype(float)
         return cls(psf, dither_by_default=dither_by_default)
 

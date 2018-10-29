@@ -145,7 +145,7 @@ class Isochrone_Model:
 
         # Locate MIST files
         if MIST_path is None:
-            MIST_path = resource_filename('pcmdpy', 'MIST_v1.2/')
+            MIST_path = resource_filename('pcmdpy', 'isochrones/MIST_v1.2/')
         
         # Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()
