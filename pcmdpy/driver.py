@@ -65,9 +65,7 @@ class Driver:
         if like_mode == 2:
             loglike = np.sign(hess_diff) * (term1)
         elif like_mode == 3:
-            loglike = np.sign(hess_diff) * norm.logpdf(self.hess_data,
-                                                       loc=hess_model,
-                                                       scale=np.sqrt(combined_var))
+            loglike = np.sign(hess_diff) * (term1 + np.log(np.sqrt(2.)*self.err_data))
         else:
             raise NotImplementedError('like_mode only defined for [2,3]')
         return loglike
