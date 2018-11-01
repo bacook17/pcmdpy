@@ -5,6 +5,11 @@ import multiprocessing
 from pkg_resources import resource_filename
 from sys import stderr
 
+global _GPU_AVAIL
+_GPU_AVAIL = False
+global _GPU_ACTIVE
+_GPU_ACTIVE = False
+
 try:
     import pycuda
     import pycuda.driver as cuda
@@ -13,7 +18,6 @@ try:
     from pycuda import cumath
 
 except ImportError as e:
-    _GPU_AVAIL = False
     mess = e.__str__()  # error message
     _GPU_FAIL_REASON = ""
     if 'No module named \'pycuda\'' in mess:
@@ -32,7 +36,6 @@ except ImportError as e:
 else:
     _GPU_AVAIL = True
 
-_GPU_ACTIVE = False
 _MAX_THREADS_PER_BLOCK = 1024
 _MAX_2D_BLOCK_DIM = 32
 
