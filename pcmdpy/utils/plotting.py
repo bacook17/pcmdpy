@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from .utils import make_hess
-from ..galaxy.galaxy import SSPSimple
 
 
 def plot_rgb_image(images, extent=None, ax=None,
@@ -126,6 +125,7 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
     if gal_model is None:
+        from ..galaxy.galaxy import SSPSimple
         gal_model = SSPSimple(np.array([0., -2., 1., 10.]),
                               dmod=dmod)
     names = iso_model.filter_names

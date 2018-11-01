@@ -1,26 +1,26 @@
 default: gpu
 
-gpu: pcmdpy_gpu
+gpu: install_gpu
 
-cpu: pcmdpy
+cpu: install
 
-develop: 
+develop:  
 	@echo "---------------------------------------"
 	@echo "installing pcmdpy only, NO dependencies"
-	python -m pip install -e . --no-deps
+	pip install -e . --no-deps
 	@echo "successfully completed installing pcmdpy with NO dependencies"
 	@echo "---------------------------------------"
 
-pcmdpy:
+install:
 	@echo "---------------------------------------"
 	@echo "installing pcmdpy with CPU support only"
-	python -m pip install . --upgrade
+	pip install . --upgrade
 	@echo "successfully completed installing pcmdpy with CPU support only"
 	@echo "---------------------------------------"
 
-pcmdpy_gpu: pcmdpy
+install_gpu: install
 	@echo "---------------------------------------"
 	@echo "attempting to install GPU support for pcmdpy"
-	@python -m pip install -q .[GPU] --upgrade || (echo "GPU support not available. Confirm NVIDIA GPU is available, the NVIDIA driver and CUDA are installed."; exit 1)
+	@pip install -q .[GPU] --upgrade || (echo "GPU support not available. Confirm NVIDIA GPU is available, the NVIDIA driver and CUDA are installed."; exit 1)
 	@echo "successfully completed installing pcmdpy with GPU support"
 	@echo "---------------------------------------"
