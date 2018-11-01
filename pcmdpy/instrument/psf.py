@@ -68,8 +68,8 @@ class PSF_Model:
                                              w_border=self._d_psf-1)
             convolved_matrix = np.array([[
                 convolve_func(sub_im_matrix[i, j], self.dithered_psf[i, j],
-                              **kwargs) for j in range(self._d_psf)]
-                                         for i in range(self._d_psf)])
+                              **kwargs) for j in range(self.n_dither)]
+                                         for i in range(self.n_dither)])
             im_final = np.concatenate(np.concatenate(convolved_matrix,
                                                      axis=-2), axis=-1)
         else:
