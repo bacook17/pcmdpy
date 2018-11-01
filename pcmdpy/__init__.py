@@ -12,12 +12,4 @@ from .galaxy import (galaxy, metalmodels, dustmodels, agemodels,
 from .sampling import (fit_model, priors, results)
 from .utils import (plotting, utils)
 
-if gpu_utils._GPU_AVAIL:
-    import warnings
-    warnings.warn(
-        ("GPU Acceleration is available. To activate, run:\n"
-         "pcmdpy.gpu_utils.initialize_gpu()"),
-        RuntimeWarning
-    )
-
-__version__ = "0.5.2"
+__version__ = "0.6.0"

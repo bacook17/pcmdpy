@@ -5,10 +5,11 @@ import multiprocessing
 from pkg_resources import resource_filename
 from sys import stderr
 
-global _GPU_AVAIL
+global _GPU_AVAIL, _GPU_ACTIVE, _MAX_THREADS_PER_BLOCK, _MAX_2D_BLOCK_DIM
 _GPU_AVAIL = False
-global _GPU_ACTIVE
 _GPU_ACTIVE = False
+_MAX_THREADS_PER_BLOCK = None
+_MAX_2D_BLOCK_DIM = None
 
 try:
     import pycuda
@@ -65,8 +66,6 @@ def initialize_gpu(n=0):
             "Requested GPU acceleration unavailable, for reason:\n"
             "   failed to autoinitialize pycuda")
 
-    global _MAX_THREADS_PER_BLOCK
-    global _MAX_2D_BLOCK_DIM
     try:
         _MAX_THREADS_PER_BLOCK = pycuda.autoinit.device.get_attribute(cuda.device_attribute.MAX_THREADS_PER_BLOCK)
         _MAX_2D_BLOCK_DIM = int(np.floor(np.sqrt(_MAX_THREADS_PER_BLOCK)))
@@ -84,6 +83,7 @@ def initialize_gpu(n=0):
         raise RuntimeError(
             'Something failed in compiling C source.\n'
             '{}'.format(e.msg))
+    global _GPU_ACTIVE
     _GPU_ACTIVE = True
     return _GPU_ACTIVE
 
