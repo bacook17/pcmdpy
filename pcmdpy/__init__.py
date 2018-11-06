@@ -12,4 +12,4 @@ from .galaxy import (galaxy, metalmodels, dustmodels, agemodels,
 from .sampling import (fit_model, priors, results)
 from .utils import (plotting, utils)
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"

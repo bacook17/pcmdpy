@@ -82,9 +82,13 @@ class PSF_Model:
         return im_final
 
     @classmethod
-    def from_fits(cls, filter_name, dither_by_default=True):
+    def from_fits(cls, filter_name, dither_by_default=True,
+                  narrow_alpha=None):
         psf_file = resource_filename('pcmdpy', 'instrument/PSFs/') + filter_name + '.fits'
         psf = fits.open(psf_file)[0].data.astype(float)
+        if narrow_alpha is not None:
+            assert isinstance(narrow_alpha, float)
+            psf = psf**narrow_alpha
         return cls(psf, dither_by_default=dither_by_default)
 
 

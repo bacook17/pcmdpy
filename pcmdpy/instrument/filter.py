@@ -134,9 +134,6 @@ class ACS_WFC_F435W(Filter):
         args['zpt_st'] = 25.1801
         args['red_per_ebv'] = 3.610
         args['psf'] = PSF_Model.from_fits('ACS_WFC_F435W')
-        psf_path = resource_filename('pcmdpy', 'psf/')
-        psf_file = psf_path + 'ACS_WFC_F435W.fits'
-        args['psf'] = fits.open(psf_file)[0].data.astype(float)
         args['name'] = "F435W"
         args['tex_name'] = r"B$_{435}$"
         args['MIST_column'] = "ACS_WFC_F435W"
@@ -261,23 +258,14 @@ def default_m49_filters():
     return filts
 
 
-def m31_narrow_psf(F814W=True, F475W=True, extra=False):
-    psf_path = resource_filename('pcmdpy', 'psf/')
-    if extra:
-        psf1 = fits.open(psf_path + 'F814W_25p_narrow.fits')[1].data.astype(float)
-        psf2 = fits.open(psf_path + 'F475W_25p_narrow.fits')[1].data.astype(float)
-    else:
-        psf1 = fits.open(psf_path + 'F814W_10p_narrow.fits')[1].data.astype(float)
-        psf2 = fits.open(psf_path + 'F475W_10p_narrow.fits')[1].data.astype(float)
+def m31_narrow_psf(alpha_F814W=1.147, alpha_F475W=1.109):
     filts = []
-    if F814W:
-        filts.append(ACS_WFC_F814W(exposure=3235., psf=psf1))
-    else:
-        filts.append(ACS_WFC_F814W(exposure=3235.))
-    if F475W:
-        filts.append(ACS_WFC_F475W(exposure=3620., psf=psf2))
-    else:
-        filts.append(ACS_WFC_F475W(exposure=3620.))
+    psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
+                                    narrow_alpha=alpha_F814W)
+    psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
+                                    narrow_alpha=alpha_F475W)
+    filts.append(ACS_WFC_F814W(exposure=3235., psf=psf_f814w))
+    filts.append(ACS_WFC_F475W(exposure=3620., psf=psf_f475w))
     return filts
 
 
