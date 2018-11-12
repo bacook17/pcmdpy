@@ -62,7 +62,7 @@ class FixedDistance(BaseDistanceModel):
     _num_params = len(_param_names)
     _default_prior_bounds = []
 
-    def __init__(self, dmod):
+    def __init__(self, dmod=30.):
         self.dmod = dmod
     
     

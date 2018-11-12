@@ -39,6 +39,7 @@ class BaseDustModel:
 class SingleDust(BaseDustModel):
 
     _param_names = ['logdust']
+    _fancy_names = [r'$\log$ E(B-V)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5]]
 
@@ -54,6 +55,7 @@ class SingleDust(BaseDustModel):
 class LogNormDust(BaseDustModel):
     
     _param_names = ['logdust_med', 'dust_sig']
+    _fancy_names = [r'$\log$ E(B-V)', r'$\sigma$ E(B-V)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5], [0., 1.]]
 
@@ -68,6 +70,7 @@ class LogNormDust(BaseDustModel):
 class FixedWidthLogNormDust(LogNormDust):
 
     _param_names = ['logdust_med']
+    _fancy_names = [r'$\log$ E(B-V)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3., 0.5]]
 

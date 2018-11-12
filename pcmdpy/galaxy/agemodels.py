@@ -77,7 +77,7 @@ class NonParam(BaseAgeModel):
 
     @property
     def _num_params(self):
-        return len(self.default_edges)
+        return len(self.default_edges) - 1
 
     @property
     def _param_names(self):
@@ -85,7 +85,7 @@ class NonParam(BaseAgeModel):
 
     @property
     def _fancy_names(self):
-        return [r'$\log_{10}$' + 'SFH{:d}'.format(i) for i in range(self.num_params)]
+        return [r'$\log_{10}$' + 'SFH{:d}'.format(i) for i in range(self._num_params)]
 
     @property
     def _default_prior_bounds(self):
@@ -102,7 +102,6 @@ class NonParam(BaseAgeModel):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self._num_params = len(self._param_names)
         self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
         self.__init__(iso_step=self.iso_step)
         return self
@@ -268,5 +267,5 @@ class SSPModel(BaseAgeModel):
         return self
 
 
-all_age_models = ['NonParam', 'ConstantSFR', 'TauModel', 'RisingTau',
-                  'SSPModel']
+all_age_models = [NonParam, TauModel, RisingTau,
+                  SSPModel, ConstantSFR]

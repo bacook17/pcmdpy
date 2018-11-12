@@ -81,6 +81,12 @@ class ResultsPlotter(object):
             # set iso_step to be -1
             self.age_model = self.age_model.as_default()
 
+        self.params, self.labels = [], []
+        for m in [self.metal_model, self.dust_model, self.age_model,
+                  self.distance_model]:
+            self.params.extend(m._param_names)
+            self.labels.extend(m._fancy_names)
+            
         if isinstance(self.age_model, NonParam):
             nbins = self.age_model._num_params
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(nbins)]]
@@ -88,12 +94,6 @@ class ResultsPlotter(object):
             self.params.append('logNpix')
             if self.true_params is not None:
                 self.true_params += [np.log10(true_model.Npix)]
-            
-        self.params, self.labels = []
-        for m in [self.metal_model, self.dust_model, self.age_model,
-                  self.distance_model]:
-            self.params.extend(m._param_names)
-            self.labels.extend(m._fancy_names)
             
         self.n_params = len(self.params)
             

@@ -37,7 +37,7 @@ class PSF_Model:
         self.dither_by_default = dither_by_default
 
     def convolve(self, image, dither=None, convolve_func=None,
-                 **kwargs):
+                 convolve_kwargs={}, **kwargs):
         """Convolve image with instrumental PSF
         
         Arguments:
@@ -45,7 +45,7 @@ class PSF_Model:
         Keyword Arguments:
            dither --  
            convolve_func -- function to convolve the image and PSF (default: scipy.signal.fftconvolve)
-           **kwargs -- any additional keyword arguments will be passed to convolve_func
+           convolve_kwargs -- any additional keyword arguments will be passed to convolve_func
         Output:
            convolved_image -- image convolved with PSF (2D array of floats;
                                        guaranteed same shape as input if default convolve_func used)
@@ -61,19 +61,19 @@ class PSF_Model:
             dither = False  # unable to subdivide image properly if not square
         if convolve_func is None:
             convolve_func = fftconvolve
-            kwargs['mode'] = 'valid'
+            convolve_kwargs['mode'] = 'valid'
         if dither:
             # add border and subdivide
             sub_im_matrix = _subdivide_image(image, self.n_dither,
                                              w_border=self._d_psf-1)
             convolved_matrix = np.array([[
                 convolve_func(sub_im_matrix[i, j], self.dithered_psf[i, j],
-                              **kwargs) for j in range(self.n_dither)]
+                              **convolve_kwargs) for j in range(self.n_dither)]
                                          for i in range(self.n_dither)])
             im_final = np.concatenate(np.concatenate(convolved_matrix,
                                                      axis=-2), axis=-1)
         else:
-            im_final = convolve_func(image, self.psf, **kwargs)
+            im_final = convolve_func(image, self.psf, **convolve_kwargs)
         if (im_final.shape != image.shape):
             warn(
                 "Image shape has changed: {} to {}".format(image.shape,
