@@ -59,7 +59,10 @@ class ResultsPlotter(object):
             # Identify the age model from parameters found
             self.age_model = None
             for am in all_age_models:
-                if np.all(np.in1d(am._param_names, cols)):
+                params = am._param_names
+                if isinstance(params, property):
+                    params = am()._param_names
+                if np.all(np.in1d(params, cols)):
                     self.age_model = am()
                     break
             if self.age_model is None:
