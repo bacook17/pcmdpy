@@ -102,7 +102,6 @@ class NonParam(BaseAgeModel):
     def update_edges(self, new_edges):
         self.default_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
-        self._default_prior_bounds = [[-3.0, 3.0]] * self._num_params
         self.__init__(iso_step=self.iso_step)
         return self
         
