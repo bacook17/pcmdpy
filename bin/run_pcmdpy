@@ -6,8 +6,8 @@ BASENAME="${0##*/}"
 USE_S3=false
 CLOBBER=false
 MOCK_RUN=false
-LOG_DIR="./logs/"
-RESULTS_DIR="./results/"
+LOG_DIR="./logs"
+RESULTS_DIR="./results"
 
 CONFIG_FILE=
 DATA_FILE=
