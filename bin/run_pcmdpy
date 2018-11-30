@@ -171,7 +171,7 @@ else
     DATA_COMMAND="--data ${DATA_FILE}"
 fi
 
-COMMAND="pcmd_integrate --config ${CONFIG_FILE} ${DATA_COMMAND} --results ${RESULTS_FILE} 2> ${STDERR_FILE} | tee ${STDOUT_FILE}"
+COMMAND="pcmd_integrate --config ${CONFIG_FILE} ${DATA_COMMAND} --results ${RESULTS_FILE}"
 echo $COMMAND
 
 # Catch failure or exits so we still save to AWS
@@ -181,7 +181,7 @@ trap exit_script INT TERM EXIT
 # If working on AWS, run in background so we can periodically upload results
 if $USE_S3; then
     
-    ($COMMAND) &
+    ($COMMAND) 2> ${STDERR_FILE} | tee ${STDOUT_FILE} &
     my_pid=$!
     echo "PID of process: $my_pid "
 
@@ -196,7 +196,7 @@ if $USE_S3; then
     CODE=$?
 # Otherwise, just run in foreground
 else
-    $COMMAND
+    ($COMMAND) 2> ${STDERR_FILE} | tee ${STDOUT_FILE}
     CODE=$?
 fi
 
