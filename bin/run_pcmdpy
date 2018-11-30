@@ -171,7 +171,7 @@ else
     DATA_COMMAND="--data ${DATA_FILE}"
 fi
 
-COMMAND="pcmd_integrate.py --config ${CONFIG_FILE} ${DATA_COMMAND} --results ${RESULTS_FILE} 2> ${STDERR_FILE} | tee ${STDOUT_FILE}"
+COMMAND="pcmd_integrate --config ${CONFIG_FILE} ${DATA_COMMAND} --results ${RESULTS_FILE} 2> ${STDERR_FILE} | tee ${STDOUT_FILE}"
 echo $COMMAND
 
 # Catch failure or exits so we still save to AWS
