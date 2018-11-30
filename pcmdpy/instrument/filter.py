@@ -241,9 +241,10 @@ m51_filter_sets = [ACS_WFC_F814W, ACS_WFC_F555W, ACS_WFC_F435W]
 m49_filter_sets = [ACS_WFC_F850LP, ACS_WFC_F475W]
 
 
-def default_m31_filters():
-    filts = [ACS_WFC_F814W(exposure=3235.),
-             ACS_WFC_F475W(exposure=3620.)]
+def default_m31_filters(exp_F814W=3235.0,
+                        exp_F475W=3620.0):
+    filts = [ACS_WFC_F814W(exposure=exp_F814W),
+             ACS_WFC_F475W(exposure=exp_F475W)]
     return filts
 
 

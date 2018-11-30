@@ -29,7 +29,7 @@ if __name__ == '__main__':
                         help="name of the job queue to submit this job",
                         type=str, default="pcmdpy_queue_p2")
     parser.add_argument("--job-definition", help="name of the job definition",
-                        type=str, default="pcmdpy_mock")
+                        type=str, default="pcmdpy_data")
     parser.add_argument("--region", help="AWS region to submit job to",
                         type=str, default='us-east-1')
     parser.add_argument("--quiet",

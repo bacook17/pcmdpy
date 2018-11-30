@@ -61,10 +61,16 @@ class Driver:
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
         term1 = hess_diff**2 / (2.*combined_var)
-        if like_mode == 2:
+        if like_mode == 1:  # Poisson model
+            hess_model[hess_model == 0.] = 0.25 / pcmd.shape[1]  # add 0.25 fake counts in each empty model bin
+            loglike = np.sign(hess_diff) * poisson.logpmf(self.counts_data,
+                                                          mu=(hess_model * self.n_data))
+        elif like_mode == 2:
             loglike = np.sign(hess_diff) * (term1)
         elif like_mode == 3:
-            loglike = np.sign(hess_diff) * (term1 + np.log(np.sqrt(2.)*self.err_data))
+            loglike = np.sign(hess_diff) * norm.logpdf(hess_model,
+                                                       loc=self.hess_data,
+                                                       scale=np.sqrt(combined_var))
         else:
             raise NotImplementedError('like_mode only defined for [2,3]')
         return loglike
@@ -96,19 +102,7 @@ class Driver:
         
             log_like = normal_term
 
-        elif like_mode == 1:
-            # compute hess diagram
-            counts_model, _, _ = utils.make_hess(
-                pcmd,
-                self.hess_bins)
-            
-            n_model = pcmd.shape[1]
-            root_nn = np.sqrt(n_model * self.n_data)
-            term1 = np.log(root_nn + self.n_data * counts_model)
-            term2 = np.log(root_nn + n_model * self.counts_data)
-            log_like = mean_term - np.sum((term1 - term2)**2.)
-            
-        elif like_mode in [2, 3]:
+        elif like_mode in [1, 2, 3]:
             log_like = mean_term - np.sum(np.abs(
                 self.loglike_map(pcmd, like_mode=like_mode))
             )

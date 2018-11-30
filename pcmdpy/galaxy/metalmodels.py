@@ -22,7 +22,7 @@ def get_metal_model(name, *args, **kwargs):
 
 
 class BaseMetalModel:
-    default_fehs = np.arange(-4., 0.6, 0.5)
+    default_fehs = np.arange(-2.0, 0.51, 0.25)
     _num_feh_bins = len(default_fehs) - 1
 
     def __init__(self):
@@ -32,7 +32,7 @@ class BaseMetalModel:
         return self.fehs, self.weights
     
     @classmethod
-    def compute_mdf(cls, feh_mean, feh_sig):
+    def compute_mdf(cls, feh_mean, feh_sig, etol=1e-3):
         if feh_sig <= 0.:
             return np.array([feh_mean]), np.array([1.])
         else:
@@ -50,7 +50,12 @@ class BaseMetalModel:
                 fehs = np.array([feh_mean])
                 weights = np.array([1.])
             else:
+                # remove bins with negligible weight
+                too_small = (weights < etol)
+                fehs = fehs[~too_small]
+                weights = weights[~too_small]
                 weights /= np.sum(weights)
+            assert len(fehs) == len(weights)
             return fehs, weights
 
 

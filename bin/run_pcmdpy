@@ -41,8 +41,6 @@ exit_script() {
     kill $(jobs -p)
 }
 
-trap exit_script INT TERM EXIT
-
 # Usage info
 show_help() {
 error_exit "
@@ -178,6 +176,10 @@ fi
 
 COMMAND="mprof run --nopython -T 10 -o ${MEM_FILE} pcmd_integrate --config ${CONFIG_FILE} ${DATA_COMMAND} --results ${RESULTS_FILE} 2> ${STDERR_FILE} | tee ${STDOUT_FILE}"
 echo $COMMAND
+
+# Catch failure or exits so we still save to AWS
+trap exit_script INT TERM EXIT
+
 
 # If working on AWS, run in background so we can periodically upload results
 if $USE_S3; then
