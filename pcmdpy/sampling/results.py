@@ -95,6 +95,7 @@ class ResultsPlotter(object):
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(nbins)]]
             self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
             self.params.append('logNpix')
+            self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
             if self.true_params is not None:
                 self.true_params += [np.log10(true_model.Npix)]
             
