@@ -3,3 +3,4 @@ cd pcmdpy && git pull origin master
 make install && cd ..
 
 mkdir logs/
+mkdir results/
