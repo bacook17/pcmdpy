@@ -154,7 +154,7 @@ class ConstantSFR(BaseAgeModel):
 class TauModel(BaseAgeModel):
 
     _param_names = ['logNpix', 'tau']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     
@@ -199,7 +199,7 @@ class TauModel(BaseAgeModel):
 class RisingTau(BaseAgeModel):
 
     _param_names = ['logNpix', 'tau_rise']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau']
+    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
 
