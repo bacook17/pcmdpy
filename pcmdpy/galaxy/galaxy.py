@@ -90,6 +90,9 @@ class CustomGalaxy(BaseGalaxy):
         assert self._num_params == self.p_total, ('galaxy parameter mismatch')
         if initial_params is not None:
             self.set_params(initial_params)
+        else:
+            if None not in self._params:
+                self.set_params(self._params)
 
     @property
     def _params(self):
