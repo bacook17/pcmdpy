@@ -11,7 +11,6 @@ from ..galaxy.metalmodels import all_metal_models
 
 
 class ResultsPlotter(object):
-
     def __init__(self, df_file, true_model=None, prior=None,
                  run_name=None):
         try:
@@ -82,7 +81,7 @@ class ResultsPlotter(object):
                     '{}'.format(cols))
 
             # set iso_step to be -1
-            self.age_model = self.age_model.as_default()
+            # self.age_model = self.age_model.as_default()
 
         self.params, self.labels = [], []
         for m in [self.metal_model, self.dust_model, self.age_model,
@@ -97,7 +96,7 @@ class ResultsPlotter(object):
             self.params.append('logNpix')
             self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
             if self.true_params is not None:
-                self.true_params += [np.log10(true_model.Npix)]
+                self.true_params += [np.log10(true_model.age_model.Npix)]
             
         self.n_params = len(self.params)
             
@@ -109,6 +108,21 @@ class ResultsPlotter(object):
             self.df['logfeh'] = self.df.logzh
         except AttributeError:
             pass
+
+    @property
+    def best_params(self):
+        if isinstance(self.age_model, NonParam):
+            return self.df.tail(1)[self.params[:-1]].values[0]
+        else:
+            return self.df.tail(1)[self.params].values[0]
+
+    @property
+    def best_model(self):
+        from ..galaxy.galaxy import CustomGalaxy
+        gal = CustomGalaxy(self.metal_model, self.dust_model, self.age_model,
+                           self.distance_model)
+        gal.set_params(self.best_params)
+        return gal
 
     def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
                     show_prior=True, chains_only=False, plot_kwargs=None):
