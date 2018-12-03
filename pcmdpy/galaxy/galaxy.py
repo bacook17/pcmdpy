@@ -17,6 +17,9 @@ from .dustmodels import (BaseDustModel, get_dust_model)
 class BaseGalaxy:
 
     _param_names = ['ages', 'fehs', 'SFH', 'dust_model']
+    ages = []
+    fehs = []
+    SFH = []
 
     def __init__(self, ages, fehs, SFH, dust_model, dist_mod, params=None):
         assert (len(ages) == len(fehs)), (
@@ -30,8 +33,22 @@ class BaseGalaxy:
             "the dust_model is not a valid _DustModel object")
         self.dust_model = dust_model
         self.dist_mod = dist_mod
-        self.Npix = np.sum(self.SFH)
-        self.num_SSPs = len(self.ages)
+
+    @property
+    def Npix(self):
+        return np.sum(self.SFH)
+        
+    @property
+    def logSFH(self):
+        return np.log10(self.SFH)
+
+    @property
+    def logNpix(self):
+        return np.log10(self.Npix)
+
+    @property
+    def num_SSPs(self):
+        return len(self.ages)
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):

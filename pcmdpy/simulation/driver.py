@@ -29,8 +29,8 @@ class Driver:
         
     def initialize_data(self, pcmd, bins=None, **kwargs):
         if bins is None:
-            magbins = np.arange(-12, 15.6, 0.05)
-            colorbins = np.arange(-1.5, 4.6, 0.05)
+            magbins = np.arange(-12, 45, 0.05)
+            colorbins = np.arange(-1.5, 5.6, 0.05)
             bins = [magbins]
             for _ in range(1, self.n_filters):
                 bins.append(colorbins)
@@ -55,25 +55,27 @@ class Driver:
         self._data_init = True
         self.pcmd_data = pcmd
 
-    def loglike_map(self, pcmd, like_mode=2):
+    def loglike_map(self, pcmd, like_mode=2, signed=True):
         _, hess_model, err_model = utils.make_hess(
             pcmd, self.hess_bins)
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
-        term1 = hess_diff**2 / (2.*combined_var)
         if like_mode == 1:  # Poisson model
             hess_model[hess_model == 0.] = 0.25 / pcmd.shape[1]  # add 0.25 fake counts in each empty model bin
-            loglike = np.sign(hess_diff) * poisson.logpmf(self.counts_data,
-                                                          mu=(hess_model * self.n_data))
+            loglike = poisson.logpmf(self.counts_data,
+                                     mu=(hess_model * self.n_data))
         elif like_mode == 2:
-            loglike = np.sign(hess_diff) * (term1)
+            loglike = -1. * hess_diff**2 / (2.*combined_var)
         elif like_mode == 3:
-            loglike = np.sign(hess_diff) * norm.logpdf(hess_model,
-                                                       loc=self.hess_data,
-                                                       scale=np.sqrt(combined_var))
+            loglike = norm.logpdf(hess_model,
+                                  loc=self.hess_data,
+                                  scale=np.sqrt(combined_var))
         else:
-            raise NotImplementedError('like_mode only defined for [2,3]')
-        return loglike
+            raise NotImplementedError('like_mode only defined for [1,2,3]')
+        if signed:
+            return loglike * np.sign(hess_diff)
+        else:
+            return loglike
 
     def loglike(self, pcmd, like_mode=2, **kwargs):
         assert self._data_init, ('Cannot evaluate, as data has not been '
@@ -103,9 +105,8 @@ class Driver:
             log_like = normal_term
 
         elif like_mode in [1, 2, 3]:
-            log_like = mean_term - np.sum(np.abs(
-                self.loglike_map(pcmd, like_mode=like_mode))
-            )
+            llmap = self.loglike_map(pcmd, like_mode=like_mode, signed=False)
+            log_like = mean_term + np.sum(llmap)
         else:
             raise NotImplementedError('like_mode only defined for [0,1,2,3]')
 

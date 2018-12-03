@@ -276,8 +276,10 @@ class Isochrone_Model:
             weights = np.append(weights, imf*sfh)
             m += d_mod
             mags = np.append(mags, m, axis=-1)
-        lum = np.power(10., -0.4*mags)
-        mean_lum = np.average(lum, weights=weights, axis=1)
-        to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
-        return weights[to_keep], mags[:, to_keep]
-
+        if not np.isinf(lum_cut):
+            lum = np.power(10., -0.4*mags)
+            mean_lum = np.average(lum, weights=weights, axis=1)
+            to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
+            return weights[to_keep], mags[:, to_keep]
+        else:
+            return weights, mags
