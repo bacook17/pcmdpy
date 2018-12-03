@@ -118,7 +118,7 @@ class Driver:
             gal_model,
             downsample=downsample, mag_system=mag_system, **kwargs)
         fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
-        dust_frac, dust_mean, dust_std = gal_model.dust_model.get_params()
+        dust_frac, dust_mean, dust_std = gal_model.dust_model.get_props()
         images = gpu_utils.draw_image(IMF, fluxes, im_scale, self.filters,
                                       dust_frac, dust_mean, dust_std,
                                       gpu=self.gpu_on, fixed_seed=fixed_seed,

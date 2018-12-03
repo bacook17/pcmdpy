@@ -32,7 +32,6 @@ class BaseGalaxy:
         self.dist_mod = dist_mod
         self.Npix = np.sum(self.SFH)
         self.num_SSPs = len(self.ages)
-        self._params = params
 
     def iter_SSPs(self):
         for i in range(self.num_SSPs):
@@ -92,6 +91,14 @@ class CustomGalaxy(BaseGalaxy):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    @property
+    def _params(self):
+        all_params = []
+        for mod in [self.metal_model, self.dust_model, self.age_model,
+                    self.distance_model]:
+            all_params += list(mod._params)
+        return all_params
+
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
                        age_bounds=None, dmod_bounds=None):
         if feh_bounds is None:
@@ -124,17 +131,21 @@ class CustomGalaxy(BaseGalaxy):
         feh_params = gal_params[:self.p_feh]
         self.metal_model.set_params(feh_params)
         fehs, feh_weights = self.metal_model.get_vals()
+
         # set dust parameters
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
         self.dust_model.set_params(dust_params)
+
         # set age parameters
         age_params = gal_params[self.p_feh+self.p_dust:
                                 self.p_feh+self.p_dust+self.p_age]
         self.age_model.set_params(age_params)
         ages, age_weights = self.age_model.get_vals()
+
         # set distance parameters
         if self.p_distance > 0:
             dist_mod = gal_params[-self.p_distance]
+            self.distance_model.set_params(dist_mod)
         else:
             dist_mod = self.distance_model.dmod
         # merge the age and metallicity bins
@@ -146,8 +157,7 @@ class CustomGalaxy(BaseGalaxy):
             new_ages += list(ages)
             new_fehs += [feh]*len(ages)
 
-        super().__init__(new_ages, new_fehs, SFH, self.dust_model, dist_mod,
-                         params=gal_params)
+        super().__init__(new_ages, new_fehs, SFH, self.dust_model, dist_mod)
 
     def describe(self):
         pass

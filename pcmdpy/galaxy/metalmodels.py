@@ -32,7 +32,7 @@ class BaseMetalModel:
         return self.fehs, self.weights
     
     @classmethod
-    def compute_mdf(cls, feh_mean, feh_sig, etol=1e-3):
+    def compute_mdf(cls, feh_mean, feh_sig, etol=1e-2):
         if feh_sig <= 0.:
             return np.array([feh_mean]), np.array([1.])
         else:
@@ -50,14 +50,17 @@ class BaseMetalModel:
                 fehs = np.array([feh_mean])
                 weights = np.array([1.])
             else:
+                weights /= np.sum(weights)
                 # remove bins with negligible weight
                 too_small = (weights < etol)
                 fehs = fehs[~too_small]
                 weights = weights[~too_small]
                 weights /= np.sum(weights)
             assert len(fehs) == len(weights)
-            return fehs, weights
-
+            if len(fehs) <= 1:
+                return np.array([feh_mean]), np.array([1.])
+            else:
+                return fehs, weights
 
 class SingleFeH(BaseMetalModel):
 
@@ -65,13 +68,23 @@ class SingleFeH(BaseMetalModel):
     _fancy_names = ['[Fe/H]']
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 0.5]]
-    
-    def __init__(self):
-        pass
 
+    feh_mean = None
+    feh_sig = 0.0
+    
+    def __init__(self, initial_params=None):
+        if initial_params is not None:
+            self.set_params(initial_params)
+            
     def set_params(self, feh_params):
-        logfeh = feh_params[0]
-        self.fehs, self.weights = np.array([logfeh]), np.array([1.])
+        if isinstance(feh_params, float) or isinstance(feh_params, int):
+            feh_params = [feh_params]
+        assert len(feh_params) == self._num_params, (
+            "feh_params for SingleFeH is length {:d}, "
+            "should be length {:d}".format(len(feh_params), self._num_params))
+        self.feh_mean = feh_params[0]
+        self._params = feh_params
+        self.fehs, self.weights = np.array([self.feh_mean]), np.array([1.])
 
 
 class NormMDF(BaseMetalModel):
@@ -81,11 +94,19 @@ class NormMDF(BaseMetalModel):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 0.5], [0.05, 1.0]]
 
-    def __init__(self):
-        pass
+    feh_mean = None
+    feh_sig = None
+
+    def __init__(self, initial_params=None):
+        if initial_params is not None:
+            self.set_params(initial_params)
 
     def set_params(self, feh_params):
+        assert len(feh_params) == self._num_params, (
+            "feh_params for NormMDF is length {:d}, "
+            "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean, self.feh_sig = feh_params
+        self._params = feh_params
         self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
 
 
@@ -96,11 +117,22 @@ class FixedWidthNormMDF(NormMDF):
     _num_params = len(_param_names)
     _default_prior_bounds = [[-3.0, 0.5]]
 
-    def __init__(self, sig=0.3):
+    feh_mean = None
+    feh_sig = None
+    
+    def __init__(self, sig=0.2, initial_params=None):
         self.feh_sig = sig
+        if initial_params is not None:
+            self.set_params(initial_params)
 
     def set_params(self, feh_params):
+        if isinstance(feh_params, float) or isinstance(feh_params, int):
+            feh_params = [feh_params]
+        assert len(feh_params) == self._num_params, (
+            "feh_params for FixedWidthNormMDF is length {:d}, "
+            "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean = feh_params[0]
+        self._params = feh_params
         self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
 
         
