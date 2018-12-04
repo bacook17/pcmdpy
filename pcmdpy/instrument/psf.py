@@ -31,12 +31,15 @@ class PSF_Model:
         self._d_psf = psf.shape[-1]
         self.psf = np.copy(psf) / np.sum(psf)
         self.dithered_psf = _generate_dithered_images(psf, norm=True)
-        self.n_dither = self.dithered_psf.shape[0]
         assert self.dithered_psf.shape[1] == self.n_dither, (
             "Should never reach here. Dithering should be symmetric")
         self.dither_by_default = dither_by_default
 
-    def convolve(self, image, dither=None, convolve_func=None,
+    @property
+    def n_dither(self):
+        return self.dithered_psf.shape[0]
+
+    def convolve(self, image, dither=None, convolve_func=fftconvolve,
                  convolve_kwargs={}, **kwargs):
         """Convolve image with instrumental PSF
         
@@ -59,19 +62,23 @@ class PSF_Model:
             dither = self.dither_by_default
         if image.shape[-1] != image.shape[-2]:
             dither = False  # unable to subdivide image properly if not square
-        if convolve_func is None:
-            convolve_func = fftconvolve
-            convolve_kwargs['mode'] = 'valid'
-        if dither:
-            # add border and subdivide
-            sub_im_matrix = _subdivide_image(image, self.n_dither,
-                                             w_border=self._d_psf-1)
-            convolved_matrix = np.array([[
-                convolve_func(sub_im_matrix[i, j], self.dithered_psf[i, j],
-                              **convolve_kwargs) for j in range(self.n_dither)]
-                                         for i in range(self.n_dither)])
-            im_final = np.concatenate(np.concatenate(convolved_matrix,
-                                                     axis=-2), axis=-1)
+        if convolve_func is fftconvolve:
+            convolve_kwargs['mode'] = convolve_kwargs.get('mode', 'valid')
+            if dither:
+                # add border and subdivide
+                sub_im_matrix = _subdivide_image(image, self.n_dither,
+                                                 w_border=self._d_psf-1)
+                convolved_matrix = np.array([[
+                    convolve_func(sub_im_matrix[i, j], self.dithered_psf[i, j],
+                                  **convolve_kwargs) for j in range(self.n_dither)]
+                                             for i in range(self.n_dither)])
+                im_final = np.concatenate(np.concatenate(convolved_matrix,
+                                                         axis=-2), axis=-1)
+            else:
+                # add border to avoid zero-padding
+                im_border = _subdivide_image(image, 1,
+                                             w_border=self._d_psf-1)[0, 0]
+                im_final = convolve_func(im_border, self.psf, **convolve_kwargs)
         else:
             im_final = convolve_func(image, self.psf, **convolve_kwargs)
         if (im_final.shape != image.shape):

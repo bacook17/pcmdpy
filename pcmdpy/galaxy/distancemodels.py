@@ -39,10 +39,15 @@ class VariableDistance(BaseDistanceModel):
     _fancy_names = [r'$\mu_d$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[25., 30.]]  # 1 - 10 Mpc
-    
+    dmod = None
+
     def __init__(self, initial_params=None):
         if initial_params is not None:
             self.set_params(initial_params)
+
+    @property
+    def _params(self):
+        return np.array([self.dmod])
 
     def set_params(self, dist_params):
         if isinstance(dist_params, float) or isinstance(dist_params, int):
@@ -50,7 +55,6 @@ class VariableDistance(BaseDistanceModel):
         assert (len(dist_params) == self._num_params), (
             "dist_params for VariableDistance should be length {}, "
             "is length {}".format(self._num_params, len(dist_params)))
-        self._params = dist_params
         self.dmod = dist_params[0]
 
 
@@ -70,7 +74,7 @@ class FixedDistance(BaseDistanceModel):
 
     @property
     def _params(self):
-        return []
+        return np.array([])
     
     
 def dmod_to_mpc(dmod):

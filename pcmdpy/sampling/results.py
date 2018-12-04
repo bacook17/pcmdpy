@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from corner import corner
 import pandas as pd
 from scipy.misc import logsumexp
-from ..utils.plotting import step_plot, step_fill
+from ..plotting.plotting import step_plot, step_fill
 from ..galaxy.agemodels import all_age_models, NonParam, SSPModel
 from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models

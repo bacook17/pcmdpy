@@ -1,4 +1,3 @@
-__all__ = ['utils', 'plotting']
+__all__ = ['utils']
 
 from . import utils
-from . import plotting

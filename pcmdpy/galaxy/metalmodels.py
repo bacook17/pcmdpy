@@ -62,6 +62,7 @@ class BaseMetalModel:
             else:
                 return fehs, weights
 
+
 class SingleFeH(BaseMetalModel):
 
     _param_names = ['logfeh']
@@ -75,6 +76,10 @@ class SingleFeH(BaseMetalModel):
     def __init__(self, initial_params=None):
         if initial_params is not None:
             self.set_params(initial_params)
+
+    @property
+    def _params(self):
+        return np.array([self.feh_mean])
             
     def set_params(self, feh_params):
         if isinstance(feh_params, float) or isinstance(feh_params, int):
@@ -83,7 +88,6 @@ class SingleFeH(BaseMetalModel):
             "feh_params for SingleFeH is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean = feh_params[0]
-        self._params = feh_params
         self.fehs, self.weights = np.array([self.feh_mean]), np.array([1.])
 
 
@@ -101,12 +105,15 @@ class NormMDF(BaseMetalModel):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    @property
+    def _params(self):
+        return np.array([self.feh_mean, self.feh_sig])
+
     def set_params(self, feh_params):
         assert len(feh_params) == self._num_params, (
             "feh_params for NormMDF is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean, self.feh_sig = feh_params
-        self._params = feh_params
         self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
 
 
@@ -125,6 +132,10 @@ class FixedWidthNormMDF(NormMDF):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    @property
+    def _params(self):
+        return np.array([self.feh_mean])
+
     def set_params(self, feh_params):
         if isinstance(feh_params, float) or isinstance(feh_params, int):
             feh_params = [feh_params]
@@ -132,7 +143,6 @@ class FixedWidthNormMDF(NormMDF):
             "feh_params for FixedWidthNormMDF is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean = feh_params[0]
-        self._params = feh_params
         self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
 
         

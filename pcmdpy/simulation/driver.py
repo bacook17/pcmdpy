@@ -12,9 +12,13 @@ class Driver:
 
     def __init__(self, iso_model, gpu=True, **kwargs):
         self.iso_model = iso_model
-        self.filters = iso_model.filters
-        self.n_filters = len(self.filters)
-
+        if self.iso_model is None:
+            self.filters = None
+            self.n_filters = 2
+        else:
+            self.filters = iso_model.filters
+            self.n_filters = len(self.filters)
+        
         if gpu:
             if gpu_utils._GPU_AVAIL:
                 self.gpu_on = True

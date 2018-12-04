@@ -55,6 +55,8 @@ class BaseAgeModel:
 
 class NonParam(BaseAgeModel):
 
+    _params = np.array([None, None, None, None, None])
+
     def __init__(self, initial_params=None, iso_step=0.2):
         self.iso_step = iso_step
         if iso_step > 0:
@@ -115,6 +117,7 @@ class ConstantSFR(BaseAgeModel):
     _fancy_names = [r'$\log_{10} N_\mathrm{pix}$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0]]
+    _params = [None]
 
     def __init__(self, initial_params=None, iso_step=0.2):
         """
@@ -157,6 +160,7 @@ class TauModel(BaseAgeModel):
     _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
+    _params = [None, None]
     
     def __init__(self, initial_params=None, iso_step=0.2):
         """
@@ -202,6 +206,7 @@ class RisingTau(BaseAgeModel):
     _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
+    _params = [None, None]
 
     def __init__(self, initial_params=None, iso_step=0.2):
         """
@@ -246,6 +251,7 @@ class SSPModel(BaseAgeModel):
     _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\log_{10}$ age (yr)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
+    _params = [None, None]
     
     def __init__(self, initial_params=None, iso_step=None):
         """

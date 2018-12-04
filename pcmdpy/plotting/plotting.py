@@ -4,7 +4,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from .utils import make_hess
+from ..utils.utils import make_hess
+from ..simulation.driver import Driver
 
 
 def plot_rgb_image(images, extent=None, ax=None,
@@ -33,90 +34,105 @@ def plot_rgb_image(images, extent=None, ax=None,
     return ax
 
 
-def plot_pcmd(pcmd, bins=None, axes=None, norm=None, hist2d_kwargs={},
+def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
               title=None, keep_limits=False):
+    """
+    Arguments
+    ---------
+
+    Returns
+    -------
+    ax : List of matplotlib axes objects representing image(s)
+    bins : List of bins used to make Hess image
+    norm : matplotlib normalization object
+
+    """
     n_bands = pcmd.shape[0]
     if bins is None:
         mins = np.min(pcmd, axis=-1)
         maxs = np.max(pcmd, axis=-1)
         bins = [np.arange(mins[i], maxs[i], 0.05) for i in range(n_bands)]
-    if axes is None:
-        fig, axes = plt.subplots(ncols=n_bands-1)
+    if ax is None:
+        fig, ax = plt.subplots(ncols=n_bands-1)
     if n_bands == 2:
-        axes = [axes]
+        ax = [ax]
     if norm is None:
         norm = mpl.colors.LogNorm()
     if 'cmap' not in hist2d_kwargs:
         hist2d_kwargs['cmap'] = 'viridis'
-    for i, ax in enumerate(axes):
+    for i, a in enumerate(ax):
         # record original axis limits, in case overwritten by hist2d
-        xl = ax.get_xlim()
-        yl = ax.get_ylim()
-        H, xbins, ybins, _ = ax.hist2d(pcmd[i+1], pcmd[0],
+        xl = a.get_xlim()
+        yl = a.get_ylim()
+        H, xbins, ybins, _ = a.hist2d(pcmd[i+1], pcmd[0],
                                        bins=[bins[i+1], bins[0]], norm=norm,
                                        **hist2d_kwargs)
-        xl += ax.get_xlim()
-        yl += ax.get_ylim()
+        xl += a.get_xlim()
+        yl += a.get_ylim()
         if keep_limits:
-            ax.set_xlim([min(xl), max(xl)])
-            ax.set_ylim([max(yl), min(yl)])
+            a.set_xlim([min(xl), max(xl)])
+            a.set_ylim([max(yl), min(yl)])
     if title is not None:
-        axes[0].set_title(title)
-    return axes, H, bins, norm
+        ax[0].set_title(title)
+    return ax, bins, norm
 
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
-                       axes=None, norm=None, title='', im_kwargs={},
+                       ax=None, norm=None, title='', im_kwargs={},
                        cbar_kwargs={}):
+    """
+    Arguments
+    ---------
+
+    Returns
+    -------
+    ax : List of matplotlib axes objects representing image(s)
+    loglike : map of log-likelihood plotted
+    bins : List of bins used to make Hess image
+    norm : matplotlib normalization object
+
+    """
+    driv_temp = Driver(None, gpu=False)
     n_bands = pcmd_model.shape[0]
-    n_compare = pcmd_compare.shape[1]
-    n_model = pcmd_model.shape[1]
-    if axes is None:
-        fig, axes = plt.subplots(ncols=n_bands-1)
+    driv_temp.n_filters = n_bands
+    if ax is None:
+        fig, ax = plt.subplots(ncols=n_bands-1)
     if n_bands == 2:
-        axes = [axes]
+        ax = [ax]
     if bins is None:
         combo = np.append(pcmd_model, pcmd_compare, axis=-1)
         mag_bins = [np.min(combo[0]), np.max(combo[0])]
         color_bins = [np.min(combo[1:]), np.max(combo[1:])]
         bins = np.append([mag_bins], [color_bins for _ in range(1, n_bands)])
-    counts_model, hess_model, err_model = make_hess(pcmd_model, bins, boundary=False)
-    counts_compare, hess_compare, err_compare = make_hess(pcmd_compare, bins, boundary=False)
-    
-    if like_mode == 1:
-        root_nn = np.sqrt(n_model * n_compare)
-        term1 = np.log(root_nn + n_compare * counts_model)
-        term2 = np.log(root_nn + n_model * counts_compare)
-        chi = term1 - term2
-    elif like_mode == 2:
-        denom = np.sqrt(2. * (err_model**2. + err_compare**2.))
-        hess_diff = (hess_model - hess_compare)
-        chi = hess_diff / denom
-    chi_sign = np.sign(chi)
-    chi2 = chi**2
-    chi2_max = np.max(chi2)
+    driv_temp.initialize_data(pcmd_model, bins=bins)
+    if like_mode in [1, 2, 3]:
+        loglike = driv_temp.loglike_map(pcmd_compare, like_mode=like_mode)
+    else:
+        counts_compare, _, _ = make_hess(pcmd_compare, bins)
+        loglike = driv_temp.counts_data - counts_compare
+    loglike_max = np.max(loglike)
     if norm is None:
-        kwargs = {'linthresh': 1., 'linscale': 0.1}
+        kwargs = {'linthresh': 10.}
         kwargs.update(cbar_kwargs)
-        norm = mpl.colors.SymLogNorm(vmin=-chi2_max, vmax=chi2_max,
+        norm = mpl.colors.SymLogNorm(vmin=-loglike_max, vmax=loglike_max,
                                      **kwargs)
-    for i, ax in enumerate(axes):
-        xl = ax.get_xlim()
-        yl = ax.get_ylim()
-        plt.subplot(ax)
+    for i, a in enumerate(ax):
+        xl = a.get_xlim()
+        yl = a.get_ylim()
+        plt.subplot(a)
         # record original axis limits, in case overwritten by hist2d
-        kwargs = {'cmap': 'bwr_r'}
+        kwargs = {'cmap': 'bwr'}
         kwargs.update(im_kwargs)
-        plt.imshow((chi_sign*chi2)[i], norm=norm, origin='lower',
+        plt.imshow(loglike[i], norm=norm, origin='lower',
                    aspect='auto', extent=(bins[i+1][0], bins[i+1][-1],
                                           bins[0][0], bins[0][-1]),
                    **kwargs)
-        xl += ax.get_xlim()
-        yl += ax.get_ylim()
-        ax.set_xlim([min(xl), max(xl)])
-        ax.set_ylim([max(yl), min(yl)])
-        ax.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(chi2)))
-    return axes, chi, bins, norm
+        xl += a.get_xlim()
+        yl += a.get_ylim()
+        a.set_xlim([min(xl), max(xl)])
+        a.set_ylim([max(yl), min(yl)])
+        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(loglike)))
+    return ax, loglike, bins, norm
 
 
 def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,

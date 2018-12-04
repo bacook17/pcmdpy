@@ -10,6 +10,7 @@ from .isochrones import isochrones
 from .galaxy import (galaxy, metalmodels, dustmodels, agemodels,
                      distancemodels)
 from .sampling import (fit_model, priors, results)
-from .utils import (plotting, utils)
+from .utils import (utils)
+from .plotting import (plotting)
 
 __version__ = "0.6.3"

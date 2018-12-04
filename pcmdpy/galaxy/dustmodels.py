@@ -31,7 +31,7 @@ class BaseDustModel:
         pass
 
     def get_props(self):
-        return self.dust_frac, self.mu_dust, self.sig_dust
+        return self.dust_frac, self.mu_dust * np.log(10.), self.sig_dust  # 2nd term: ln of median
 
     def get_stats(self):
         mean = np.exp(self.mu_dust + 0.5*self.sig_dust**2)
@@ -51,6 +51,10 @@ class SingleDust(BaseDustModel):
         self.sig_dust = 0.0
         if initial_params is not None:
             self.set_params(initial_params)
+    
+    @property
+    def _params(self):
+        return np.array([self.mu_dust])
 
     def set_params(self, dust_params):
         if isinstance(dust_params, float) or isinstance(dust_params, int):
@@ -58,8 +62,7 @@ class SingleDust(BaseDustModel):
         assert len(dust_params) == self._num_params, (
             "dust_params for SingleDust is length {:d}, "
             "should be length {:d}".format(len(dust_params), self._num_params))
-        self._params = dust_params
-        self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
+        self.mu_dust = dust_params[0]
 
 
 class LogNormDust(BaseDustModel):
@@ -74,12 +77,15 @@ class LogNormDust(BaseDustModel):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    @property
+    def _params(self):
+        return np.array([self.mu_dust, self.sig_dust])
+
     def set_params(self, dust_params):
         assert len(dust_params) == self._num_params, (
             "dust_params for LogNormDust is length {:d}, "
             "should be length {:d}".format(len(dust_params), self._num_params))
-        self._params = dust_params
-        self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
+        self.mu_dust = dust_params[0]
         self.sig_dust = dust_params[1]  # dimensionless standard-deviation
 
 
@@ -96,14 +102,17 @@ class FixedWidthLogNormDust(LogNormDust):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    @property
+    def _params(self):
+        return np.array([self.mu_dust])
+
     def set_params(self, dust_params):
         if isinstance(dust_params, float) or isinstance(dust_params, int):
             dust_params = [dust_params]
         assert len(dust_params) == self._num_params, (
             "dust_params for FixedWidthLogNorm is length {:d}, "
             "should be length {:d}".format(len(dust_params), self._num_params))
-        self._params = dust_params
-        self.mu_dust = dust_params[0] * np.log(10.)  # ln of median
+        self.mu_dust = dust_params[0]
 
 
 all_dust_models = [SingleDust, LogNormDust, FixedWidthLogNormDust]
