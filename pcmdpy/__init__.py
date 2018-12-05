@@ -13,4 +13,7 @@ from .sampling import (fit_model, priors, results)
 from .utils import (utils)
 from .plotting import (plotting)
 
+GPU_AVAIL = gpu_utils._GPU_AVAIL
+GPU_ACTIVE = gpu_utils._GPU_ACTIVE
+
 __version__ = "0.6.3"

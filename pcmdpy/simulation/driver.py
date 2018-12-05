@@ -60,7 +60,7 @@ class Driver:
         self.pcmd_data = pcmd
 
     def loglike_map(self, pcmd, like_mode=2, signed=True):
-        _, hess_model, err_model = utils.make_hess(
+        counts_model, hess_model, err_model = utils.make_hess(
             pcmd, self.hess_bins)
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
@@ -68,16 +68,16 @@ class Driver:
             hess_model[hess_model == 0.] = 0.25 / pcmd.shape[1]  # add 0.25 fake counts in each empty model bin
             loglike = poisson.logpmf(self.counts_data,
                                      mu=(hess_model * self.n_data))
-        elif like_mode == 2:
+        elif like_mode == 2:  # Gaussian model (no variance term included)
             loglike = -1. * hess_diff**2 / (2.*combined_var)
-        elif like_mode == 3:
+        elif like_mode == 3:  # Gaussian model (variance included, downweights high-count bins)
             loglike = norm.logpdf(hess_model,
                                   loc=self.hess_data,
                                   scale=np.sqrt(combined_var))
         else:
             raise NotImplementedError('like_mode only defined for [1,2,3]')
         if signed:
-            return loglike * np.sign(hess_diff)
+            return (loglike - np.max(loglike)) * np.sign(hess_diff)
         else:
             return loglike
 
@@ -136,7 +136,7 @@ class Driver:
                 im += sky
         if shot_noise:
             images = np.random.poisson(images).astype(np.float32)
-            images[images <= 0.] = 1e-10  # avoid nan issues
+            images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
         if psf_after and not psf:
             # This is deprecated. Believe this to be the wrong behavior
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
