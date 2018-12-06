@@ -3,7 +3,7 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from pcmdpy import fit_model
+from pcmdpy import fit_model, __version__
 import sys
 import argparse
 import signal
@@ -20,6 +20,7 @@ def sigterm_handler(sig, frame):
 
 
 if __name__ == "__main__":
+    print('Using pcmdpy version ' + __version__)
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)
