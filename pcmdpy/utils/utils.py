@@ -34,7 +34,7 @@ def mean_mags(pcmd):
     return logsumexp(mag_factor*mags, b=weights, axis=1)
 
 
-def make_hess(pcmd, bins, err_min=.1):
+def make_hess(pcmd, bins, err_min=2.):
     mags = pcmd[0]
     colors = pcmd[1:]
     n_colors = colors.shape[0]
@@ -53,10 +53,10 @@ def make_hess(pcmd, bins, err_min=.1):
     counts[counts <= 0.] = 0.
     err = np.sqrt(counts)
     
-    # inflate small errors, with inflation decreasing
-    # exponentially at higher counts
-    err += err_min * np.exp(-err)
-
+    # inflate small errors
+    err[err <= err_min] = err_min
+    # err += err_min * np.exp(-err)
+    
     # normalize by number of pixels
     hess = counts / n
     err /= n

@@ -77,7 +77,7 @@ class Driver:
         else:
             raise NotImplementedError('like_mode only defined for [1,2,3]')
         if signed:
-            return (loglike - np.max(loglike)) * np.sign(hess_diff)
+            return loglike * np.sign(hess_diff)
         else:
             return loglike
 
