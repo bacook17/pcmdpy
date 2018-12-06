@@ -3,7 +3,7 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from pcmdpy import fit_model
+from pcmdpy import fit_model, __version__
 import sys
 import argparse
 import signal
@@ -20,6 +20,7 @@ def sigterm_handler(sig, frame):
 
 
 if __name__ == "__main__":
+    print('Using pcmdpy version ' + __version__)
 
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     
     # where to save results
     results_file = args.results
+    live_file = results_file.replace('.csv', '_live.csv')
     
     # These are the required arguments. If any remain None after import,
     # this will fail
@@ -107,7 +109,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
     # The default dynesty result values
-    results_cols = ['nlive', 'niter', 'nc', 'eff',
+    results_cols = ['niter', 'nc', 'eff',
                     'logl', 'logwt', 'logvol', 'logz',
                     'logzerr', 'h', 'delta_logz', 'time_elapsed']
     param_names = config.params['gal_model']._param_names
@@ -118,6 +120,7 @@ if __name__ == "__main__":
 
     out_df = pd.DataFrame(columns=results_cols)
     args['out_file'] = results_file
+    args['live_file'] = live_file
     args['out_df'] = out_df
     args['save_every'] = 10
     args['param_names'] = param_names

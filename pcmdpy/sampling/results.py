@@ -15,25 +15,29 @@ from ..galaxy.metalmodels import all_metal_models
 
 class ResultsCollector(object):
 
-    def __init__(self, sampler, verbose=True, print_loc=sys.stdout,
-                 out_file=None, save_every=10, param_names=None):
+    def __init__(self, sampler, out_file, verbose=True, print_loc=sys.stdout,
+                 out_df=None, live_file=None,
+                 save_every=10, param_names=None):
         ndim = sampler.npdim
         self.sampler = sampler
         self.print_loc = print_loc
         self.last_time = time.time()
         self.start_time = time.time()
-        if out_file is None:
-            self.out_df = None
-        else:
-            self.colnames = ['nlive', 'niter', 'nc', 'eff', 'logl', 'logwt',
+        self.out_file = out_file
+        if out_df is None:
+            self.colnames = ['niter', 'nc', 'eff', 'logl', 'logwt',
                              'logvol', 'logz', 'logzerr', 'h', 'delta_logz',
                              'time_elapsed']
             if param_names is not None:
                 self.colnames += list(param_names)
             else:
                 self.colnames += ['param{:d}'.format(i) for i in range(ndim)]
-            self.out_df = pd.DataFrame(columns=self.colnames)
-        self.out_file = out_file
+                self.out_df = pd.DataFrame(columns=self.colnames)
+        else:
+            assert param_names in self.out_df.columns, (
+                "provided parameter names {} not in output Dataframe".format(param_names))
+            self.out_df = out_df
+        self.live_file = live_file
         self.verbose = verbose
         self.save_every = save_every
         self.param_names = param_names
@@ -41,25 +45,25 @@ class ResultsCollector(object):
     def collect(self, results, niter, ncall, nbatch=None, dlogz=None,
                 logl_max=None, add_live_it=None, stop_val=None,
                 logl_min=-np.inf):
-        if self.verbose:
-            (worst, ustar, vstar, loglstar, logvol,
-             logwt, logz, logzvar, h, nc, worst_it,
-             boundidx, bounditer, eff, delta_logz) = results
-            if delta_logz > 1e6:
-                delta_logz = np.inf
-            if logzvar >= 0. and logzvar <= 1e6:
-                logzerr = np.sqrt(logzvar)
-            else:
-                logzerr = np.nan
-            if logz <= -1e6:
-                logz = -np.inf
+        (worst, ustar, vstar, loglstar, logvol,
+         logwt, logz, logzvar, h, nc, worst_it,
+         boundidx, bounditer, eff, delta_logz) = results
+        if delta_logz > 1e6:
+            delta_logz = np.inf
+        if logzvar >= 0. and logzvar <= 1e6:
+            logzerr = np.sqrt(logzvar)
+        else:
+            logzerr = np.nan
+        if logz <= -1e6:
+            logz = -np.inf
 
-            last = self.last_time
-            self.last_time = time.time()
-            dt = self.last_time - last
-            total_time = self.last_time - self.start_time
-            ave_t = dt/nc
+        last = self.last_time
+        self.last_time = time.time()
+        dt = self.last_time - last
+        total_time = self.last_time - self.start_time
+        ave_t = dt/nc
             
+        if self.verbose:
             # constructing output
             print_str = 'iter: {:d}'.format(niter)
             if add_live_it is not None:
@@ -87,46 +91,65 @@ class ResultsCollector(object):
             sys.stdout.flush()
 
         # Saving results to df
-        if (self.out_df is not None):
-            row = {'niter': niter}
-            row['time_elapsed'] = total_time
-            row['logl'] = loglstar
-            row['logvol'] = logvol
-            row['logwt'] = logwt
-            row['logz'] = logz
-            row['h'] = h
-            row['eff'] = eff
-            row['nc'] = nc
-            row['nlive'] = 2000
-            row['delta_logz'] = delta_logz
-            row['logzerr'] = logzerr
-            if self.param_names is not None:
-                for i, pname in enumerate(self.param_names):
-                    row[pname] = vstar[i]
-            else:
-                for i, v in enumerate(vstar):
-                    row['param{0:d}'.format(i)] = v
-            self.out_df = self.out_df.append(row, ignore_index=True)
-            if ((niter+1) % self.save_every == 0):
-                self.flush_to_csv()
+        row = {'niter': niter}
+        row['time_elapsed'] = total_time
+        row['logl'] = loglstar
+        row['logvol'] = logvol
+        row['logwt'] = logwt
+        row['logz'] = logz
+        row['h'] = h
+        row['eff'] = eff
+        row['nc'] = nc
+        row['delta_logz'] = delta_logz
+        row['logzerr'] = logzerr
+        if self.param_names is not None:
+            for i, pname in enumerate(self.param_names):
+                row[pname] = vstar[i]
+        else:
+            for i, v in enumerate(vstar):
+                row['param{0:d}'.format(i)] = v
+        self.out_df = self.out_df.append(row, ignore_index=True)
+
+        # Save current live points
+        if ((niter+1) % self.save_every == 0):
+            self.flush_to_csv()
 
     def flush_to_csv(self):
         self.out_df.to_csv(self.out_file, mode='a', index=False,
                            header=False, float_format='%.4e')
         self.out_df.drop(self.out_df.index, inplace=True)
+        # track current live points
+        if self.live_file is not None:
+            live_df = pd.DataFrame(columns=self.param_names,
+                                   data=self.sampler.live_v)
+            live_df['logl'] = self.sampler.live_logl
+            live_df.to_csv(self.live_file, mode='w', index=False,
+                           header=True, float_format='%.4e')
 
 
 class ResultsPlotter(object):
-    def __init__(self, df_file, true_model=None, prior=None,
-                 run_name=None):
+    def __init__(self, df_file, live_file=None, true_model=None,
+                 prior=None, run_name=None):
         try:
             self.df = pd.read_csv(df_file)
         except UnicodeDecodeError:
             self.df = pd.read_csv(df_file, compression='gzip')
+        self.df['live'] = False
+
+        if live_file is not None:
+            try:
+                live_df = pd.read_csv(live_file)
+            except UnicodeDecodeError:
+                live_df = pd.read_csv(live_file, compression='gzip')
+            live_df['live'] = True
+            live_df['logwt'] = self.df['logwt'].min()
+            self.df.append(live_df, ignore_index=True, sort=False)
 
         self.true_model = true_model
         self.run_name = run_name
         self.num_iters = len(self.df)
+        self.num_live = self.df['live'].sum()
+        self.num_dead = self.num_iters - self.num_live
         self.true_params = None
         self.prior = prior
 
@@ -205,10 +228,15 @@ class ResultsPlotter(object):
                 self.true_params += [np.log10(true_model.sfh_model.Npix)]
             
         self.n_params = len(self.params)
-            
-        self.df['log_weights'] = (self.df.logl.values -
-                                  logsumexp(self.df.logl.values))
+
+        # weights defined by Dynesty
+        self.df['log_weights'] = (self.df.logwt.values -
+                                  logsumexp(self.df.logwt.values))
         self.df['weights'] = np.exp(self.df['log_weights'])
+        # weights purely from log likelihoods
+        logl_ws = (self.df.logl.values -
+                   logsumexp(self.df.logl.values))
+        self.df['likelihood_weights'] = np.exp(logl_ws)
         self.df['time_elapsed'] /= 3600.
         try:
             self.df['logfeh'] = self.df.logzh
@@ -231,7 +259,8 @@ class ResultsPlotter(object):
         return gal
 
     def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
-                    show_prior=True, chains_only=False, plot_kwargs=None):
+                    include_live=True, show_prior=True, chains_only=False,
+                    plot_kwargs=None):
         nr = self.n_params + 3
         if chains_only:
             nr = self.n_params
@@ -245,16 +274,20 @@ class ResultsPlotter(object):
             plot_kwargs = {}
         else:
             plot_kwargs = dict(plot_kwargs)
+        if include_live:
+            to_plot = np.ones(self.num_iters, dtype=bool)
+        else:
+            to_plot = ~self.df['live'].values
         for i, p in enumerate(self.params):
-            axes[i].plot(self.df[p].values, **plot_kwargs)
+            axes[i].plot(self.df[p].values[to_plot], **plot_kwargs)
             axes[i].set_ylabel(self.labels[i])
         if not chains_only:
-            axes[-3].plot(np.log10(self.df['delta_logz'].values))
+            axes[-3].plot(np.log10(self.df['delta_logz'].values[to_plot]))
             axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
             axes[-3].set_ylabel(r'log $\Delta$ln Z')
-            axes[-2].plot(self.df['eff'].values)
+            axes[-2].plot(self.df['eff'].values[to_plot])
             axes[-2].set_ylabel('eff (%)')
-            axes[-1].plot(self.df['time_elapsed'].values)
+            axes[-1].plot(self.df['time_elapsed'].values[to_plot])
             axes[-1].set_ylabel('run time (hrs)')
         axes[-1].set_xlabel('Iteration')
 
@@ -400,12 +433,14 @@ class ResultsPlotter(object):
         return ax
 
     def plot_corner(self, fig=None, title=None, burn=0, bins=30,
-                    smooth_frac=.01, smooth1d=0.,
+                    include_live=True, smooth_frac=.01, smooth1d=0.,
                     weight=False, full_range=True,
                     show_prior=True, plot_density=False, fill_contours=True,
                     sig_levels=None,
                     **corner_kwargs):
         df_temp = self.df.iloc[burn:]
+        if not include_live:
+            df_temp = df_temp[~df_temp['live']]
         vals = df_temp[self.params].values
         smooth = smooth_frac * bins
         if sig_levels is None:
