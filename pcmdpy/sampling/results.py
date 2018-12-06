@@ -139,11 +139,13 @@ class ResultsPlotter(object):
         if live_file is not None:
             try:
                 live_df = pd.read_csv(live_file)
-            except UnicodeDecodeError:
-                live_df = pd.read_csv(live_file, compression='gzip')
-            live_df['live'] = True
-            live_df['logwt'] = self.df['logwt'].min()
-            self.df.append(live_df, ignore_index=True, sort=False)
+            except FileNotFoundError:
+                print('Unable to find live_file: {}. Continuing without '
+                      'live points'.format(live_file))
+            else:
+                live_df['live'] = True
+                live_df['logwt'] = self.df['logwt'].min()
+                self.df.append(live_df, ignore_index=True, sort=False)
 
         self.true_model = true_model
         self.run_name = run_name
@@ -274,21 +276,34 @@ class ResultsPlotter(object):
             plot_kwargs = {}
         else:
             plot_kwargs = dict(plot_kwargs)
-        if include_live:
-            to_plot = np.ones(self.num_iters, dtype=bool)
-        else:
-            to_plot = ~self.df['live'].values
+        is_live = self.df['live'].values
+        is_dead = ~is_live
+        live_plot_kwargs = plot_kwargs.copy()
+        live_plot_kwargs.update({'color': 'c',
+                                 'ls': ':'})
         for i, p in enumerate(self.params):
-            axes[i].plot(self.df[p].values[to_plot], **plot_kwargs)
+            axes[i].plot(self.df[p].values[is_dead], **plot_kwargs)
+            if include_live:
+                axes[i].plot(self.df[p].values[is_live], **live_plot_kwargs)
             axes[i].set_ylabel(self.labels[i])
         if not chains_only:
-            axes[-3].plot(np.log10(self.df['delta_logz'].values[to_plot]))
+            axes[-3].plot(np.log10(self.df['delta_logz'].values[is_dead]),
+                          **plot_kwargs)
             axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
             axes[-3].set_ylabel(r'log $\Delta$ln Z')
-            axes[-2].plot(self.df['eff'].values[to_plot])
+            axes[-2].plot(self.df['eff'].values[is_dead], **plot_kwargs)
             axes[-2].set_ylabel('eff (%)')
-            axes[-1].plot(self.df['time_elapsed'].values[to_plot])
+            axes[-1].plot(self.df['time_elapsed'].values[is_dead],
+                          **plot_kwargs)
             axes[-1].set_ylabel('run time (hrs)')
+            if include_live:
+                axes[-3].plot(np.log10(self.df['delta_logz'].values[is_live]),
+                              **live_plot_kwargs)
+                axes[-2].plot(self.df['eff'].values[is_live],
+                              **live_plot_kwargs)
+                axes[-1].plot(self.df['time_elapsed'].values[is_live],
+                              **live_plot_kwargs)
+                
         axes[-1].set_xlabel('Iteration')
 
         if self.true_model is not None:
