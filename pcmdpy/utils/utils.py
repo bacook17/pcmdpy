@@ -90,25 +90,25 @@ class ResultsCollector(object):
     def collect(self, results, niter, ncall, nbatch=None, dlogz=None,
                 logl_max=None, add_live_it=None, stop_val=None,
                 logl_min=-np.inf):
-        if self.verbose:
-            (worst, ustar, vstar, loglstar, logvol,
-             logwt, logz, logzvar, h, nc, worst_it,
-             boundidx, bounditer, eff, delta_logz) = results
-            if delta_logz > 1e6:
-                delta_logz = np.inf
-            if logzvar >= 0. and logzvar <= 1e6:
-                logzerr = np.sqrt(logzvar)
-            else:
-                logzerr = np.nan
-            if logz <= -1e6:
-                logz = -np.inf
+        (worst, ustar, vstar, loglstar, logvol,
+         logwt, logz, logzvar, h, nc, worst_it,
+         boundidx, bounditer, eff, delta_logz) = results
+        if delta_logz > 1e6:
+            delta_logz = np.inf
+        if logzvar >= 0. and logzvar <= 1e6:
+            logzerr = np.sqrt(logzvar)
+        else:
+            logzerr = np.nan
+        if logz <= -1e6:
+            logz = -np.inf
 
-            last = self.last_time
-            self.last_time = time.time()
-            dt = self.last_time - last
-            total_time = self.last_time - self.start_time
-            ave_t = dt/nc
+        last = self.last_time
+        self.last_time = time.time()
+        dt = self.last_time - last
+        total_time = self.last_time - self.start_time
+        ave_t = dt/nc
             
+        if self.verbose:
             # constructing output
             print_str = 'iter: {:d}'.format(niter)
             if add_live_it is not None:
