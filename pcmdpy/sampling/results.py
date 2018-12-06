@@ -4,7 +4,7 @@ from corner import corner
 import pandas as pd
 from scipy.misc import logsumexp
 from ..plotting.plotting import step_plot, step_fill
-from ..galaxy.agemodels import all_age_models, NonParam, SSPModel
+from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
 from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
 from ..galaxy.metalmodels import all_metal_models
@@ -27,7 +27,7 @@ class ResultsPlotter(object):
         if true_model is not None:
             self.metal_model = true_model.metal_model
             self.dust_model = true_model.dust_model
-            self.age_model = true_model.age_model
+            self.sfh_model = true_model.sfh_model
             self.distance_model = true_model.distance_model
             self.true_params = list(true_model._params)
 
@@ -55,18 +55,18 @@ class ResultsPlotter(object):
                     'params found to not match a known dust model:\n'
                     '{}'.format(cols))
             
-            # Identify the age model from parameters found
-            self.age_model = None
-            for am in all_age_models:
-                params = am._param_names
+            # Identify the SFH model from parameters found
+            self.sfh_model = None
+            for sfhm in all_sfh_models:
+                params = sfhm._param_names
                 if isinstance(params, property):
-                    params = am()._param_names
+                    params = sfhm()._param_names
                 if np.all(np.in1d(params, cols)):
-                    self.age_model = am()
+                    self.sfh_model = sfhm()
                     break
-            if self.age_model is None:
+            if self.sfh_model is None:
                 raise ValueError(
-                    'params found to not match a known age model:\n'
+                    'params found to not match a known sfh model:\n'
                     '{}'.format(cols))
             
             # Identify the distance model from parameters found
@@ -81,22 +81,22 @@ class ResultsPlotter(object):
                     '{}'.format(cols))
 
             # set iso_step to be -1
-            # self.age_model = self.age_model.as_default()
+            # self.sfh_model = self.sfh_model.as_default()
 
         self.params, self.labels = [], []
-        for m in [self.metal_model, self.dust_model, self.age_model,
+        for m in [self.metal_model, self.dust_model, self.sfh_model,
                   self.distance_model]:
             self.params.extend(m._param_names)
             self.labels.extend(m._fancy_names)
             
-        if isinstance(self.age_model, NonParam):
-            nbins = self.age_model._num_params
+        if isinstance(self.sfh_model, NonParam):
+            nbins = self.sfh_model._num_params
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(nbins)]]
             self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
             self.params.append('logNpix')
             self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
             if self.true_params is not None:
-                self.true_params += [np.log10(true_model.age_model.Npix)]
+                self.true_params += [np.log10(true_model.sfh_model.Npix)]
             
         self.n_params = len(self.params)
             
@@ -111,7 +111,7 @@ class ResultsPlotter(object):
 
     @property
     def best_params(self):
-        if isinstance(self.age_model, NonParam):
+        if isinstance(self.sfh_model, NonParam):
             return self.df.tail(1)[self.params[:-1]].values[0]
         else:
             return self.df.tail(1)[self.params].values[0]
@@ -119,7 +119,7 @@ class ResultsPlotter(object):
     @property
     def best_model(self):
         from ..galaxy.galaxy import CustomGalaxy
-        gal = CustomGalaxy(self.metal_model, self.dust_model, self.age_model,
+        gal = CustomGalaxy(self.metal_model, self.dust_model, self.sfh_model,
                            self.distance_model)
         gal.set_params(self.best_params)
         return gal
@@ -174,25 +174,25 @@ class ResultsPlotter(object):
     def plot_sfr(self, width=68., ax=None, title=None,
                  burn=0, stop_after=None, show_prior=False, **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
-        if isinstance(self.age_model, SSPModel):
+        if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
-        cols = self.age_model._param_names
+        cols = self.sfh_model._param_names
         take = slice(burn, stop_after)
         vals = self.df[cols].values[take]
-        edges = self.age_model.default_edges
+        edges = self.sfh_model.default_edges
         lookback_gyr = 10.**(edges - 9.)
         logdt = np.log10(np.diff(lookback_gyr * 1e9))
-        sfr = np.array([self.age_model.set_params(v).logSFH - logdt
+        sfr = np.array([self.sfh_model.set_params(v).logSFH - logdt
                         for v in vals])
         if self.true_model is not None:
-            p_age = self.age_model._num_params
+            p_sfh = self.sfh_model._num_params
             p_dist = self.distance_model._num_params
             if p_dist > 0:
-                vals_true = self.true_model._params[-p_age-p_dist:-p_dist]
+                vals_true = self.true_model._params[-p_sfh-p_dist:-p_dist]
             else:
-                vals_true = self.true_model._params[-p_age:]
-            true_sfr = self.age_model.set_params(vals_true).logSFH - logdt
+                vals_true = self.true_model._params[-p_sfh:]
+            true_sfr = self.sfh_model.set_params(vals_true).logSFH - logdt
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -222,13 +222,13 @@ class ResultsPlotter(object):
                               show_prior=False, title=title, **plot_kwargs)
             else:
                 if p_dist > 0:
-                    lower_p = self.prior.lower_bounds[-p_age-p_dist:-p_dist]
-                    upper_p = self.prior.upper_bounds[-p_age-p_dist:-p_dist]
+                    lower_p = self.prior.lower_bounds[-p_sfh-p_dist:-p_dist]
+                    upper_p = self.prior.upper_bounds[-p_sfh-p_dist:-p_dist]
                 else:
-                    lower_p = self.prior.lower_bounds[-p_age:]
-                    upper_p = self.prior.upper_bounds[-p_age:]
-                lower = self.age_model.set_params(lower_p).logSFH - logdt
-                upper = self.age_model.set_params(upper_p).logSFH - logdt
+                    lower_p = self.prior.lower_bounds[-p_sfh:]
+                    upper_p = self.prior.upper_bounds[-p_sfh:]
+                lower = self.sfh_model.set_params(lower_p).logSFH - logdt
+                upper = self.sfh_model.set_params(upper_p).logSFH - logdt
                 step_fill(lookback_gyr, y1=lower, y2=upper, ax=ax, alpha=0.1,
                           color='b', zorder=-1, **plot_kwargs)
         return ax
@@ -236,23 +236,23 @@ class ResultsPlotter(object):
     def plot_cum_sfh(self, width=68., ax=None, title=None,
                      burn=0, stop_after=None, show_prior=False, **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
-        if isinstance(self.age_model, SSPModel):
+        if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
-        cols = self.age_model._param_names
+        cols = self.sfh_model._param_names
         take = slice(burn, stop_after)
         vals = self.df[cols].values[take]
-        cum_sfh = np.array([self.age_model.set_params(v).get_cum_sfh()
+        cum_sfh = np.array([self.sfh_model.set_params(v).get_cum_sfh()
                             for v in vals])
         if self.true_model is not None:
-            p_age = self.age_model._num_params
+            p_sfh = self.sfh_model._num_params
             p_dist = self.distance_model._num_params
             if p_dist > 0:
-                vals_true = self.true_model._params[-p_age-p_dist:-p_dist]
+                vals_true = self.true_model._params[-p_sfh-p_dist:-p_dist]
             else:
-                vals_true = self.true_model._params[-p_age:]
-            true_cum_sfh = self.age_model.set_params(vals_true).get_cum_sfh()
-        edges = self.age_model.default_edges
+                vals_true = self.true_model._params[-p_sfh:]
+            true_cum_sfh = self.sfh_model.set_params(vals_true).get_cum_sfh()
+        edges = self.sfh_model.default_edges
         # time_gyr = 10.**(edges[-1] - 9.) - 10.**(edges - 9.)
         time_gyr = 10.**(edges - 9.)
         if ax is None:
@@ -282,13 +282,13 @@ class ResultsPlotter(object):
                                   show_prior=False, title=title, **plot_kwargs)
             else:
                 if p_dist > 0:
-                    lower_p = self.prior.lower_bounds[-p_age-p_dist:-p_dist]
-                    upper_p = self.prior.upper_bounds[-p_age-p_dist:-p_dist]
+                    lower_p = self.prior.lower_bounds[-p_sfh-p_dist:-p_dist]
+                    upper_p = self.prior.upper_bounds[-p_sfh-p_dist:-p_dist]
                 else:
-                    lower_p = self.prior.lower_bounds[-p_age:]
-                    upper_p = self.prior.upper_bounds[-p_age:]
-                lower = self.age_model.set_params(lower_p).get_cum_sfh()
-                upper = self.age_model.set_params(upper_p).get_cum_sfh()
+                    lower_p = self.prior.lower_bounds[-p_sfh:]
+                    upper_p = self.prior.upper_bounds[-p_sfh:]
+                lower = self.sfh_model.set_params(lower_p).get_cum_sfh()
+                upper = self.sfh_model.set_params(upper_p).get_cum_sfh()
                 ax.fill_between(time_gyr, y1=lower, y2=upper, alpha=0.1,
                                 color='b', zorder=-1, **plot_kwargs)
         return ax

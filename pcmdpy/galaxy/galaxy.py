@@ -9,7 +9,7 @@ __all__ = ['BaseGalaxy', 'CustomGalaxy', 'SSPSimple', 'TauSimple',
 import numpy as np
 from ..sampling import priors
 from .metalmodels import (BaseMetalModel, get_metal_model)
-from .agemodels import (BaseAgeModel, get_age_model)
+from .sfhmodels import (BaseSFHModel, get_sfh_model)
 from .distancemodels import (BaseDistanceModel, get_distance_model)
 from .dustmodels import (BaseDustModel, get_dust_model)
 
@@ -60,7 +60,7 @@ class BaseGalaxy:
 
 class CustomGalaxy(BaseGalaxy):
 
-    def __init__(self, metal_model, dust_model, age_model, distance_model,
+    def __init__(self, metal_model, dust_model, sfh_model, distance_model,
                  mdf_sig=None,
                  dust_sig=None,
                  dmod=None,
@@ -85,12 +85,12 @@ class CustomGalaxy(BaseGalaxy):
         self.p_dust = dust_model._num_params
         self._param_names += dust_model._param_names
 
-        # set the age model
-        if not isinstance(age_model, BaseAgeModel):
-            age_model = get_age_model(age_model)
-        self.age_model = age_model
-        self.p_age = age_model._num_params
-        self._param_names += age_model._param_names
+        # set the SFH model
+        if not isinstance(sfh_model, BaseSFHModel):
+            sfh_model = get_sfh_model(sfh_model)
+        self.sfh_model = sfh_model
+        self.p_sfh = sfh_model._num_params
+        self._param_names += sfh_model._param_names
 
         # set the distance modulus
         if not isinstance(distance_model, BaseDistanceModel):
@@ -102,7 +102,7 @@ class CustomGalaxy(BaseGalaxy):
         self.p_distance = distance_model._num_params
         self._param_names += distance_model._param_names
         
-        self.p_total = self.p_feh + self.p_dust + self.p_age + self.p_distance
+        self.p_total = self.p_feh + self.p_dust + self.p_sfh + self.p_distance
         self._num_params = len(self._param_names)
         assert self._num_params == self.p_total, ('galaxy parameter mismatch')
         if initial_params is not None:
@@ -114,13 +114,13 @@ class CustomGalaxy(BaseGalaxy):
     @property
     def _params(self):
         all_params = []
-        for mod in [self.metal_model, self.dust_model, self.age_model,
+        for mod in [self.metal_model, self.dust_model, self.sfh_model,
                     self.distance_model]:
             all_params += list(mod._params)
         return all_params
 
     def get_flat_prior(self, feh_bounds=None, dust_bounds=None,
-                       age_bounds=None, dmod_bounds=None):
+                       sfh_bounds=None, dmod_bounds=None, **kwargs):
         if feh_bounds is None:
             bounds = self.metal_model._default_prior_bounds
         else:
@@ -131,11 +131,13 @@ class CustomGalaxy(BaseGalaxy):
         else:
             assert(len(dust_bounds) == self.p_dust)
             bounds += dust_bounds
-        if age_bounds is None:
-            bounds += self.age_model._default_prior_bounds
+        # for backwards compatability, allow "age_bounds" in place of "sfh_bounds"
+        sfh_bounds = sfh_bounds or kwargs.get('age_bounds', None)
+        if sfh_bounds is None:
+            bounds += self.sfh_model._default_prior_bounds
         else:
-            assert(len(age_bounds) == self.p_age)
-            bounds += age_bounds
+            assert(len(sfh_bounds) == self.p_sfh)
+            bounds += sfh_bounds
         if dmod_bounds is None:
             bounds += self.distance_model._default_prior_bounds
         else:
@@ -156,11 +158,11 @@ class CustomGalaxy(BaseGalaxy):
         dust_params = gal_params[self.p_feh:self.p_feh+self.p_dust]
         self.dust_model.set_params(dust_params)
 
-        # set age parameters
-        age_params = gal_params[self.p_feh+self.p_dust:
-                                self.p_feh+self.p_dust+self.p_age]
-        self.age_model.set_params(age_params)
-        ages, age_weights = self.age_model.get_vals()
+        # set sfh parameters
+        sfh_params = gal_params[self.p_feh+self.p_dust:
+                                self.p_feh+self.p_dust+self.p_sfh]
+        self.sfh_model.set_params(sfh_params)
+        ages, sfh_weights = self.sfh_model.get_vals()
 
         # set distance parameters
         if self.p_distance > 0:
@@ -173,7 +175,7 @@ class CustomGalaxy(BaseGalaxy):
         new_fehs = []
         SFH = []
         for i, feh in enumerate(fehs):
-            SFH += list(age_weights * feh_weights[i])
+            SFH += list(sfh_weights * feh_weights[i])
             new_ages += list(ages)
             new_fehs += [feh]*len(ages)
 
@@ -189,7 +191,7 @@ class TauSimple(CustomGalaxy):
         super().__init__(
             metal_model='single',
             dust_model='single',
-            age_model='tau',
+            sfh_model='tau',
             distance_model='fixed',
             dmod=dmod,
             initial_params=initial_params)
@@ -201,7 +203,7 @@ class SSPSimple(CustomGalaxy):
         super().__init__(
             metal_model='single',
             dust_model='single',
-            age_model='ssp',
+            sfh_model='ssp',
             distance_model='fixed',
             dmod=dmod,
             initial_params=initial_params)
@@ -213,7 +215,7 @@ class NonParamSimple(CustomGalaxy):
         super().__init__(
             metal_model='single',
             dust_model='single',
-            age_model='nonparam',
+            sfh_model='nonparam',
             distance_model='fixed',
             dmod=dmod,
             initial_params=initial_params)
@@ -225,7 +227,7 @@ class TauFull(CustomGalaxy):
         super().__init__(
             metal_model='fixedwidth',
             dust_model='fixedwidth',
-            age_model='tau',
+            sfh_model='tau',
             distance_model='variable',
             mdf_sig=0.3,
             dust_sig=0.2,
@@ -238,7 +240,7 @@ class NonParamFull(CustomGalaxy):
         super().__init__(
             metal_model='fixedwidth',
             dust_model='fixedwidth',
-            age_model='nonparam',
+            sfh_model='nonparam',
             distance_model='variable',
             mdf_sig=0.3,
             dust_sig=0.2,

@@ -160,12 +160,12 @@ params['final_gal_model'] = ppy.galaxy.NonParamFull()
 # dustmodel = ppy.dustmodels.LogNormDust()  # lognormal screen
 # dustmodel = ppy.dustmodels.FixedWidthLogNormDust(0.2)  # fixed width lognorm
 
-# Age model (select one)
-# agemodel = ppy.agemodels.NonParam()  # Fully non-parametric model
-# agemodel = ppy.agemodels.ConstantSFR()  # constant Star Formation Rate
-# agemodel = ppy.agemodels.TauModel()  # exponential SFR decline
-# agemodel = ppy.agemodels.RisingTau()  # Linear x exponential decline
-# agemodel = ppy.agemodels.SSPModel()  # single age SSP
+# SFH model (select one)
+# sfhmodel = ppy.sfhmodels.NonParam()  # Fully non-parametric model
+# sfhmodel = ppy.sfhmodels.ConstantSFR()  # constant Star Formation Rate
+# sfhmodel = ppy.sfhmodels.TauModel()  # exponential SFR decline
+# sfhmodel = ppy.sfhmodels.RisingTau()  # Linear x exponential decline
+# sfhmodel = ppy.sfhmodels.SSPModel()  # single age SSP
 
 # Distance model (select one)
 # distancemodel = ppy.distancemodels.FixedDistance(30.)  # fixed @ 10 Mpc
@@ -173,12 +173,12 @@ params['final_gal_model'] = ppy.galaxy.NonParamFull()
 
 # model for Initial (burn-in) phase
 # params['init_gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel,
-#                                                    agemodel, distancemodel)
+#                                                    sfhmodel, distancemodel)
 
 # model for Final phase
-# agemodel = ppy.agemodels.NonParam()
+# sfhmodel = ppy.sfhmodels.NonParam()
 # params['final_gal_model'] = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel,
-#                                                     agemodel, distancemodel)
+#                                                     sfhmodel, distancemodel)
 
 # Add the binned hess values and the mean magnitude and color terms
 params['like_mode'] = 2
@@ -216,7 +216,7 @@ dmod_bound = [[28., 30.]]
 
 # Compute the 7-param SFH bound using tau models to bound
 Npix_low, tau = 0.5, 1.
-model = ppy.agemodels.TauModel(iso_step=-1)
+model = ppy.sfhmodels.TauModel(iso_step=-1)
 model.set_params([Npix_low, tau])
 lower_sfh = np.log10(model.SFH)
 Npix_high = 3.
@@ -229,7 +229,7 @@ SFH_bounds = list(list(bound) for bound in SFH_bounds_arr)
 prior_bounds = {}
 prior_bounds['feh_bounds'] = [z_bound]
 prior_bounds['dust_bounds'] = [dust_med_bound]
-prior_bounds['age_bounds'] = SFH_bounds
+prior_bounds['sfh_bounds'] = SFH_bounds
 prior_bounds['dmod_bound'] = dmod_bound
 
 # Set the prior boundary for the Initial (burn-in) phase
@@ -247,9 +247,9 @@ N_mock = 256
 # model of the mock galaxy
 metalmodel = ppy.metalmodels.SingleFeH()  # single metallicity
 dustmodel = ppy.dustmodels.SingleDust()  # single dust screen
-agemodel = ppy.agemodels.TauModel()  # tau SFH
+sfhmodel = ppy.sfhmodels.TauModel()  # tau SFH
 distancemodel = ppy.distancemodels.FixedDistance(30.)  # 10 Mpc distance
-model_mock = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel, agemodel,
+model_mock = ppy.galaxy.CustomGalaxy(metalmodel, dustmodel, sfhmodel,
                                      distancemodel)
 
 # Tau model with [Fe/H]=-0.2, log E(B-V) = -.5
