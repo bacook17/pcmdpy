@@ -4,7 +4,7 @@
 import numpy as np
 from ..isochrones import Isochrone_Model
 from ..simulation.driver import Driver
-from ..results import ResultsCollector
+from .results import ResultsCollector
 import dynesty
 
 

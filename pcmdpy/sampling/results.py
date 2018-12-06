@@ -34,7 +34,7 @@ class ResultsCollector(object):
                 self.colnames += ['param{:d}'.format(i) for i in range(ndim)]
                 self.out_df = pd.DataFrame(columns=self.colnames)
         else:
-            assert param_names in self.out_df.columns, (
+            assert np.all(np.in1d(param_names, out_df.columns)), (
                 "provided parameter names {} not in output Dataframe".format(param_names))
             self.out_df = out_df
         self.live_file = live_file
