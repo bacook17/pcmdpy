@@ -4,7 +4,7 @@
 import numpy as np
 from ..isochrones import Isochrone_Model
 from ..simulation.driver import Driver
-from ..utils.utils import ResultsCollector
+from ..results import ResultsCollector
 import dynesty
 
 
@@ -84,7 +84,7 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
                                         **sampler_kwargs)
         print('Traditional Sampler Initialized')
 
-    collector = ResultsCollector(n_dim, out_file=out_file,
+    collector = ResultsCollector(sampler, out_file=out_file,
                                  save_every=save_every,
                                  param_names=param_names)
     
