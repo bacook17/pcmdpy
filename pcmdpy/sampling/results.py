@@ -5,7 +5,6 @@ import pandas as pd
 from scipy.misc import logsumexp
 import sys
 from datetime import datetime
-from dynesty import DynamicSampler
 import time
 from ..plotting.plotting import step_plot, step_fill
 from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
