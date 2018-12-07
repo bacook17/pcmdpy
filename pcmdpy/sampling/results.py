@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.misc import logsumexp
 import sys
 from datetime import datetime
+from dynesty import DynamicSampler
 import time
 from ..plotting.plotting import step_plot, step_fill
 from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
@@ -145,13 +146,13 @@ class ResultsPlotter(object):
             else:
                 live_df['live'] = True
                 live_df['logwt'] = self.df['logwt'].min()
-                self.df.append(live_df, ignore_index=True, sort=False)
+                self.df = self.df.append(live_df, ignore_index=True, sort=False)
 
         self.true_model = true_model
         self.run_name = run_name
-        self.num_iters = len(self.df)
-        self.num_live = self.df['live'].sum()
-        self.num_dead = self.num_iters - self.num_live
+        self.n_iter = len(self.df)
+        self.n_live = self.df['live'].sum()
+        self.n_dead = self.n_iter - self.n_live
         self.true_params = None
         self.prior = prior
 
@@ -278,31 +279,28 @@ class ResultsPlotter(object):
             plot_kwargs = dict(plot_kwargs)
         is_live = self.df['live'].values
         is_dead = ~is_live
+        xs_live = np.arange(self.n_live) + self.n_dead
         live_plot_kwargs = plot_kwargs.copy()
         live_plot_kwargs.update({'color': 'c',
                                  'ls': ':'})
         for i, p in enumerate(self.params):
-            axes[i].plot(self.df[p].values[is_dead], **plot_kwargs)
+            axes[i].plot(self.df[p].values[is_dead],
+                         **plot_kwargs)
             if include_live:
-                axes[i].plot(self.df[p].values[is_live], **live_plot_kwargs)
+                axes[i].plot(xs_live, self.df[p].values[is_live],
+                             **live_plot_kwargs)
             axes[i].set_ylabel(self.labels[i])
         if not chains_only:
             axes[-3].plot(np.log10(self.df['delta_logz'].values[is_dead]),
                           **plot_kwargs)
             axes[-3].axhline(y=np.log10(dlogz), ls='--', color='r')
             axes[-3].set_ylabel(r'log $\Delta$ln Z')
-            axes[-2].plot(self.df['eff'].values[is_dead], **plot_kwargs)
+            axes[-2].plot(self.df['eff'].values[is_dead],
+                          **plot_kwargs)
             axes[-2].set_ylabel('eff (%)')
             axes[-1].plot(self.df['time_elapsed'].values[is_dead],
                           **plot_kwargs)
             axes[-1].set_ylabel('run time (hrs)')
-            if include_live:
-                axes[-3].plot(np.log10(self.df['delta_logz'].values[is_live]),
-                              **live_plot_kwargs)
-                axes[-2].plot(self.df['eff'].values[is_live],
-                              **live_plot_kwargs)
-                axes[-1].plot(self.df['time_elapsed'].values[is_live],
-                              **live_plot_kwargs)
                 
         axes[-1].set_xlabel('Iteration')
 
