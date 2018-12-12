@@ -23,12 +23,37 @@ def salpeter_IMF(mass, lower=0.08, upper=300., norm_by_mass=True, **kwargs):
     imf[mass < lower] = 0.
     min_mass = max(lower, mass[0])
     max_mass = upper
+    total_mass = (np.power(max_mass, -.35) - np.power(min_mass, -.35)) / -0.35
+    total_num = (np.power(max_mass, -1.35) - np.power(min_mass, -1.35)) / -1.35
     if norm_by_mass:
-        imf *= .35 / (np.power(min_mass, -.35) - np.power(max_mass, -.35))
+        imf /= total_mass
     else:
-        imf *= 1.35 / (np.power(min_mass, -1.35) - np.power(max_mass, -1.35))
+        imf /= total_num
     return imf
 
+
+def kroupa_IMF(mass, lower=0.08, upper=300.,
+               break_mass=0.5, norm_by_mass=True, **kwargs):
+    mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
+    m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
+    m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
+    imf_lower = (np.power(m_low, -1.3) - np.power(m_high, -1.3)) / 1.3
+    imf_upper = (np.power(m_low, -0.3) - np.power(m_high, -0.3)) / 0.3
+    imf = imf_lower
+    imf[mass >= break_mass] = imf_upper[mass >= break_mass]
+    imf[mass < lower] = 0.
+    min_mass = max(lower, mass[0])
+    max_mass = upper
+
+    mass_lower = (np.power(break_mass, 0.7) - np.power(min_mass, 0.7)) / 0.7
+    mass_upper = (np.power(max_mass, -0.3) - np.power(break_mass, -0.3)) / -0.3
+    num_lower = (np.power(break_mass, -0.3) - np.power(min_mass, -0.3)) / -0.3
+    num_upper = (np.power(max_mass, -1.3) - np.power(break_mass, -1.3)) / -1.3
+    if norm_by_mass:
+        imf /= mass_lower + mass_upper
+    else:
+        imf /= num_lower + num_upper
+    return imf
 
 def _interp_arrays(arr1, arr2, f):
     """Linearly interpolate between two (potentially unequal length) arrays
@@ -192,7 +217,7 @@ class Isochrone_Model:
         self.ages = self.MIST_df.age.unique()
         # The MIST columns that will be interpolated (mass, logIMF,
         # and all input filters)
-        self._interp_cols = ['initial_mass']
+        self._interp_cols = ['initial_mass', 'star_mass']
         for f in self.filters:
             c = f.MIST_column
             c_alt = f.MIST_column_alt
@@ -206,7 +231,8 @@ class Isochrone_Model:
         return None
     
     def get_isochrone(self, age, z, imf_func=salpeter_IMF, rare_cut=0.,
-                      downsample=1, mag_system="vega", **kwargs):
+                      downsample=1, mag_system="vega", return_mass=False,
+                      **kwargs):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
@@ -253,33 +279,48 @@ class Isochrone_Model:
             dfhigh = this_age[np.isclose(this_age.z.values, zhigh)][self._interp_cols]
             inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
             
-        IMF = imf_func(inter[::downsample, 0], **kwargs)
+        initial_mass = inter[::downsample, 0]
+        current_mass = inter[::downsample, 1]
+        IMF = imf_func(initial_mass, **kwargs)
 
-        mags = (inter[::downsample, 1:] + conversions).T
+        mags = (inter[::downsample, 2:] + conversions).T
         # lum = np.power(10., -0.4*mags)
         # mean_lum = np.average(lum, weights=IMF, axis=1)
         
         # remove stars that are extremely rare
         to_keep = (IMF >= rare_cut)
 
-        return IMF[to_keep], mags[:, to_keep]
+        if return_mass:
+            return IMF[to_keep], mags[:, to_keep], initial_mass[to_keep], current_mass[to_keep]
+        else:
+            return IMF[to_keep], mags[:, to_keep]
 
     def model_galaxy(self, galaxy, lum_cut=np.inf, mag_system='vega',
-                     downsample=1,
+                     downsample=1, return_mass=False,
                      **kwargs):
         weights = np.empty((1, 0), dtype=float)
         mags = np.empty((self.num_filters, 0), dtype=float)
+        initial_mass = np.empty((1, 0), dtype=float)
+        current_mass = np.empty((1, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh, d_mod in galaxy.iter_SSPs():
-            imf, m = self.get_isochrone(age, feh, mag_system=mag_system,
-                                        downsample=downsample, **kwargs)
+            imf, m, i_mass, c_mass = self.get_isochrone(age, feh, mag_system=mag_system,
+                                                                  downsample=downsample, return_mass=True, **kwargs)
             weights = np.append(weights, imf*sfh)
             m += d_mod
             mags = np.append(mags, m, axis=-1)
+            initial_mass = np.append(initial_mass, i_mass)
+            current_mass = np.append(current_mass, c_mass)
         if not np.isinf(lum_cut):
             lum = np.power(10., -0.4*mags)
             mean_lum = np.average(lum, weights=weights, axis=1)
             to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
-            return weights[to_keep], mags[:, to_keep]
+            weights = weights[to_keep]
+            mags = mags[:, to_keep]
+            initial_mass = initial_mass[to_keep]
+            current_mass = current_mass[to_keep]
+        if return_mass:
+            return weights, mags, initial_mass, current_mass
         else:
             return weights, mags
+
