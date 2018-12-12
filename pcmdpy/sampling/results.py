@@ -145,6 +145,7 @@ class ResultsPlotter(object):
             else:
                 live_df['live'] = True
                 live_df['logwt'] = self.df['logwt'].min()
+                live_df.sort_values('logl', inplace=True)
                 self.df = self.df.append(live_df, ignore_index=True, sort=False)
 
         self.true_model = true_model

@@ -248,6 +248,20 @@ def default_m31_filters(exp_F814W=3235.0,
     return filts
 
 
+def m31_summer_filters(exp_F814W=3040.0,
+                       exp_F475W=3440.0):
+    filts = [ACS_WFC_F814W(exposure=exp_F814W),
+             ACS_WFC_F475W(exposure=exp_F475W)]
+    return filts
+
+
+def m31_winter_filters(exp_F814W=3430.0,
+                       exp_F475W=3800.0):
+    filts = [ACS_WFC_F814W(exposure=exp_F814W),
+             ACS_WFC_F475W(exposure=exp_F475W)]
+    return filts
+
+
 def default_m51_filters():
     return [f() for f in m51_filter_sets]
 
