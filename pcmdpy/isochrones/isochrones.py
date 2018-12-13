@@ -15,61 +15,6 @@ from pkg_resources import resource_filename
 # Useful Utilities
 
 
-def salpeter_mass(min_mass=0.1, max_mass=300.):
-    return (np.power(max_mass, -.35) - np.power(min_mass, -.35)) / -0.35
-
-
-def salpeter_num(min_mass=0.1, max_mass=300.):
-    return (np.power(max_mass, -1.35) - np.power(min_mass, -1.35)) / -1.35
-
-
-def kroupa_mass(min_mass=0.1, max_mass=300., break_mass=0.5):
-    mass_lower = (np.power(break_mass, 0.7) - np.power(min_mass, 0.7)) / 0.7
-    mass_upper = (np.power(max_mass, -0.3) - np.power(break_mass, -0.3)) / -0.3
-    return mass_lower + mass_upper
-
-
-def kroupa_num(min_mass=0.1, max_mass=300., break_mass=0.5):
-    num_lower = (np.power(break_mass, -0.3) - np.power(min_mass, -0.3)) / -0.3
-    num_upper = (np.power(max_mass, -1.3) - np.power(break_mass, -1.3)) / -1.3
-    return num_lower + num_upper
-
-
-def salpeter_IMF(mass, lower=0.1, upper=300., norm_by_mass=False, **kwargs):
-    mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
-    m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
-    m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
-    imf = (np.power(m_low, -1.35) - np.power(m_high, -1.35)) / 1.35
-    imf[mass < lower] = 0.
-    min_mass = max(lower, mass[0])
-    max_mass = upper
-    if norm_by_mass:
-        imf /= salpeter_mass(min_mass, max_mass)
-    else:
-        imf /= salpeter_num(min_mass, max_mass)
-    return imf
-
-
-def kroupa_IMF(mass, lower=0.08, upper=300.,
-               break_mass=0.5, norm_by_mass=False, **kwargs):
-    mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
-    m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
-    m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
-    imf_lower = (np.power(m_low, -1.3) - np.power(m_high, -1.3)) / 1.3
-    imf_upper = (np.power(m_low, -0.3) - np.power(m_high, -0.3)) / 0.3
-    imf = imf_lower
-    imf[mass >= break_mass] = imf_upper[mass >= break_mass]
-    imf[mass < lower] = 0.
-    min_mass = max(lower, mass[0])
-    max_mass = upper
-
-    if norm_by_mass:
-        imf /= kroupa_mass(min_mass, max_mass, break_mass)
-    else:
-        imf /= kroupa_num(min_mass, max_mass, break_mass)
-    return imf
-
-
 def _interp_arrays(arr1, arr2, f):
     """Linearly interpolate between two (potentially unequal length) arrays
     
@@ -95,40 +40,40 @@ def _interp_arrays(arr1, arr2, f):
     return (1-f)*arr1 + f*arr2
 
 
-def _z_from_str(z_str):
+def _feh_from_str(feh_str):
     """Converts a metallicity value to MIST string
     Example Usage:
-    _z_from_str("m0.53") -> -0.53
-    _z_from_str("p1.326")   -> 1.326
+    _feh_from_str("m0.53") -> -0.53
+    _feh_from_str("p1.326")   -> 1.326
     
     Arguments:
-    z_str -- metallicity (as a string)
+    feh_str -- metallicity (as a string)
     Output: float value of metallicity
     """
-    value = float(z_str[1:])
-    if z_str[0] == 'm':
+    value = float(feh_str[1:])
+    if feh_str[0] == 'm':
         value *= -1
-    elif z_str[0] != 'p':
-        raise ValueError('z string not of valid format')
+    elif feh_str[0] != 'p':
+        raise ValueError('feh string not of valid format')
     return value
 
 
-def _z_to_str(z):
+def _feh_to_str(feh):
     """Converts a metallicity value to MIST string
     Example Usage:
-    _z_to_str(-0.5313) -> "m0.53"
-    _z_to_str(1.326)   -> "p1.33"
+    _feh_to_str(-0.5313) -> "m0.53"
+    _feh_to_str(1.326)   -> "p1.33"
     
     Arguments:
-    z -- metallicity (float)
+    feh -- metallicity (float)
     Output: string representing metallicity
     """
     result = ''
-    if (z < 0):
+    if (feh < 0):
         result += 'm'
     else:
         result += 'p'
-    result += '%1.2f' % (np.abs(z))
+    result += '%1.2f' % (np.abs(feh))
     return result
 
 
@@ -172,14 +117,14 @@ class Isochrone_Model:
                    and array of metallicities.
     """
     def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd",
-                 dm_interp=-1):
+                 mag_system='vega', dm_interp=-1):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
         Arguments:
            filters -- list of Filter objects
         Keyword Arguments:
            MIST_path -- directory containing MIST model files
-           z_arr -- array of MIST metallicity values to use
+           feh_arr -- array of MIST metallicity values to use
            dm_interp -- 
         """
 
@@ -198,7 +143,12 @@ class Isochrone_Model:
                                            for f in filters])
         self.conversions['st'] = np.array([f._zpts['ab'] - f._zpts['vega']
                                            for f in filters])
-        _z_arr = []
+        self.default_system = mag_system.lower()
+        assert self.default_system in self.conversions.keys(), (
+            "the given mag_system is not valid. Please choose one of: "
+            "['vega', 'ab', 'st']")
+        
+        _feh_arr = []
         self.filters = filters
         self.filter_names = [f.tex_name for f in self.filters]
         self.colnames = pd.read_table(MIST_path + 'columns.dat',
@@ -206,20 +156,20 @@ class Isochrone_Model:
         # load all MIST files found in directory
         for MIST_doc in glob.glob(os.path.join(MIST_path, '*'+iso_append)):
             try:
-                z_str = MIST_doc.split('feh_')[-1][:5]
-                z = _z_from_str(z_str)
+                feh_str = MIST_doc.split('feh_')[-1][:5]
+                feh = _feh_from_str(feh_str)
                 new_df = pd.read_table(MIST_doc, names=self.colnames,
                                        comment='#', delim_whitespace=True,
                                        dtype=float, na_values=['Infinity'])
                 new_df[new_df.isna()] = 100.
-                new_df['z'] = z
+                new_df['feh'] = feh
                 self.MIST_df = self.MIST_df.append([new_df], ignore_index=True)
-                _z_arr.append(_z_from_str(z_str))
+                _feh_arr.append(_feh_from_str(feh_str))
             except Exception:
                 warn('File not properly formatted: %s' % (MIST_doc))
                 sys.exit(1)
             
-        self._z_arr = np.sort(_z_arr)
+        self._feh_arr = np.sort(_feh_arr)
         self.MIST_df.rename(columns={'log10_isochrone_age_yr': 'age'},
                             inplace=True)
         if dm_interp > 0.:
@@ -245,24 +195,22 @@ class Isochrone_Model:
                 raise ValueError('Filter does not have a valid MIST_column')
         return None
     
-    def get_isochrone(self, age, z, imf_func=salpeter_IMF, rare_cut=0.,
-                      downsample=1, mag_system="vega", return_mass=False,
-                      **kwargs):
+    def get_isochrone(self, age, feh, downsample=5, mag_system=None):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
            age ---
-           z ---
-           imf_func ---
-           rare_cut ---
-           downsample --- 
+           feh ---
+           downsample ---
            mag_system ---
         Output:
-           imf ---
            mags -- 2D array of magnitudes (DxN, where D is number of filters
                    the model was initialized with)
+           imass -- array of initial masses (N)
+           cmass -- array of current masses (N)
         """
 
+        mag_system = mag_system or self.default_system
         mag_system = mag_system.lower()
         if mag_system not in self.conversions.keys():
             warn(('mag_system {0:s} not in list of magnitude '
@@ -276,71 +224,62 @@ class Isochrone_Model:
             age = self.ages[np.abs(self.ages - age).argmin()]
         this_age = self.MIST_df[np.isclose(self.MIST_df.age.values, age)]
         # Output MIST values for known metallicities
-        if z in self._z_arr:
-            inter = this_age[np.isclose(this_age.z.values, z)][self._interp_cols].values
+        if feh in self._feh_arr:
+            inter = this_age[np.isclose(this_age.feh.values, feh)][self._interp_cols].values
         # Interpolate/extrapolate for other metallicities
         else:
-            i = self._z_arr.searchsorted(z)
+            i = self._feh_arr.searchsorted(feh)
             if (i == 0):
                 i = 1  # will extrapolate low
-            elif (i == len(self._z_arr)):
+            elif (i == len(self._feh_arr)):
                 i = -1  # will extrapolate high
-            zlow, zhigh = self._z_arr[i-1:i+1]  # bounding metallicities
-            frac_between = (z - zlow) / (zhigh - zlow)
+            fehlow, fehhigh = self._feh_arr[i-1:i+1]  # bounding metallicities
+            frac_between = (feh - fehlow) / (fehhigh - fehlow)
             if (frac_between >= 2) or (frac_between <= -1):
                 raise ValueError('Extrapolating metallicity more than one '
                                  'entire metallicity bin')
-            dflow = this_age[np.isclose(this_age.z.values, zlow)][self._interp_cols]
-            dfhigh = this_age[np.isclose(this_age.z.values, zhigh)][self._interp_cols]
+            dflow = this_age[np.isclose(this_age.feh.values, fehlow)][self._interp_cols]
+            dfhigh = this_age[np.isclose(this_age.feh.values, fehhigh)][self._interp_cols]
             inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
             
         initial_mass = inter[::downsample, 0]
         current_mass = inter[::downsample, 1]
-        IMF = imf_func(initial_mass, **kwargs)
 
         mags = (inter[::downsample, 2:] + conversions).T
-        # lum = np.power(10., -0.4*mags)
-        # mean_lum = np.average(lum, weights=IMF, axis=1)
         
-        # remove stars that are extremely rare
-        to_keep = (IMF >= rare_cut)
+        return mags, initial_mass, current_mass
 
-        if return_mass:
-            return IMF[to_keep], mags[:, to_keep], initial_mass[to_keep], current_mass[to_keep]
-        else:
-            return IMF[to_keep], mags[:, to_keep]
-
-    def model_galaxy(self, galaxy, lum_cut=np.inf, mag_system='vega',
-                     downsample=1, return_mass=False,
-                     **kwargs):
+    def model_galaxy(self, galaxy, lum_cut=np.inf, mag_system=None,
+                     downsample=5, return_mass=False):
         weights = np.empty((1, 0), dtype=float)
-        mags = np.empty((self.num_filters, 0), dtype=float)
+        magnitudes = np.empty((self.num_filters, 0), dtype=float)
         initial_mass = np.empty((1, 0), dtype=float)
         current_mass = np.empty((1, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh, d_mod in galaxy.iter_SSPs():
-            imf, m, i_mass, c_mass = self.get_isochrone(age, feh, mag_system=mag_system,
-                                                                  downsample=downsample, return_mass=True, **kwargs)
+            mags, i_mass, c_mass = self.get_isochrone(age, feh,
+                                                      mag_system=mag_system,
+                                                      downsample=downsample)
+            imf = galaxy.imf_func(i_mass, **galaxy.imf_kwargs)
             weights = np.append(weights, imf*sfh)
-            m += d_mod
-            mags = np.append(mags, m, axis=-1)
+            mags += d_mod
+            magnitudes = np.append(magnitudes, mags, axis=-1)
             initial_mass = np.append(initial_mass, i_mass)
             current_mass = np.append(current_mass, c_mass)
         if not np.isinf(lum_cut):
-            lum = np.power(10., -0.4*mags)
+            lum = np.power(10., -0.4*magnitudes)
             mean_lum = np.average(lum, weights=weights, axis=1)
             to_keep = (lum.T / mean_lum >= lum_cut).sum(axis=1) == 0
             weights = weights[to_keep]
-            mags = mags[:, to_keep]
+            magnitudes = magnitudes[:, to_keep]
             initial_mass = initial_mass[to_keep]
             current_mass = current_mass[to_keep]
         if return_mass:
-            return weights, mags, initial_mass, current_mass
+            return weights, magnitudes, initial_mass, current_mass
         else:
-            return weights, mags
+            return weights, magnitudes
 
-    def get_stellar_mass(self, galaxy, downsample=1, **kwargs):
+    def get_stellar_mass(self, galaxy, downsample=5):
         imf, _, _, c_mass = self.model_galaxy(galaxy, downsample=downsample,
-                                              norm_by_mass=False,
-                                              return_mass=True, **kwargs)
+                                              return_mass=True)
         return (imf * c_mass).sum()

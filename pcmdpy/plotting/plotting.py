@@ -136,7 +136,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
 
 
 def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
-                   mag_system='vega', update_axes=True, **kwargs):
+                   mag_system=None, update_axes=True, **kwargs):
     if axes is None:
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
@@ -146,7 +146,7 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
                               dmod=dmod)
     names = iso_model.filter_names
     for age, feh, _, d_mod in gal_model.iter_SSPs():
-        _, mags = iso_model.get_isochrone(age, feh, mag_system=mag_system)
+        mags, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system)
         mags += d_mod
         if iso_model.num_filters == 2:
             axes.plot(mags[1]-mags[0], mags[0], 'k-',

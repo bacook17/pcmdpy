@@ -116,13 +116,14 @@ class Driver:
 
         return log_like
             
-    def simulate(self, gal_model, im_scale, psf=True, psf_after=False,
-                 fixed_seed=False, shot_noise=True, sky_noise=None, downsample=5, mag_system='vega',
-                 **kwargs):
+    def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
+                 shot_noise=True, sky_noise=None, downsample=5,
+                 mag_system='vega', lum_cut=np.inf, **kwargs):
         IMF, mags = self.iso_model.model_galaxy(
-            gal_model,
-            downsample=downsample, mag_system=mag_system, **kwargs)
-        fluxes = np.array([f.mag_to_counts(m) for f,m in zip(self.filters, mags)])
+            gal_model, downsample=downsample, mag_system=mag_system,
+            return_mass=False, lum_cut=lum_cut)
+        fluxes = np.array([f.mag_to_counts(m) for f, m in zip(self.filters,
+                                                              mags)])
         dust_frac, dust_mean, dust_std = gal_model.dust_model.get_props()
         images = gpu_utils.draw_image(IMF, fluxes, im_scale, self.filters,
                                       dust_frac, dust_mean, dust_std,
@@ -137,9 +138,6 @@ class Driver:
         if shot_noise:
             images = np.random.poisson(images).astype(np.float32)
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
-        if psf_after and not psf:
-            # This is deprecated. Believe this to be the wrong behavior
-            images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
         
         pcmd = utils.make_pcmd(mags)

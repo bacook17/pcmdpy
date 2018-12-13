@@ -23,13 +23,16 @@ def get_metal_model(name, *args, **kwargs):
 
 class BaseMetalModel:
     default_fehs = np.arange(-2.0, 0.51, 0.25)
-    _num_feh_bins = len(default_fehs) - 1
 
     def __init__(self):
         pass
 
     def get_vals(self):
         return self.fehs, self.weights
+
+    @property
+    def _num_fehs(self):
+        return len(self.fehs)
     
     @classmethod
     def compute_mdf(cls, feh_mean, feh_sig, etol=1e-2):
@@ -74,8 +77,9 @@ class SingleFeH(BaseMetalModel):
     feh_sig = 0.0
     
     def __init__(self, initial_params=None):
-        if initial_params is not None:
-            self.set_params(initial_params)
+        if initial_params is None:
+            initial_params = np.array([0.])
+        self.set_params(initial_params)
 
     @property
     def _params(self):
@@ -102,8 +106,9 @@ class NormMDF(BaseMetalModel):
     feh_sig = None
 
     def __init__(self, initial_params=None):
-        if initial_params is not None:
-            self.set_params(initial_params)
+        if initial_params is None:
+            initial_params = np.array([0., 0.2])
+        self.set_params(initial_params)
 
     @property
     def _params(self):
@@ -114,7 +119,14 @@ class NormMDF(BaseMetalModel):
             "feh_params for NormMDF is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean, self.feh_sig = feh_params
-        self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
+
+    @property
+    def fehs(self):
+        return self.compute_mdf(self.feh_mean, self.feh_sig)[0]
+
+    @property
+    def weights(self):
+        return self.compute_mdf(self.feh_mean, self.feh_sig)[1]
 
 
 class FixedWidthNormMDF(NormMDF):
@@ -129,8 +141,9 @@ class FixedWidthNormMDF(NormMDF):
     
     def __init__(self, sig=0.2, initial_params=None):
         self.feh_sig = sig
-        if initial_params is not None:
-            self.set_params(initial_params)
+        if initial_params is None:
+            initial_params = np.array([0.])
+        self.set_params(initial_params)
 
     @property
     def _params(self):
@@ -143,7 +156,6 @@ class FixedWidthNormMDF(NormMDF):
             "feh_params for FixedWidthNormMDF is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean = feh_params[0]
-        self.fehs, self.weights = self.compute_mdf(self.feh_mean, self.feh_sig)
 
-        
+
 all_metal_models = [SingleFeH, NormMDF, FixedWidthNormMDF]
