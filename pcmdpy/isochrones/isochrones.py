@@ -15,7 +15,27 @@ from pkg_resources import resource_filename
 # Useful Utilities
 
 
-def salpeter_IMF(mass, lower=0.08, upper=300., norm_by_mass=True, **kwargs):
+def salpeter_mass(min_mass=0.1, max_mass=300.):
+    return (np.power(max_mass, -.35) - np.power(min_mass, -.35)) / -0.35
+
+
+def salpeter_num(min_mass=0.1, max_mass=300.):
+    return (np.power(max_mass, -1.35) - np.power(min_mass, -1.35)) / -1.35
+
+
+def kroupa_mass(min_mass=0.1, max_mass=300., break_mass=0.5):
+    mass_lower = (np.power(break_mass, 0.7) - np.power(min_mass, 0.7)) / 0.7
+    mass_upper = (np.power(max_mass, -0.3) - np.power(break_mass, -0.3)) / -0.3
+    return mass_lower + mass_upper
+
+
+def kroupa_num(min_mass=0.1, max_mass=300., break_mass=0.5):
+    num_lower = (np.power(break_mass, -0.3) - np.power(min_mass, -0.3)) / -0.3
+    num_upper = (np.power(max_mass, -1.3) - np.power(break_mass, -1.3)) / -1.3
+    return num_lower + num_upper
+
+
+def salpeter_IMF(mass, lower=0.1, upper=300., norm_by_mass=False, **kwargs):
     mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
     m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
     m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
@@ -23,17 +43,15 @@ def salpeter_IMF(mass, lower=0.08, upper=300., norm_by_mass=True, **kwargs):
     imf[mass < lower] = 0.
     min_mass = max(lower, mass[0])
     max_mass = upper
-    total_mass = (np.power(max_mass, -.35) - np.power(min_mass, -.35)) / -0.35
-    total_num = (np.power(max_mass, -1.35) - np.power(min_mass, -1.35)) / -1.35
     if norm_by_mass:
-        imf /= total_mass
+        imf /= salpeter_mass(min_mass, max_mass)
     else:
-        imf /= total_num
+        imf /= salpeter_num(min_mass, max_mass)
     return imf
 
 
 def kroupa_IMF(mass, lower=0.08, upper=300.,
-               break_mass=0.5, norm_by_mass=True, **kwargs):
+               break_mass=0.5, norm_by_mass=False, **kwargs):
     mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
     m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
     m_high = np.append(mids, [mass[-1]])  # (highest bin stays same)
@@ -45,15 +63,12 @@ def kroupa_IMF(mass, lower=0.08, upper=300.,
     min_mass = max(lower, mass[0])
     max_mass = upper
 
-    mass_lower = (np.power(break_mass, 0.7) - np.power(min_mass, 0.7)) / 0.7
-    mass_upper = (np.power(max_mass, -0.3) - np.power(break_mass, -0.3)) / -0.3
-    num_lower = (np.power(break_mass, -0.3) - np.power(min_mass, -0.3)) / -0.3
-    num_upper = (np.power(max_mass, -1.3) - np.power(break_mass, -1.3)) / -1.3
     if norm_by_mass:
-        imf /= mass_lower + mass_upper
+        imf /= kroupa_mass(min_mass, max_mass, break_mass)
     else:
-        imf /= num_lower + num_upper
+        imf /= kroupa_num(min_mass, max_mass, break_mass)
     return imf
+
 
 def _interp_arrays(arr1, arr2, f):
     """Linearly interpolate between two (potentially unequal length) arrays
@@ -324,3 +339,8 @@ class Isochrone_Model:
         else:
             return weights, mags
 
+    def get_stellar_mass(self, galaxy, downsample=1, **kwargs):
+        imf, _, _, c_mass = self.model_galaxy(galaxy, downsample=downsample,
+                                              norm_by_mass=False,
+                                              return_mass=True, **kwargs)
+        return (imf * c_mass).sum()

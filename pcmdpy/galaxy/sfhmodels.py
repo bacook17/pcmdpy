@@ -90,6 +90,14 @@ class NonParam(BaseSFHModel):
         return len(self.ages)
 
     @property
+    def _deltat_iso(self):
+        return np.diff(10.**(self.iso_edges-9.))
+
+    @property
+    def _deltat_sfh(self):
+        return np.diff(10.**(self.sfh_edges-9.))
+
+    @property
     def _num_params(self):
         return len(self.default_edges) - 1
 
@@ -111,6 +119,10 @@ class NonParam(BaseSFHModel):
         assert np.isclose(self.Npix, np.sum(10.**sfh_params))
         self._params = sfh_params
 
+    def from_sfr(self, sfr_params):
+        sfh_params = self._deltat_sfh * 10.**sfr_params
+        self.set_params(np.log10(sfh_params))
+        
     def update_edges(self, new_edges):
         self.sfh_edges = new_edges
         self._num_SFH_bins = len(self.default_edges) - 1
