@@ -35,8 +35,8 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
                      use_gpu=True, iso_model=None, bins=None, verbose=False,
                      dynamic=False, out_df=None, out_file=None, live_file=None,
                      save_every=10, param_names=None, prior=None,
-                     sampler_kwargs={}, run_kwargs={}, downsample=5,
-                     mag_system='vega', **ln_kwargs):
+                     sampler_seed=1234, sampler_kwargs={}, run_kwargs={},
+                     downsample=5, mag_system='vega', **ln_kwargs):
     # Default sampler arguments
     run_kwargs['print_progress'] = True
     run_kwargs['save_bounds'] = False
@@ -67,7 +67,7 @@ def nested_integrate(pcmd, filters, N_im, gal_model,
 
     # Initialize the nestle sampler with a different random state than global
     # This is important because the driver resets the global seed
-    rstate = np.random.RandomState(1234)
+    rstate = np.random.RandomState(sampler_seed)
 
     if (out_df is not None) and (out_file is not None):
         print('-Saving initial results dataframe')

@@ -143,10 +143,14 @@ class ResultsPlotter(object):
                 print('Unable to find live_file: {}. Continuing without '
                       'live points'.format(live_file))
             else:
-                live_df['live'] = True
-                live_df['logwt'] = self.df['logwt'].min()
-                live_df.sort_values('logl', inplace=True)
-                self.df = self.df.append(live_df, ignore_index=True, sort=False)
+                # Check if live points have already been added
+                n_live = len(live_df)
+                if (self.df.nc.tail(n_live) == 1.0).mean() < 0.9:
+                    live_df['live'] = True
+                    live_df['logwt'] = self.df['logwt'].min()
+                    live_df.sort_values('logl', inplace=True)
+                    self.df = self.df.append(live_df, ignore_index=True,
+                                             sort=False)
 
         self.true_model = true_model
         self.run_name = run_name
