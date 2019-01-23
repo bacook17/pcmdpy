@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from corner import corner
 import pandas as pd
 from scipy.misc import logsumexp
+from statsmodels.stats.weightstats import DescrStatsW
 import sys
 from datetime import datetime
 import time
@@ -129,7 +130,7 @@ class ResultsCollector(object):
 
 class ResultsPlotter(object):
     def __init__(self, df_file, live_file=None, true_model=None,
-                 prior=None, run_name=None):
+                 prior=None, run_name=None, dynesty_weights=True):
         try:
             self.df = pd.read_csv(df_file)
         except UnicodeDecodeError:
@@ -233,17 +234,25 @@ class ResultsPlotter(object):
             self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
             if self.true_params is not None:
                 self.true_params += [np.log10(true_model.sfh_model.Npix)]
-            
+
         self.n_params = len(self.params)
 
         # weights defined by Dynesty
         self.df['log_weights'] = (self.df.logwt.values -
                                   logsumexp(self.df.logwt.values))
-        self.df['weights'] = np.exp(self.df['log_weights'])
+        self.df['dynesty_weights'] = np.exp(self.df['log_weights'])
         # weights purely from log likelihoods
         logl_ws = (self.df.logl.values -
                    logsumexp(self.df.logl.values))
         self.df['likelihood_weights'] = np.exp(logl_ws)
+
+        if dynesty_weights:
+            self.df['weights'] = self.df['dynesty_weights']
+        else:
+            self.df['weights'] = self.df['likelihood_weights']
+
+        self.summary_stats = DescrStatsW(self.df[self.params].values,
+                                         weights=self.df.weights.values)
         self.df['time_elapsed'] /= 3600.
         try:
             self.df['logfeh'] = self.df.logzh

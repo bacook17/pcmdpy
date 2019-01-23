@@ -157,6 +157,8 @@ def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
                         cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
                         block=block_dim, grid=grid_dim)
 
+    if fixed_seed:
+        np.random.seed(0)
     dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
                                       size=(N_scale, N_scale))
     reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)

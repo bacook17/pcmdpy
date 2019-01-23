@@ -136,6 +136,8 @@ class Driver:
             for im, sky in zip(images, sky_noise):
                 im += sky
         if shot_noise:
+            if fixed_seed:
+                np.random.seed(0)
             images = np.random.poisson(images).astype(np.float32)
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])

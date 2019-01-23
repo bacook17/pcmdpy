@@ -14,6 +14,7 @@ extern "C"
     int seed_id = id_within_block + ((blockDim.x * blockDim.y) * (block_id % num_procs));
     
     curandState local_state = global_state[seed_id];
+    /* If you want to work with 11+ filters, need to update this!! */
     float results[10] = {0.0};
     
     float flux;
