@@ -176,6 +176,7 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
     reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
                           for f in filters])
 
+    d_states.free()
     return result_front + result_behind*reddening
 
 

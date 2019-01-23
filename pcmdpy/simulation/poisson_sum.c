@@ -40,12 +40,12 @@ extern "C"
     global_state[id_pix] = local_state;
   }
 
-  __global__ void prepare_2D(curandStateXORWOW *s, const int *n,
+  __global__ void prepare_2D(curandStateXORWOW *s, const int n,
 			     unsigned int *v, const unsigned int o)
   {
-    const int idx = blockIdx.x*blockDim.x+threadIdx.x;
-    const int idy = blockIdx.y*blockDim.y+threadIdx.y;
-    const int id_pix = (idx) + n*idy;
+    const int idx = blockIdx.x*blockDim.x + threadIdx.x;
+    const int idy = blockIdx.y*blockDim.y + threadIdx.y;
+    int id_pix = (idx) + n*idy;
 
     if ((idx < n) && (idy < n)) {
       curand_init(v[id_pix], id_pix, o, &s[id_pix]);
