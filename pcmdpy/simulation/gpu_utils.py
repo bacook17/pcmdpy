@@ -79,6 +79,9 @@ def initialize_gpu(n=0):
         module = SourceModule(src_code, keep=False, no_extern_c=True)
         global poisson_sum_gpu
         poisson_sum_gpu = module.get_function('poisson_sum')
+        global prepare_states
+        prepare_states = module.get_function('prepare_2D')
+        prepare_states.prepare('PiPi')
     except cuda.CompileError as e:
         raise RuntimeError(
             'Something failed in compiling C source.\n'
@@ -108,10 +111,29 @@ def seed_getter_fixed(N, value=None):
     else:
         return result.fill(value)
 
+
+def get_2D_states(Nim, fixed_seed=True, offset=0):
+    assert _GPU_ACTIVE, (
+        "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
+        "likely because initialization not run or failed")
+    XORWOW_state_size = 48
+    states = cuda.mem_alloc(Nim*Nim*XORWOW_state_size)
+    if fixed_seed:
+        np.random.seed(0)
+    seed = pycuda.gpuarray.to_gpu(
+        np.random.randint(0, 2**31 - 1, Nim).astype(np.int32))
+    d_block = _MAX_2D_BLOCK_DIM
+    grid_dim = (int(Nim//d_block + 1), int(Nim//d_block + 1), 1)
+    block_dim = (int(d_block), int(d_block), 1)
+    prepare_states.prepared_call(grid_dim, block_dim, states, Nim,
+                                 seed.gpudata, offset)
+    seed.gpudata.free()
+    return states
+
     
-def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
-                    dust_mean, dust_std, fixed_seed=False, tolerance=0, d_block=_MAX_2D_BLOCK_DIM, skip_n=1, 
-                    **kwargs):
+def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
+                    dust_mean, dust_std, fixed_seed=False, tolerance=0,
+                    d_block=_MAX_2D_BLOCK_DIM, **kwargs):
     assert _GPU_ACTIVE, (
         "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
         "likely because initialization not run or failed")
@@ -122,52 +144,42 @@ def _draw_image_gpu(expected_nums, fluxes, N_scale, filters, dust_frac,
     expected_nums = expected_nums.astype(np.float32)
     fluxes = fluxes.astype(np.float32)
 
-    N_scale = N_scale
-
     N_bins = len(expected_nums)
     N_bands = fluxes.shape[0]
-    
-    if fixed_seed:
-        seed_getter = seed_getter_fixed
-    else:
-        seed_getter = curandom.seed_getter_uniform
 
-    generator = curandom.XORWOWRandomNumberGenerator(seed_getter=seed_getter)
-    d_states = generator._state
-    num_procs = generator.block_count
+    d_states = get_2D_states(Nim, fixed_seed=fixed_seed)
     d_expected_nums = cuda.In(expected_nums)
     d_fluxes = cuda.In(fluxes)
 
-    result_front = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
-    result_behind = np.zeros((N_bands, N_scale, N_scale), dtype=np.float32)
+    result_front = np.zeros((N_bands, Nim, Nim), dtype=np.float32)
+    result_behind = np.zeros((N_bands, Nim, Nim), dtype=np.float32)
     
     block_dim = (int(d_block), int(d_block), 1)
-    grid_dim = (int(N_scale//d_block + 1), int(N_scale//d_block + 1))
+    grid_dim = (int(Nim//d_block + 1), int(Nim//d_block + 1))
 
     # draw stars behind dust screen
-    poisson_sum_gpu(d_states, d_expected_nums, d_fluxes,
-                    np.float32(dust_frac), np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-                    cuda.Out(result_behind), np.int32(skip_n), np.int32(num_procs),
-                    block=block_dim, grid=grid_dim)
+    poisson_sum_gpu(d_states, d_expected_nums, d_fluxes, np.float32(dust_frac),
+                    np.int32(N_bands), np.int32(N_bins), np.int32(Nim),
+                    cuda.Out(result_behind), block=block_dim, grid=grid_dim)
 
     # draw stars in front of dust screen
     if dust_frac <= 0.99:
         poisson_sum_gpu(d_states, d_expected_nums, d_fluxes,
-                        np.float32(1. - dust_frac), np.int32(N_bands), np.int32(N_bins), np.int32(N_scale),
-                        cuda.Out(result_front), np.int32(skip_n), np.int32(num_procs),
-                        block=block_dim, grid=grid_dim)
+                        np.float32(1. - dust_frac), np.int32(N_bands),
+                        np.int32(N_bins), np.int32(Nim),
+                        cuda.Out(result_front), block=block_dim, grid=grid_dim)
 
     if fixed_seed:
         np.random.seed(0)
     dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
-                                      size=(N_scale, N_scale))
+                                      size=(Nim, Nim))
     reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
                           for f in filters])
 
     return result_front + result_behind*reddening
 
 
-def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
+def _draw_image_numpy(expected_nums, fluxes, Nim, filters, dust_frac,
                       dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
     assert (N_bins == fluxes.shape[1]), (
@@ -179,11 +191,11 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
     if fixed_seed:
         np.random.seed(0)
 
-    realiz_front = np.zeros((N_scale, N_scale, N_bins))
-    realiz_behind = np.zeros((N_scale, N_scale, N_bins))
+    realiz_front = np.zeros((Nim, Nim, N_bins))
+    realiz_behind = np.zeros((Nim, Nim, N_bins))
     if not np.isinf(upper_lim):
-        realiz_front = np.random.poisson(lam=expected_nums*(1. - dust_frac), size=(N_scale, N_scale, N_bins))
-        realiz_behind = np.random.poisson(lam=expected_nums*dust_frac, size=(N_scale, N_scale, N_bins))
+        realiz_front = np.random.poisson(lam=expected_nums*(1. - dust_frac), size=(Nim, Nim, N_bins))
+        realiz_behind = np.random.poisson(lam=expected_nums*dust_frac, size=(Nim, Nim, N_bins))
     else:
         use_poisson = (expected_nums <= upper_lim)
         use_fixed = ~use_poisson #Assume no poisson variance
@@ -191,13 +203,13 @@ def _draw_image_numpy(expected_nums, fluxes, N_scale, filters, dust_frac,
     
         realiz_front[:, :, use_fixed] = expected_nums[use_fixed] * (1. - dust_frac)
         realiz_behind[:, :, use_fixed] = expected_nums[use_fixed] * dust_frac
-        realiz_front[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*(1. - dust_frac), size=(N_scale, N_scale, num_poisson))
-        realiz_behind[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*dust_frac, size=(N_scale, N_scale, num_poisson))
+        realiz_front[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*(1. - dust_frac), size=(Nim, Nim, num_poisson))
+        realiz_behind[:,:,use_poisson] = np.random.poisson(lam=expected_nums[use_poisson]*dust_frac, size=(Nim, Nim, num_poisson))
 
     result_front = np.dot(realiz_front, fluxes.T).T
     result_behind = np.dot(realiz_behind, fluxes.T).T
 
-    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std, size=(N_scale, N_scale))
+    dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std, size=(Nim, Nim))
     reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv) for f in filters])
     
     return result_front + result_behind*reddening
