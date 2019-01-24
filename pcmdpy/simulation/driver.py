@@ -7,7 +7,6 @@ from . import gpu_utils
 import warnings
 from scipy.stats import multivariate_normal, poisson, norm
 from sys import stderr
-from time import sleep
 
 
 class Driver:
@@ -44,7 +43,6 @@ class Driver:
                                                         fixed_seed=True)
         self.random_states = gpu_utils.XORWOWStatesArray(self.max_Nim*self.max_Nim,
                                                          fixed_seed=False)
-        sleep(5.0)
 
     def __del__(self):
         del self.fixed_states
