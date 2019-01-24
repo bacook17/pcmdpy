@@ -4,6 +4,7 @@ import os
 import multiprocessing
 from pkg_resources import resource_filename
 from sys import stderr
+from time import sleep
 
 global _GPU_AVAIL, _GPU_ACTIVE, _MAX_THREADS_PER_BLOCK, _MAX_2D_BLOCK_DIM
 _GPU_AVAIL = False
@@ -82,7 +83,7 @@ def initialize_gpu(n=0):
         poisson_sum_gpu = module.get_function('poisson_sum')
         global prepare_states
         prepare_states = module.get_function('prepare')
-        prepare_states.prepare('PiPi')
+        prepare_states.prepare('PiPi')  # arguments are pointer, int, pointer, int
     except cuda.CompileError as e:
         raise RuntimeError(
             'Something failed in compiling C source.\n'
