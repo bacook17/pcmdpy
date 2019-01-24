@@ -253,6 +253,10 @@ class CustomGalaxy:
         return all_params
 
     @property
+    def _num_params(self):
+        return len(self._params)
+
+    @property
     def _param_names(self):
         all_names = []
         for mod in [self.metal_model, self.dust_model, self.sfh_model,
