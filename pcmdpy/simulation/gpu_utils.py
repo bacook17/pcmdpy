@@ -74,13 +74,14 @@ def initialize_gpu(n=0):
                       'and MAX_2D_BLOCK_DIM', RuntimeWarning)
         _MAX_THREADS_PER_BLOCK = 1024
         _MAX_2D_BLOCK_DIM = 32
+        _STATE_SIZE = 48
     
     try:
         module = SourceModule(src_code, keep=False, no_extern_c=True)
         global poisson_sum_gpu
         poisson_sum_gpu = module.get_function('poisson_sum')
         global prepare_states
-        prepare_states = module.get_function('prepare_2D')
+        prepare_states = module.get_function('prepare')
         prepare_states.prepare('PiPi')
     except cuda.CompileError as e:
         raise RuntimeError(
@@ -89,6 +90,49 @@ def initialize_gpu(n=0):
     global _GPU_ACTIVE
     _GPU_ACTIVE = True
     return _GPU_ACTIVE
+
+
+class XORWOWStatesArray(object):
+
+    def __init__(self, N, data=None, fixed_seed=True, offset=0):
+        assert _GPU_ACTIVE
+        self.N = N
+        self.state_size = pycuda.characterize.sizeof("curandStateXORWOW",
+                                                     "#include <curand_kernel.h>")
+        self.size = self.N * self.state_size
+        self.gpudata = cuda.mem_alloc(self.size)
+        if data is None:
+            self.set_states(fixed_seed=fixed_seed, offset=offset)
+        else:
+            if not isinstance(data, cuda.DeviceAllocation):
+                raise ValueError("Data must be a valid Pycuda Device Allocation")
+            cuda.memcpy_dtod(self.gpudata, data, self.size)
+
+    def __len__(self):
+        return self.N
+
+    def set_states(self, fixed_seed=True, offset=0):
+        if fixed_seed:
+            np.random.seed(0)
+        else:
+            np.random.seed()
+        seed = pycuda.gpuarray.to_gpu(
+            np.random.randint(0, 2**31 - 1, self.N).astype(np.int32))
+        d_block = _MAX_THREADS_PER_BLOCK
+        grid_dim = (int(self.N//d_block + 1), 1, 1)
+        block_dim = (int(d_block), 1, 1)
+        prepare_states.prepared_call(grid_dim, block_dim, self.gpudata, self.N,
+                                     seed.gpudata, offset)
+        seed.gpudata.free()
+
+    def copy(self):
+        return XORWOWStatesArray(self.N, data=self.gpudata)
+
+    def free(self):
+        self.gpudata.free()
+
+    def __del__(self):
+        self.free()
 
 
 def draw_image(*args, gpu=_GPU_ACTIVE, **kwargs):
@@ -112,27 +156,8 @@ def seed_getter_fixed(N, value=None):
         return result.fill(value)
 
 
-def get_2D_states(Nim, fixed_seed=True, offset=0):
-    assert _GPU_ACTIVE, (
-        "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
-        "likely because initialization not run or failed")
-    XORWOW_state_size = 48
-    states = cuda.mem_alloc(Nim*Nim*XORWOW_state_size)
-    if fixed_seed:
-        np.random.seed(0)
-    seed = pycuda.gpuarray.to_gpu(
-        np.random.randint(0, 2**31 - 1, Nim).astype(np.int32))
-    d_block = _MAX_2D_BLOCK_DIM
-    grid_dim = (int(Nim//d_block + 1), int(Nim//d_block + 1), 1)
-    block_dim = (int(d_block), int(d_block), 1)
-    prepare_states.prepared_call(grid_dim, block_dim, states, Nim,
-                                 seed.gpudata, offset)
-    seed.gpudata.free()
-    return states
-
-    
 def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
-                    dust_mean, dust_std, fixed_seed=False, tolerance=0,
+                    dust_mean, dust_std, d_states, fixed_seed=False, tolerance=0,
                     d_block=_MAX_2D_BLOCK_DIM, **kwargs):
     assert _GPU_ACTIVE, (
         "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
@@ -147,7 +172,6 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
     N_bins = len(expected_nums)
     N_bands = fluxes.shape[0]
 
-    d_states = get_2D_states(Nim, fixed_seed=fixed_seed)
     d_expected_nums = cuda.In(expected_nums)
     d_fluxes = cuda.In(fluxes)
 
@@ -171,17 +195,17 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
 
     if fixed_seed:
         np.random.seed(0)
+    else:
+        np.random.seed()
     dust_screen = np.random.lognormal(mean=dust_mean, sigma=dust_std,
                                       size=(Nim, Nim))
     reddening = np.array([10.**(-0.4 * dust_screen * f.red_per_ebv)
                           for f in filters])
-
-    d_states.free()
     return result_front + result_behind*reddening
 
 
 def _draw_image_numpy(expected_nums, fluxes, Nim, filters, dust_frac,
-                      dust_mean, dust_std, fixed_seed=False, tolerance=-1., **kwargs):
+                      dust_mean, dust_std, d_states=None, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
     assert (N_bins == fluxes.shape[1]), (
         "fluxes.shape[1] should match number of bins")
@@ -191,6 +215,8 @@ def _draw_image_numpy(expected_nums, fluxes, Nim, filters, dust_frac,
         upper_lim = tolerance**-2.
     if fixed_seed:
         np.random.seed(0)
+    else:
+        np.random.seed()
 
     realiz_front = np.zeros((Nim, Nim, N_bins))
     realiz_behind = np.zeros((Nim, Nim, N_bins))

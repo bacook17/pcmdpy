@@ -6,30 +6,43 @@ from ..utils import utils
 from . import gpu_utils
 import warnings
 from scipy.stats import multivariate_normal, poisson, norm
+from sys import stderr
 
 
 class Driver:
 
-    def __init__(self, iso_model, gpu=True, **kwargs):
+    def __init__(self, iso_model, max_Nim=1024, gpu=True, **kwargs):
         self.iso_model = iso_model
+        self.fixed_states = None
+        self.random_states = None
+        self.max_Nim = max_Nim
         if self.iso_model is None:
             self.filters = None
             self.n_filters = 2
         else:
             self.filters = iso_model.filters
             self.n_filters = len(self.filters)
-        
         if gpu:
             if gpu_utils._GPU_AVAIL:
                 self.gpu_on = True
+                self.update_states()
             else:
-                warnings.warn('GPU acceleration not available. Continuing without.', RuntimeWarning)
+                stderr.write('GPU acceleration not available. Continuing without.')
                 self.gpu_on = False
         else:
-            #No GPU acceleration
+            # No GPU acceleration
             self.gpu_on = False
-        #No data has been initialized
+        # No data has been initialized
         self._data_init = False
+
+    def update_states(self):
+        if not self.gpu_on:
+            return
+        stderr.write('Please wait while the GPU states are initialized')
+        self.fixed_states = gpu_utils.XORWOWStatesArray(self.max_Nim*self.max_Nim,
+                                                        fixed_seed=True)
+        self.random_states = gpu_utils.XORWOWStatesArray(self.max_Nim*self.max_Nim,
+                                                         fixed_seed=False)
         
     def initialize_data(self, pcmd, bins=None, **kwargs):
         if bins is None:
@@ -116,18 +129,30 @@ class Driver:
 
         return log_like
             
-    def simulate(self, gal_model, im_scale, psf=True, fixed_seed=False,
+    def simulate(self, gal_model, Nim, psf=True, fixed_seed=False,
                  shot_noise=True, sky_noise=None, downsample=5,
                  mag_system='vega', lum_cut=np.inf, **kwargs):
+        if self.gpu_on:
+            if Nim > self.max_Nim:
+                self.max_Nim = Nim
+                self.update_states()
+            if fixed_seed:
+                states = self.fixed_states.copy()
+            else:
+                states = self.random_states
+        else:
+            states = None
         IMF, mags = self.iso_model.model_galaxy(
             gal_model, downsample=downsample, mag_system=mag_system,
             return_mass=False, lum_cut=lum_cut)
         fluxes = np.array([f.mag_to_counts(m) for f, m in zip(self.filters,
                                                               mags)])
         dust_frac, dust_mean, dust_std = gal_model.dust_model.get_props()
-        images = gpu_utils.draw_image(IMF, fluxes, im_scale, self.filters,
+
+        images = gpu_utils.draw_image(IMF, fluxes, Nim, self.filters,
                                       dust_frac, dust_mean, dust_std,
-                                      gpu=self.gpu_on, fixed_seed=fixed_seed,
+                                      d_states=states.gpudata, gpu=self.gpu_on,
+                                      fixed_seed=fixed_seed,
                                       **kwargs)
         if psf:
             images = np.array([f.psf_convolve(im, **kwargs) for f,im in zip(self.filters,images)])
@@ -138,10 +163,11 @@ class Driver:
         if shot_noise:
             if fixed_seed:
                 np.random.seed(0)
+            else:
+                np.random.seed()
             images = np.random.poisson(images).astype(np.float32)
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
-        
         pcmd = utils.make_pcmd(mags)
         
         return pcmd, images
