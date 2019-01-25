@@ -193,10 +193,10 @@ class Isochrone_Model:
             else:
                 print((c, c_alt))
                 raise ValueError('Filter does not have a valid MIST_column')
-        self.MIST_gb = self.MIST_column.groupby(['age', 'feh'])[self._interp_cols]
+        self.MIST_gb = self.MIST_df.groupby(['age', 'feh'])[self._interp_cols]
         return None
     
-    def get_isochrone(self, age, feh, downsample=5, mag_system=None, use_gb=False):
+    def get_isochrone(self, age, feh, downsample=5, mag_system=None):
         """Interpolate MIST isochrones for given age and metallicity
         
         Arguments:
@@ -221,14 +221,11 @@ class Isochrone_Model:
             conversions = self.conversions[mag_system]
         
         # Find closest age in MIST database
-        if age not in self.ages:
-            age = self.ages[np.abs(self.ages - age).argmin()]
-        if feh in self._feh_arr:
-            if use_gb:
-                inter = self.MIST_gb.get_group((age, feh))
-            else:
-                this_age = self.MIST_df[np.isclose(self.MIST_df.age.values, age)]
-                inter = this_age[np.isclose(this_age.feh.values, feh)][self._interp_cols].values
+        age = self.ages[np.abs(self.ages - age).argmin()]
+        nearest_feh = self._feh_arr[np.abs(self._feh_arr - feh).argmin()]
+        if np.isclose(nearest_feh, feh, atol=0.05):
+            feh = nearest_feh
+            inter = self.MIST_gb.get_group((age, feh)).values
         # Interpolate/extrapolate for other metallicities
         else:
             this_age = self.MIST_df[np.isclose(self.MIST_df.age.values, age)]
