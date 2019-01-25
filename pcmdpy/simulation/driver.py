@@ -140,7 +140,8 @@ class Driver:
                 self.max_Nim = Nim
                 self.update_states()
             if fixed_seed:
-                states = self.fixed_states.copy().gpudata
+                temp_states = self.fixed_states.copy()
+                states = temp_states.gpudata
             else:
                 states = self.random_states.gpudata
         else:
