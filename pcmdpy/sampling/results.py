@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from corner import corner
 import pandas as pd
-from scipy.misc import logsumexp
+from scipy.special import logsumexp
 from statsmodels.stats.weightstats import DescrStatsW
 import sys
 from datetime import datetime
@@ -12,6 +12,7 @@ from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
 from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
 from ..galaxy.metalmodels import all_metal_models
+from dynesty import utils as dyfunc
 
 
 class ResultsCollector(object):
@@ -148,8 +149,64 @@ class ResultsPlotter(object):
                 n_live = len(live_df)
                 if (self.df.nc.tail(n_live) == 1.0).mean() < 0.9:
                     live_df['live'] = True
-                    live_df['logwt'] = self.df['logwt'].min()
+                    live_df['nc'] = 1
+                    live_df['eff'] = self.df['eff'].values[-1]
+
+                    logvols = self.df['logvol'].values[-1]
+                    logvols += np.log(1. - (np.arange(n_live)+1.) / (n_live+1.))
+                    logvols_pad = np.concatenate(([self.df['logvol'].values[-1]], logvols))
+                    logdvols = logsumexp(a=np.c_[logvols_pad[:-1], logvols_pad[1:]],
+                                         axis=1, b=np.c_[np.ones(n_live),
+                                                         -np.ones(n_live)])
+                    logdvols += np.log(0.5)
+                    dlvs = logvols_pad[:-1] - logvols_pad[1:]
+                    logz = self.df['logz'].values[-1]
+                    logzvar = self.df['logzerr'].values[-1]**2
+                    h = self.df['h'].values[-1]
+                    loglstar = self.df['logl'].values[-1]
+
+                    lsort_idx = np.argsort(live_df.logl.values)
+                    loglmax = live_df.logl.max()
+
+                    logwts = []
+                    hs = []
+                    logzs = []
+                    logzerrs = []
+                    delta_logzs = []
+                    for i in range(n_live):
+                        idx = lsort_idx[i]
+                        logvol, logdvol, dlv = logvols[i], logdvols[i], dlvs[i]
+                        loglstar_new = live_df.logl.values[idx]
+
+                        logwt = np.logaddexp(loglstar_new, loglstar) + logdvol
+                        logz_new = np.logaddexp(logz, logwt)
+                        lzterm = (np.exp(loglstar - logz_new) * loglstar +
+                                  np.exp(loglstar_new - logz_new) * loglstar_new)
+                        h_new = (np.exp(logdvol) * lzterm +
+                                 np.exp(logz - logz_new) * (h + logz) -
+                                 logz_new)
+                        dh = h_new - h
+                        h = h_new
+                        logz = logz_new
+                        logzvar += dh * dlv
+                        loglstar = loglstar_new
+                        logz_remain = loglmax + logvol
+                        delta_logz = np.logaddexp(logz, logz_remain) - logz
+
+                        logwts.append(logwt)
+                        hs.append(h)
+                        logzs.append(logz)
+                        logzerrs.append(np.sqrt(logzvar))
+                        delta_logzs.append(delta_logz)
+                    
                     live_df.sort_values('logl', inplace=True)
+                    live_df['logwt'] = logwts
+                    live_df['logvol'] = logvols
+                    live_df['h'] = hs
+                    live_df['logz'] = logzs
+                    live_df['logzerr'] = logzerrs
+                    live_df['delta_logz'] = delta_logzs
+                    live_df['niter'] = np.arange(n_live) + self.df['niter'].max()
                     self.df = self.df.append(live_df, ignore_index=True,
                                              sort=False)
 
@@ -251,14 +308,49 @@ class ResultsPlotter(object):
         else:
             self.df['weights'] = self.df['likelihood_weights']
 
-        self.summary_stats = DescrStatsW(self.df[self.params].values,
-                                         weights=self.df.weights.values)
         self.df['time_elapsed'] /= 3600.
         try:
             self.df['logfeh'] = self.df.logzh
         except AttributeError:
             pass
 
+    @property
+    def samples(self):
+        return self.get_chains().values
+
+    @property
+    def weights(self):
+        return self.df['weights'].values
+    
+    def get_chains(self):
+        return self.df[self.params]
+
+    def means(self, burn=0, trim=0):
+        if trim > 0:
+            samples = self.samples[burn:-trim].copy()
+            weights = self.weights[burn:-trim].copy()
+        else:
+            samples = self.samples[burn:].copy()
+            weights = self.weights[burn:].copy()
+        weights /= weights.sum()
+        means, _ = dyfunc.mean_and_cov(samples, weights)
+        return means
+
+    def cov(self, burn=0, trim=0):
+        if trim > 0:
+            samples = self.samples[burn:-trim].copy()
+            weights = self.weights[burn:-trim].copy()
+        else:
+            samples = self.samples[burn:].copy()
+            weights = self.weights[burn:].copy()
+        weights /= weights.sum()
+        _, cov = dyfunc.mean_and_cov(samples, weights)
+        return cov
+
+    def stds(self, burn=0, trim=0):
+        cov = self.cov(burn=burn, trim=trim)
+        return np.sqrt([cov[i, i] for i in range(self.n_params)])
+    
     @property
     def best_params(self):
         if isinstance(self.sfh_model, NonParam):
@@ -458,13 +550,16 @@ class ResultsPlotter(object):
                                 color='b', zorder=-1, **plot_kwargs)
         return ax
 
-    def plot_corner(self, fig=None, title=None, burn=0, bins=30,
+    def plot_corner(self, fig=None, title=None, burn=0, trim=0, bins=30,
                     include_live=True, smooth_frac=.01, smooth1d=0.,
-                    weight=False, full_range=True,
-                    show_prior=True, plot_density=False, fill_contours=True,
-                    sig_levels=None,
+                    weight=False, full_range=False,
+                    show_prior=False, plot_density=False, fill_contours=True,
+                    sig_levels=None, plot_datapoints=True, show_truth=True,
                     **corner_kwargs):
-        df_temp = self.df.iloc[burn:]
+        if trim > 0:
+            df_temp = self.df.iloc[burn:-trim]
+        else:
+            df_temp = self.df.iloc[burn:]
         if not include_live:
             df_temp = df_temp[~df_temp['live']]
         vals = df_temp[self.params].values
@@ -487,14 +582,16 @@ class ResultsPlotter(object):
             corner_kwargs['weights'] = df_temp['weights'].values
         else:
             corner_kwargs['weights'] = None
+        truths = self.true_params if show_truth else None
         corner_kwargs.update({'labels': self.labels,
-                              'truths': self.true_params, 'fig': fig,
+                              'truths': truths, 'fig': fig,
                               'bins': bins, 'smooth': smooth,
                               'plot_density': plot_density,
                               'fill_contours': fill_contours,
                               'levels': levels,
                               'range': lims,
-                              'smooth1d': smooth1d})
+                              'smooth1d': smooth1d,
+                              'plot_datapoints': plot_datapoints})
         fig = corner(vals, **corner_kwargs)
         axes = np.array(fig.get_axes()).reshape(self.n_params, self.n_params)
         if show_prior:
@@ -529,6 +626,4 @@ class ResultsPlotter(object):
         self.plot_cum_sfh(ax=axes[1], **cum_sfh_kwargs)
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
         return (chain_axes, axes, (corner_fig, corner_axes))
-
-    def get_chains(self):
-        return self.df[self.params]
+        
