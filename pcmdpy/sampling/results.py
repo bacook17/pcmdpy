@@ -207,7 +207,7 @@ class ResultsPlotter(object):
                     live_df['logz'] = logzs
                     live_df['logzerr'] = logzerrs
                     live_df['delta_logz'] = delta_logzs
-                    live_df['niter'] = np.arange(n_live) + self.df['niter'].max()
+                    live_df['niter'] = np.arange(n_live) + self.df['niter'].max() + 1
                     self.df = self.df.append(live_df, ignore_index=True,
                                              sort=False)
 
@@ -315,20 +315,30 @@ class ResultsPlotter(object):
         except AttributeError:
             pass
 
+    def as_dynesty(self, burn=0, trim=0):
+        if trim > 0:
+            sub_df = self.df.iloc[burn:-trim]
+            samples = self.samples[burn:-trim]
+        else:
+            sub_df = self.df.iloc[burn:]
+            samples = self.samples[burn:]
+        logwt = sub_df.logwt.values
+        logwt -= logsumexp(logwt)
+        logwt += sub_df.logz.values[-1]
         results = [
-            ('nlive', self.n_live or 500),
-            ('niter', self.df.niter.values.max()),
-            ('ncall', self.df.nc.values),
-            ('eff', self.df.eff.values[-1]),
-            ('samples', self.samples),
-            ('logwt', self.df.logwt.values),
-            ('logl', self.df.logl.values),
-            ('logvol', self.df.logvol.values),
-            ('logz', self.df.logz.values),
-            ('logzerr', self.df.logzerr.values),
-            ('information', self.df.h.values)]
+            ('nlive', 0),
+            ('niter', len(sub_df)),
+            ('ncall', sub_df.nc.values.astype(int)),
+            ('eff', sub_df.eff.values[-1]),
+            ('samples', samples),
+            ('logwt', logwt),
+            ('logl', sub_df.logl.values),
+            ('logvol', sub_df.logvol.values),
+            ('logz', sub_df.logz.values),
+            ('logzerr', sub_df.logzerr.values),
+            ('information', sub_df.h.values)]
 
-        self.dynesty_results = Results(results)
+        return Results(results)
 
     @property
     def samples(self):
