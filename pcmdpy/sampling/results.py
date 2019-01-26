@@ -13,6 +13,7 @@ from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
 from ..galaxy.metalmodels import all_metal_models
 from dynesty import utils as dyfunc
+from dynesty.results import Results
 
 
 class ResultsCollector(object):
@@ -313,6 +314,21 @@ class ResultsPlotter(object):
             self.df['logfeh'] = self.df.logzh
         except AttributeError:
             pass
+
+        results = [
+            ('nlive', self.n_live or 500),
+            ('niter', self.df.niter.values.max()),
+            ('ncall', self.df.nc.values),
+            ('eff', self.df.eff.values[-1]),
+            ('samples', self.samples),
+            ('logwt', self.df.logwt.values),
+            ('logl', self.df.logl.values),
+            ('logvol', self.df.logvol.values),
+            ('logz', self.df.logz.values),
+            ('logzerr', self.df.logzerr.values),
+            ('information', self.df.h.values)]
+
+        self.dynesty_results = Results(results)
 
     @property
     def samples(self):
