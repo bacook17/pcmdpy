@@ -43,6 +43,10 @@ class Driver:
                                                         fixed_seed=True)
         self.random_states = gpu_utils.XORWOWStatesArray(self.max_Nim*self.max_Nim,
                                                          fixed_seed=False)
+
+    def __del__(self):
+        del self.fixed_states
+        del self.random_states
         
     def initialize_data(self, pcmd, bins=None, **kwargs):
         if bins is None:
@@ -118,7 +122,6 @@ class Driver:
 
             normal_model = multivariate_normal(mean=means, cov=cov)
             normal_term = np.sum(normal_model.logpdf(self.pcmd_data.T))
-        
             log_like = normal_term
 
         elif like_mode in [1, 2, 3]:
@@ -137,9 +140,10 @@ class Driver:
                 self.max_Nim = Nim
                 self.update_states()
             if fixed_seed:
-                states = self.fixed_states.copy()
+                temp_states = self.fixed_states.copy()
+                states = temp_states.gpudata
             else:
-                states = self.random_states
+                states = self.random_states.gpudata
         else:
             states = None
         IMF, mags = self.iso_model.model_galaxy(
@@ -151,7 +155,7 @@ class Driver:
 
         images = gpu_utils.draw_image(IMF, fluxes, Nim, self.filters,
                                       dust_frac, dust_mean, dust_std,
-                                      d_states=states.gpudata, gpu=self.gpu_on,
+                                      d_states=states, gpu=self.gpu_on,
                                       fixed_seed=fixed_seed,
                                       **kwargs)
         if psf:
