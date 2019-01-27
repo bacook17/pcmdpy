@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from ..utils.utils import make_hess
 from ..simulation.driver import Driver
+from dynesty.plotting import _hist2d as dyhist
 
 
 def plot_rgb_image(images, extent=None, ax=None,
@@ -76,6 +77,49 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
         ax[0].set_title(title)
     return ax, bins, norm
 
+
+def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1,2,3,4],
+                       title=None, keep_limits=False, color='k', alpha=1.0,
+                       fill_contours=False, **hist_kwargs):
+    """
+    
+    Returns
+    -------
+    fig, ax
+
+    """
+    n_bands = pcmd.shape[0]
+    if ax is None:
+        fig, ax = plt.subplots(ncols=n_bands-1)
+    if n_bands == 2:
+        ax = [ax]
+    else:
+        fig = ax.get_figure()
+    levels = 1.0 - np.exp(-0.5 * np.array(sig_levels)**2)
+    kwargs = {'ax': ax,
+              'levels': levels,
+              'smooth': smooth,
+              'plot_contours': True,
+              'plot_density': False,
+              'fill_contours': fill_contours,
+              'no_fill_contours': True,
+              'color': color}
+    kwargs['contour_kwargs'] = hist_kwargs.pop('contour_kwargs', {})
+    kwargs['contour_kwargs']['alpha'] = alpha
+    kwargs.update(hist_kwargs)
+    for i, a in enumerate(ax):
+        xl = a.get_xlim()
+        yl = a.get_ylim()
+        dyhist(pcmd[i+1], pcmd[0], **kwargs)
+        xl += a.get_xlim()
+        yl += a.get_ylim()
+        if keep_limits:
+            a.set_xlim([min(xl), max(xl)])
+            a.set_ylim([max(yl), min(yl)])
+    if title is not None:
+        ax[0].set_title(title)
+    return (fig, ax)
+    
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
                        ax=None, norm=None, title='', im_kwargs={},
