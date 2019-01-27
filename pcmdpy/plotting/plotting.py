@@ -71,14 +71,14 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
         xl += a.get_xlim()
         yl += a.get_ylim()
         if keep_limits:
-            a.set_xlim([min(xl), max(xl)])
-            a.set_ylim([max(yl), min(yl)])
+            a.set_xbound([min(xl), max(xl)])
+            a.set_ybound([min(yl), max(yl)])
     if title is not None:
         ax[0].set_title(title)
     return ax, bins, norm
 
 
-def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1,2,3,4],
+def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
                        title=None, keep_limits=False, color='k', alpha=1.0,
                        fill_contours=False, **hist_kwargs):
     """
@@ -91,12 +91,12 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1,2,3,4],
     n_bands = pcmd.shape[0]
     if ax is None:
         fig, ax = plt.subplots(ncols=n_bands-1)
-    if n_bands == 2:
-        ax = [ax]
     else:
         fig = ax.get_figure()
+    if n_bands == 2:
+        ax = [ax]
     levels = 1.0 - np.exp(-0.5 * np.array(sig_levels)**2)
-    kwargs = {'ax': ax,
+    kwargs = {'ax': ax[0],
               'levels': levels,
               'smooth': smooth,
               'plot_contours': True,
@@ -110,19 +110,20 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1,2,3,4],
     for i, a in enumerate(ax):
         xl = a.get_xlim()
         yl = a.get_ylim()
+        kwargs['ax'] = a
         dyhist(pcmd[i+1], pcmd[0], **kwargs)
         xl += a.get_xlim()
         yl += a.get_ylim()
         if keep_limits:
-            a.set_xlim([min(xl), max(xl)])
-            a.set_ylim([max(yl), min(yl)])
+            a.set_xbound([min(xl), max(xl)])
+            a.set_ybound([min(yl), max(yl)])
     if title is not None:
         ax[0].set_title(title)
     return (fig, ax)
     
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
-                       ax=None, norm=None, title='', im_kwargs={},
+                       ax=None, norm=None, title='', keep_limits=False, im_kwargs={},
                        cbar_kwargs={}):
     """
     Arguments
@@ -173,8 +174,9 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
                    **kwargs)
         xl += a.get_xlim()
         yl += a.get_ylim()
-        a.set_xlim([min(xl), max(xl)])
-        a.set_ylim([max(yl), min(yl)])
+        if keep_limits:
+            a.set_xbound([min(xl), max(xl)])
+            a.set_ybound([min(yl), max(yl)])
         a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(loglike)))
     return ax, loglike, bins, norm
 

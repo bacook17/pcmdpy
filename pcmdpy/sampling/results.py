@@ -13,6 +13,7 @@ from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
 from ..galaxy.metalmodels import all_metal_models
 from dynesty import utils as dyfunc
+from dynesty import plotting as dyplot
 from dynesty.results import Results
 
 
@@ -315,13 +316,13 @@ class ResultsPlotter(object):
         except AttributeError:
             pass
 
-    def as_dynesty(self, burn=0, trim=0):
+    def as_dynesty(self, burn=0, trim=0, max_logl=None):
         if trim > 0:
             sub_df = self.df.iloc[burn:-trim]
-            samples = self.samples[burn:-trim]
+            samples = self.get_chains().values[burn:-trim]
         else:
             sub_df = self.df.iloc[burn:]
-            samples = self.samples[burn:]
+            samples = self.get_chains().values[burn:]
         logwt = sub_df.logwt.values
         logwt -= logsumexp(logwt)
         logwt += sub_df.logz.values[-1]
@@ -338,45 +339,56 @@ class ResultsPlotter(object):
             ('logzerr', sub_df.logzerr.values),
             ('information', sub_df.h.values)]
 
-        return Results(results)
+        results = Results(results)
+        if max_logl is not None:
+            new_logl = np.array(sub_df.logl.values)
+            new_logl[new_logl >= max_logl] = max_logl
+            results = dyfunc.reweight_run(results,
+                                          logp_new=new_logl)
+        return results
 
-    @property
-    def samples(self):
-        return self.get_chains().values
+    def get_samples(self, burn=0, trim=0, max_logl=None):
+        results = self.as_dynesty(burn=burn, trim=trim)
+        return results['samples']
 
-    @property
-    def weights(self):
-        return self.df['weights'].values
+    def get_weights(self, burn=0, trim=0, max_logl=None):
+        results = self.as_dynesty(burn=burn, trim=trim,
+                                  max_logl=max_logl)
+        return np.exp(results['logwt'] - logsumexp(results['logwt']))
+
+    # @property
+    # def samples(self):
+    #     return self.get_chains().values
+
+    # @property
+    # def weights(self):
+    #     return self.df['weights'].values
     
     def get_chains(self):
         return self.df[self.params]
 
-    def means(self, burn=0, trim=0):
-        if trim > 0:
-            samples = self.samples[burn:-trim].copy()
-            weights = self.weights[burn:-trim].copy()
-        else:
-            samples = self.samples[burn:].copy()
-            weights = self.weights[burn:].copy()
-        weights /= weights.sum()
+    def means(self, burn=0, trim=0, max_logl=None):
+        kwargs = {'burn': burn,
+                  'trim': trim,
+                  'max_logl': max_logl}
+        samples = self.get_samples(**kwargs)
+        weights = self.get_weights(**kwargs)
         means, _ = dyfunc.mean_and_cov(samples, weights)
         return means
 
-    def cov(self, burn=0, trim=0):
-        if trim > 0:
-            samples = self.samples[burn:-trim].copy()
-            weights = self.weights[burn:-trim].copy()
-        else:
-            samples = self.samples[burn:].copy()
-            weights = self.weights[burn:].copy()
-        weights /= weights.sum()
+    def cov(self, burn=0, trim=0, max_logl=None):
+        kwargs = {'burn': burn,
+                  'trim': trim,
+                  'max_logl': max_logl}
+        samples = self.get_samples(**kwargs)
+        weights = self.get_weights(**kwargs)
         _, cov = dyfunc.mean_and_cov(samples, weights)
         return cov
 
-    def stds(self, burn=0, trim=0):
-        cov = self.cov(burn=burn, trim=trim)
+    def stds(self, burn=0, trim=0, max_logl=None):
+        cov = self.cov(burn=burn, trim=trim, max_logl=max_logl)
         return np.sqrt([cov[i, i] for i in range(self.n_params)])
-    
+
     @property
     def best_params(self):
         if isinstance(self.sfh_model, NonParam):
@@ -391,6 +403,39 @@ class ResultsPlotter(object):
                            self.distance_model)
         gal.set_params(self.best_params)
         return gal
+
+    def plot_trace(self, axes=None, burn=0, trim=0, max_logl=None, smooth=0.02,
+                   show_truth=True, full_range=False, **traceplot_kwargs):
+        """
+        
+        Returns
+        -------
+        fig, axes
+        """
+        dynesty_kwargs = {'burn': burn,
+                          'trim': trim,
+                          'max_logl': max_logl}
+        results = self.as_dynesty(**dynesty_kwargs)
+        kwargs = {'labels': self.labels,
+                  'smooth': smooth,
+                  'truths': self.true_params if show_truth else None,
+                  'fig': None,
+                  'span': None,
+                  'show_titles': True}
+        weights = np.exp(results['logwt'] - logsumexp(results['logwt']))
+        if full_range:
+            kwargs['span'] = [[results['samples'][:, i].min(),
+                               results['samples'][:, i].max()] for i in range(self.n_params)]
+        else:
+            means = self.means(**dynesty_kwargs)
+            stds = self.stds(**dynesty_kwargs)
+            kwargs['span'] = [[means[i] - max(5*stds[i], 1e-3),
+                               means[i] + max(5*stds[i], 1e-3)] for i in range(self.n_params)]
+        kwargs.update(traceplot_kwargs)
+        if (axes is not None) and (axes.shape == (self.n_params, 2)):
+            kwargs['fig'] = (axes.flatten()[0].get_figure(), axes)
+        fig, axes = dyplot.traceplot(results, **kwargs)
+        return fig, axes
 
     def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
                     include_live=True, show_prior=True, chains_only=False,
@@ -453,6 +498,103 @@ class ResultsPlotter(object):
         if title is not None:
             axes[0].set_title(title)
         return axes
+
+    def plot_corner(self, burn=0, trim=0, max_logl=None, axes=None, title=None,
+                    smooth=0.02, show_truth=True, full_range=False,
+                    sig_levels=[1,2,3], **corner_kwargs):
+        """
+        
+        Returns
+        -------
+        fig, axes
+        """
+        dynesty_kwargs = {'burn': burn,
+                          'trim': trim,
+                          'max_logl': max_logl}
+        results = self.as_dynesty(**dynesty_kwargs)
+        kwargs = {'labels': self.labels,
+                  'smooth': smooth,
+                  'truths': self.true_params if show_truth else None,
+                  'fig': None,
+                  'span': None,
+                  'show_titles': True}
+        levels = 1.0 - np.exp(-0.5 * np.array(sig_levels)**2)
+        kwargs['hist2d_kwargs'] = kwargs.get('hist2d_kwargs', {})
+        kwargs['hist2d_kwargs']['levels'] = levels
+        weights = np.exp(results['logwt'] - logsumexp(results['logwt']))
+        if full_range:
+            kwargs['span'] = [[results['samples'][:, i].min(),
+                               results['samples'][:, i].max()] for i in range(self.n_params)]
+        else:
+            means = self.means(**dynesty_kwargs)
+            stds = self.stds(**dynesty_kwargs)
+            kwargs['span'] = [[means[i] - max(5*stds[i], 1e-1),
+                               means[i] + max(5*stds[i], 1e-1)] for i in range(self.n_params)]
+        kwargs.update(corner_kwargs)
+        if (axes is not None) and (axes.shape == (self.n_params,
+                                                  self.n_params)):
+            kwargs['fig'] = (axes.flatten()[0].get_figure(), axes)
+        fig, axes = dyplot.cornerplot(results, **kwargs)
+        return fig, axes
+        
+
+    # def plot_corner(self, fig=None, title=None, burn=0, trim=0, bins=30,
+    #                 include_live=True, smooth_frac=.01, smooth1d=0.,
+    #                 weight=False, full_range=False,
+    #                 show_prior=False, plot_density=False, fill_contours=True,
+    #                 sig_levels=None, plot_datapoints=True, show_truth=True,
+    #                 **corner_kwargs):
+    #     if trim > 0:
+    #         df_temp = self.df.iloc[burn:-trim]
+    #     else:
+    #         df_temp = self.df.iloc[burn:]
+    #     if not include_live:
+    #         df_temp = df_temp[~df_temp['live']]
+    #     vals = df_temp[self.params].values
+    #     smooth = smooth_frac * bins
+    #     if sig_levels is None:
+    #         sig_levels = np.arange(1, 4)
+    #     # convert from sigma to 2d CDF (equivalent of 68-95-99.7 rule)
+    #     levels = 1. - np.exp(-0.5 * sig_levels**2.)
+    #     if full_range:
+    #         lims = []
+    #         for p in self.params:
+    #             lims += [[self.df[p].min(), self.df[p].max()]]
+    #     else:
+    #         lims = None
+    #     if corner_kwargs is None:
+    #         corner_kwargs = {}
+    #     else:
+    #         corner_kwargs = dict(corner_kwargs)
+    #     if weight:
+    #         corner_kwargs['weights'] = df_temp['weights'].values
+    #     else:
+    #         corner_kwargs['weights'] = None
+    #     truths = self.true_params if show_truth else None
+    #     corner_kwargs.update({'labels': self.labels,
+    #                           'truths': truths, 'fig': fig,
+    #                           'bins': bins, 'smooth': smooth,
+    #                           'plot_density': plot_density,
+    #                           'fill_contours': fill_contours,
+    #                           'levels': levels,
+    #                           'range': lims,
+    #                           'smooth1d': smooth1d,
+    #                           'plot_datapoints': plot_datapoints})
+    #     fig = corner(vals, **corner_kwargs)
+    #     axes = np.array(fig.get_axes()).reshape(self.n_params, self.n_params)
+    #     if show_prior:
+    #         for i in range(self.n_params):
+    #             a = axes[i, i]
+    #             lower, upper = a.get_ylim()
+    #             y = len(df_temp) / bins
+    #             if weight:
+    #                 y *= np.mean(corner_kwargs['weights'])
+    #             a.axhline(y=y, ls=':')
+    #     if title is None:
+    #         fig.suptitle(self.run_name)
+    #     else:
+    #         fig.suptitle(title)
+    #     return (fig, axes)
 
     def plot_sfr(self, width=68., ax=None, title=None,
                  burn=0, stop_after=None, show_prior=False, **plot_kwargs):
@@ -575,64 +717,6 @@ class ResultsPlotter(object):
                 ax.fill_between(time_gyr, y1=lower, y2=upper, alpha=0.1,
                                 color='b', zorder=-1, **plot_kwargs)
         return ax
-
-    def plot_corner(self, fig=None, title=None, burn=0, trim=0, bins=30,
-                    include_live=True, smooth_frac=.01, smooth1d=0.,
-                    weight=False, full_range=False,
-                    show_prior=False, plot_density=False, fill_contours=True,
-                    sig_levels=None, plot_datapoints=True, show_truth=True,
-                    **corner_kwargs):
-        if trim > 0:
-            df_temp = self.df.iloc[burn:-trim]
-        else:
-            df_temp = self.df.iloc[burn:]
-        if not include_live:
-            df_temp = df_temp[~df_temp['live']]
-        vals = df_temp[self.params].values
-        smooth = smooth_frac * bins
-        if sig_levels is None:
-            sig_levels = np.arange(1, 4)
-        # convert from sigma to 2d CDF (equivalent of 68-95-99.7 rule)
-        levels = 1. - np.exp(-0.5 * sig_levels**2.)
-        if full_range:
-            lims = []
-            for p in self.params:
-                lims += [[self.df[p].min(), self.df[p].max()]]
-        else:
-            lims = None
-        if corner_kwargs is None:
-            corner_kwargs = {}
-        else:
-            corner_kwargs = dict(corner_kwargs)
-        if weight:
-            corner_kwargs['weights'] = df_temp['weights'].values
-        else:
-            corner_kwargs['weights'] = None
-        truths = self.true_params if show_truth else None
-        corner_kwargs.update({'labels': self.labels,
-                              'truths': truths, 'fig': fig,
-                              'bins': bins, 'smooth': smooth,
-                              'plot_density': plot_density,
-                              'fill_contours': fill_contours,
-                              'levels': levels,
-                              'range': lims,
-                              'smooth1d': smooth1d,
-                              'plot_datapoints': plot_datapoints})
-        fig = corner(vals, **corner_kwargs)
-        axes = np.array(fig.get_axes()).reshape(self.n_params, self.n_params)
-        if show_prior:
-            for i in range(self.n_params):
-                a = axes[i, i]
-                lower, upper = a.get_ylim()
-                y = len(df_temp) / bins
-                if weight:
-                    y *= np.mean(corner_kwargs['weights'])
-                a.axhline(y=y, ls=':')
-        if title is None:
-            fig.suptitle(self.run_name)
-        else:
-            fig.suptitle(title)
-        return (fig, axes)
 
     def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
                         corner_kwargs=None, **all_kwargs):
