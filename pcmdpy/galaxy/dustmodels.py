@@ -64,6 +64,10 @@ class SingleDust(BaseDustModel):
             "should be length {:d}".format(len(dust_params), self._num_params))
         self.mu_dust = dust_params[0]
 
+    def copy(self):
+        return SingleDust(initial_params=[self.mu_dust],
+                          dust_frac=self.dust_frac)
+
 
 class LogNormDust(BaseDustModel):
     
@@ -87,6 +91,10 @@ class LogNormDust(BaseDustModel):
             "should be length {:d}".format(len(dust_params), self._num_params))
         self.mu_dust = dust_params[0]
         self.sig_dust = dust_params[1]  # dimensionless standard-deviation
+
+    def copy(self):
+        return LogNormDust(initial_params=[self.mu_dust, self.sig_dust],
+                           dust_frac=self.dust_frac)
 
 
 class FixedWidthLogNormDust(LogNormDust):
@@ -113,6 +121,11 @@ class FixedWidthLogNormDust(LogNormDust):
             "dust_params for FixedWidthLogNorm is length {:d}, "
             "should be length {:d}".format(len(dust_params), self._num_params))
         self.mu_dust = dust_params[0]
+
+    def copy(self):
+        return FixedWidthLogNormDust(initial_params=[self.mu_dust],
+                                     dust_frac=self.dust_frac,
+                                     sig=self.sig_dust)
 
 
 all_dust_models = [SingleDust, LogNormDust, FixedWidthLogNormDust]

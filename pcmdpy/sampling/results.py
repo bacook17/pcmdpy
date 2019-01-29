@@ -12,6 +12,7 @@ from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
 from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
 from ..galaxy.metalmodels import all_metal_models
+from ..galaxy.galaxy import CustomGalaxy
 from dynesty import utils as dyfunc
 from dynesty import plotting as dyplot
 from dynesty.results import Results
@@ -132,8 +133,8 @@ class ResultsCollector(object):
 
 
 class ResultsPlotter(object):
-    def __init__(self, df_file, live_file=None, true_model=None,
-                 prior=None, run_name=None, dynesty_weights=True):
+    def __init__(self, df_file, live_file=None, gal_model=None,
+                 model_is_truth=False, run_name=None):
         try:
             self.df = pd.read_csv(df_file)
         except UnicodeDecodeError:
@@ -212,72 +213,70 @@ class ResultsPlotter(object):
                     self.df = self.df.append(live_df, ignore_index=True,
                                              sort=False)
 
-        self.true_model = true_model
+        self.gal_model = gal_model
+        self.true_model = None
         self.run_name = run_name
         self.n_iter = len(self.df)
         self.n_live = self.df['live'].sum()
         self.n_dead = self.n_iter - self.n_live
         self.true_params = None
-        self.prior = prior
 
-        if true_model is not None:
-            self.metal_model = true_model.metal_model
-            self.dust_model = true_model.dust_model
-            self.sfh_model = true_model.sfh_model
-            self.distance_model = true_model.distance_model
-            self.true_params = list(true_model._params)
+        if gal_model is not None:
+            if model_is_truth:
+                self.true_model = self.gal_model
+                self.true_params = list(self.true_model._params)
 
-        else:
+        else:  # If no model provided, must guess the model used
             cols = self.df.columns
             # Identify the metal model from parameters found
-            self.metal_model = None
+            metal_model = None
             for mm in all_metal_models:
                 if np.all(np.in1d(mm._param_names, cols)):
-                    self.metal_model = mm()
+                    metal_model = mm()
                     break
-            if self.metal_model is None:
+            if metal_model is None:
                 raise ValueError(
                     'params found to not match a known metal model:\n'
                     '{}'.format(cols))
 
             # Identify the dust model from parameters found
-            self.dust_model = None
+            dust_model = None
             for dm in all_dust_models:
                 if np.all(np.in1d(dm._param_names, cols)):
-                    self.dust_model = dm()
+                    dust_model = dm()
                     break
-            if self.dust_model is None:
+            if dust_model is None:
                 raise ValueError(
                     'params found to not match a known dust model:\n'
                     '{}'.format(cols))
             
             # Identify the SFH model from parameters found
-            self.sfh_model = None
+            sfh_model = None
             for sfhm in all_sfh_models:
                 params = sfhm._param_names
                 if isinstance(params, property):
                     params = sfhm()._param_names
                 if np.all(np.in1d(params, cols)):
-                    self.sfh_model = sfhm()
+                    sfh_model = sfhm()
                     break
-            if self.sfh_model is None:
+            if sfh_model is None:
                 raise ValueError(
                     'params found to not match a known sfh model:\n'
                     '{}'.format(cols))
             
             # Identify the distance model from parameters found
-            self.distance_model = None
+            distance_model = None
             for dm in all_distance_models:
                 if np.all(np.in1d(dm._param_names, cols)):
-                    self.distance_model = dm()
+                    distance_model = dm()
                     break
-            if self.distance_model is None:
+            if distance_model is None:
                 raise ValueError(
                     'params found to not match a known distance model:\n'
                     '{}'.format(cols))
 
-            # set iso_step to be -1
-            # self.sfh_model = self.sfh_model.as_default()
+            self.gal_model = CustomGalaxy(
+                metal_model, dust_model, sfh_model, distance_model)
 
         self.params, self.labels = [], []
         for m in [self.metal_model, self.dust_model, self.sfh_model,
@@ -292,7 +291,7 @@ class ResultsPlotter(object):
             self.params.append('logNpix')
             self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
             if self.true_params is not None:
-                self.true_params += [np.log10(true_model.sfh_model.Npix)]
+                self.true_params += [np.log10(self.true_model.sfh_model.Npix)]
 
         self.n_params = len(self.params)
 
@@ -305,16 +304,29 @@ class ResultsPlotter(object):
                    logsumexp(self.df.logl.values))
         self.df['likelihood_weights'] = np.exp(logl_ws)
 
-        if dynesty_weights:
-            self.df['weights'] = self.df['dynesty_weights']
-        else:
-            self.df['weights'] = self.df['likelihood_weights']
+        self.df['weights'] = self.df['dynesty_weights']
 
         self.df['time_elapsed'] /= 3600.
         try:
             self.df['logfeh'] = self.df.logzh
         except AttributeError:
             pass
+
+    @property
+    def metal_model(self):
+        return self.gal_model.metal_model
+
+    @property
+    def dust_model(self):
+        return self.gal_model.dust_model
+
+    @property
+    def sfh_model(self):
+        return self.gal_model.sfh_model
+
+    @property
+    def distance_model(self):
+        return self.gal_model.distance_model
 
     def as_dynesty(self, burn=0, trim=0, max_logl=None):
         if trim > 0:

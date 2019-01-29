@@ -94,6 +94,9 @@ class SingleFeH(BaseMetalModel):
         self.feh_mean = feh_params[0]
         self.fehs, self.weights = np.array([self.feh_mean]), np.array([1.])
 
+    def copy(self):
+        return SingleFeH(initial_params=[self.feh_mean])
+
 
 class NormMDF(BaseMetalModel):
     
@@ -128,6 +131,9 @@ class NormMDF(BaseMetalModel):
     def weights(self):
         return self.compute_mdf(self.feh_mean, self.feh_sig)[1]
 
+    def copy(self):
+        return NormMDF(initial_params=[self.feh_mean, self.feh_sig])
+
 
 class FixedWidthNormMDF(NormMDF):
 
@@ -156,6 +162,9 @@ class FixedWidthNormMDF(NormMDF):
             "feh_params for FixedWidthNormMDF is length {:d}, "
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean = feh_params[0]
+
+    def copy(self):
+        return NormMDF(initial_params=[self.feh_mean], sig=self.feh_sig)
 
 
 all_metal_models = [SingleFeH, NormMDF, FixedWidthNormMDF]

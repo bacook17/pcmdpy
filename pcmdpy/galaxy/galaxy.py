@@ -55,6 +55,7 @@ class CustomGalaxy:
         self.distance_model = distance_model
 
         # set the IMF model
+        self._imf = imf
         if imf.lower() == 'salpeter':
             self.imf_func = salpeter_IMF
             self.meanmass = salpeter_meanmass(**imf_kwargs)
@@ -121,6 +122,17 @@ class CustomGalaxy:
             bounds += dmod_bounds
         return priors.FlatPrior(bounds)
 
+    def copy(self):
+        new_gal = CustomGalaxy(
+            self.metal_model.copy(),
+            self.dust_model.copy(),
+            self.sfh_model.copy(),
+            self.distance_model.copy(),
+            imf=self._imf,
+            imf_kwargs=self._imf_kwargs,
+            initial_params=self._params)
+        return new_gal
+                               
     def describe(self):
         pass
 
@@ -144,9 +156,16 @@ class CustomGalaxy:
         return np.outer(feh_weights, sfh_weights).flatten()
 
     @property
-    def dist_mod(self):
+    def dmod(self):
         return self.distance_model.dmod
     
+    @property
+    def d_mpc(self):
+        """
+        Distance to galaxy (in Mpc)
+        """
+        return 10.**(0.2 * (self.dmod - 25.))
+
     @property
     def Npix(self):
         """
@@ -212,17 +231,10 @@ class CustomGalaxy:
         age      :
         feh      :
         SFH      :
-        dist_mod :
+        dmod :
         """
         for i in range(self.num_SSPs):
-            yield self.ages[i], self.fehs[i], self.SFH[i], self.dist_mod
-
-    @property
-    def d_mpc(self):
-        """
-        Distance to galaxy (in Mpc)
-        """
-        return 10.**(0.2 * (self.dist_mod - 25.))
+            yield self.ages[i], self.fehs[i], self.SFH[i], self.dmod
 
     @property
     def p_feh(self):

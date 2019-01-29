@@ -45,6 +45,9 @@ class VariableDistance(BaseDistanceModel):
         if initial_params is not None:
             self.set_params(initial_params)
 
+    def copy(self):
+        return VariableDistance(initial_params=self._params)
+
     @property
     def _params(self):
         return np.array([self.dmod])
@@ -71,6 +74,9 @@ class FixedDistance(BaseDistanceModel):
 
     def __init__(self, dmod=30.):
         self.dmod = dmod
+
+    def copy(self):
+        return FixedDistance(dmod=self.dmod)
 
     @property
     def _params(self):

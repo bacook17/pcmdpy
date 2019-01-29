@@ -93,6 +93,7 @@ class NonParam(BaseSFHModel):
 
     def __init__(self, initial_params=None, iso_step=0.2,
                  sfh_edges=None):
+        self.iso_step = iso_step
         if iso_step > 0:
             # construct list of ages, given isochrone spacing
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
@@ -106,6 +107,11 @@ class NonParam(BaseSFHModel):
         self.set_params(initial_params)
         super().__init__()
 
+    def copy(self):
+        return NonParam(initial_params=self._params,
+                        iso_step=self.iso_step,
+                        sfh_edges=self.sfh_edges)
+    
     @property
     def _deltat_sfh(self):
         return np.diff(10.**(self.sfh_edges - 9.))
@@ -179,6 +185,10 @@ class ConstantSFR(BaseSFHModel):
         self.set_params(initial_params)
         super().__init__()
 
+    def copy(self):
+        return ConstantSFR(initial_params=self._params,
+                           iso_step=self.iso_step)
+    
     def set_params(self, logNpix):
         if hasattr(logNpix, '__len__'):
             assert len(logNpix) == self._num_params, ("params for "
@@ -213,6 +223,11 @@ class TauModel(BaseSFHModel):
         self.set_params(initial_params)
         super().__init__()
 
+    def copy(self):
+        return TauModel(initial_params=self._params,
+                        iso_step=self.iso_step,
+                        sfh_edges=self.sfh_edges)
+    
     def set_params(self, sfh_params):
         is_valid = (hasattr(sfh_params, '__len__') and
                     len(sfh_params) == self._num_params)
@@ -251,6 +266,10 @@ class RisingTau(BaseSFHModel):
         self.set_params(initial_params)
         super().__init__()
 
+    def copy(self):
+        return RisingTau(initial_params=self._params,
+                         iso_step=self.iso_step)
+    
     def set_params(self, sfh_params):
         is_valid = (hasattr(sfh_params, '__len__') and
                     len(sfh_params) == self._num_params)
@@ -284,6 +303,10 @@ class SSPModel(BaseSFHModel):
         self.set_params(initial_params)
         super().__init__()
         
+    def copy(self):
+        return SSPModel(initial_params=self._params,
+                        iso_step=self.iso_step)
+    
     def set_params(self, sfh_params):
         is_valid = (hasattr(sfh_params, '__len__') and
                     len(sfh_params) == self._num_params)
