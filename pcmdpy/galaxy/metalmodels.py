@@ -164,7 +164,7 @@ class FixedWidthNormMDF(NormMDF):
         self.feh_mean = feh_params[0]
 
     def copy(self):
-        return NormMDF(initial_params=[self.feh_mean], sig=self.feh_sig)
+        return FixedWidthNormMDF(initial_params=[self.feh_mean], sig=self.feh_sig)
 
 
 all_metal_models = [SingleFeH, NormMDF, FixedWidthNormMDF]

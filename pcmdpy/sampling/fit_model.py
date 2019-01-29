@@ -4,7 +4,7 @@
 import numpy as np
 from ..isochrones import Isochrone_Model
 from ..simulation.driver import Driver
-from .results import ResultsCollector
+from .logging import ResultsLogger
 import dynesty
 
 
@@ -63,17 +63,17 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
                           sampler_kwargs=sampler_kwargs,
                           **logl_kwargs)
 
-    collector = ResultsCollector(sampler, out_file, out_df=out_df,
-                                 live_file=live_file,
-                                 save_every=save_every,
-                                 param_names=param_names)
+    logger = ResultsLogger(sampler, out_file, out_df=out_df,
+                           live_file=live_file,
+                           save_every=save_every,
+                           param_names=param_names)
     
-    run_kwargs['print_func'] = collector.collect
+    run_kwargs['print_func'] = logger.collect
     sampler.run_nested(**run_kwargs)
 
-    if (collector.out_df is not None):
+    if (logger.out_df is not None):
         print('-Saving final results dataframe')
-        collector.flush_to_csv()
+        logger.flush_to_csv()
 
     return sampler
 

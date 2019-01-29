@@ -56,6 +56,7 @@ class CustomGalaxy:
 
         # set the IMF model
         self._imf = imf
+        self._imf_kwargs = imf_kwargs
         if imf.lower() == 'salpeter':
             self.imf_func = salpeter_IMF
             self.meanmass = salpeter_meanmass(**imf_kwargs)

@@ -99,7 +99,7 @@ class NonParam(BaseSFHModel):
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
             self.iso_edges = self.default_SFH_edges
-        self.update_sfh_edges(sfh_edges or self.default_SFH_edges)
+        self.update_sfh_edges(sfh_edges if sfh_edges is not None else self.default_SFH_edges)
         assert np.all(np.isclose(self.overlap_matrix.sum(axis=1), 1.0)), (
             "The sums over the overlap matrix should all be near 1")
         if initial_params is None:
@@ -176,6 +176,7 @@ class ConstantSFR(BaseSFHModel):
     def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
+        self.iso_step = iso_step
         if iso_step > 0:
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
@@ -214,6 +215,7 @@ class TauModel(BaseSFHModel):
     def __init__(self, initial_params=None, iso_step=0.2):
         """
         """
+        self.iso_step = iso_step
         if iso_step > 0:
             self.iso_edges = np.arange(6.0, 10.3, iso_step)
         else:
@@ -225,8 +227,7 @@ class TauModel(BaseSFHModel):
 
     def copy(self):
         return TauModel(initial_params=self._params,
-                        iso_step=self.iso_step,
-                        sfh_edges=self.sfh_edges)
+                        iso_step=self.iso_step)
     
     def set_params(self, sfh_params):
         is_valid = (hasattr(sfh_params, '__len__') and

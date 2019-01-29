@@ -1,3 +1,3 @@
-__all__ = ['plotting']
+__all__ = ['plotting', 'results']
 
-from . import plotting
+from . import plotting, results

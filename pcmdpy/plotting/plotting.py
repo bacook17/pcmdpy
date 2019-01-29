@@ -238,4 +238,3 @@ def step_fill(x, y1, y2, ax=None, **kwargs):
     kwargs['linestyle'] = kwargs.pop('ls', '-')
     ax.fill_between(x, y1=y1, y2=y2, **kwargs)
 
-    
