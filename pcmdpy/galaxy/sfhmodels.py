@@ -126,7 +126,7 @@ class NonParam(BaseSFHModel):
 
     @property
     def _fancy_names(self):
-        return [r'$\log_{10}$' + 'SFH{:d}'.format(i) for i in range(self._num_params)]
+        return [r'$\log\;$' + 'SFH{:d}'.format(i) for i in range(self._num_params)]
 
     @property
     def _default_prior_bounds(self):
@@ -168,7 +168,7 @@ class NonParam(BaseSFHModel):
 class ConstantSFR(BaseSFHModel):
 
     _param_names = ['logNpix']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$']
+    _fancy_names = [r'$\log\; \mathrm{N_{pix}}$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0]]
     _params = [None]
@@ -207,7 +207,7 @@ class ConstantSFR(BaseSFHModel):
 class TauModel(BaseSFHModel):
 
     _param_names = ['logNpix', 'tau']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
+    _fancy_names = [r'$\log\; \mathrm{N_{pix}}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     _params = [None, None]
@@ -249,7 +249,7 @@ class TauModel(BaseSFHModel):
 class RisingTau(BaseSFHModel):
 
     _param_names = ['logNpix', 'tau_rise']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\tau$']
+    _fancy_names = [r'$\log\;\mathrm{N_{pix}}$', r'$\tau$']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [0.1, 20.]]
     _params = [None, None]
@@ -291,7 +291,7 @@ class RisingTau(BaseSFHModel):
 
 class SSPModel(BaseSFHModel):
     _param_names = ['logNpix', 'logage']
-    _fancy_names = [r'$\log_{10} N_\mathrm{pix}$', r'$\log_{10}$ age (yr)']
+    _fancy_names = [r'$\log\;\mathrm{N_{pix}}$', r'$\log$ age (yr)']
     _num_params = len(_param_names)
     _default_prior_bounds = [[0., 8.0], [8.0, 10.5]]
     _params = [None, None]

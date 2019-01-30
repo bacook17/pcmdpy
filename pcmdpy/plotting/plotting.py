@@ -71,8 +71,8 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
         xl += a.get_xlim()
         yl += a.get_ylim()
         if keep_limits:
-            a.set_xbound([min(xl), max(xl)])
-            a.set_ybound([min(yl), max(yl)])
+            a.set_xlim([min(xl), max(xl)])
+            a.set_ylim([max(yl), min(yl)])
     if title is not None:
         ax[0].set_title(title)
     return ax, bins, norm
@@ -115,8 +115,8 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
         xl += a.get_xlim()
         yl += a.get_ylim()
         if keep_limits:
-            a.set_xbound([min(xl), max(xl)])
-            a.set_ybound([min(yl), max(yl)])
+            a.set_xlim([min(xl), max(xl)])
+            a.set_ylim([max(yl), min(yl)])
     if title is not None:
         ax[0].set_title(title)
     return (fig, ax)
@@ -175,14 +175,14 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         xl += a.get_xlim()
         yl += a.get_ylim()
         if keep_limits:
-            a.set_xbound([min(xl), max(xl)])
-            a.set_ybound([min(yl), max(yl)])
+            a.set_xlim([min(xl), max(xl)])
+            a.set_ylim([max(yl), min(yl)])
         a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(loglike)))
     return ax, loglike, bins, norm
 
 
 def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
-                   mag_system=None, update_axes=True, **kwargs):
+                   mag_system=None, update_axes=True, downsample=5, **kwargs):
     if axes is None:
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
@@ -192,7 +192,8 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
                               dmod=dmod)
     names = iso_model.filter_names
     for age, feh, _, d_mod in gal_model.iter_SSPs():
-        mags, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system)
+        mags, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system,
+                                             downsample=downsample)
         mags += d_mod
         if iso_model.num_filters == 2:
             axes.plot(mags[1]-mags[0], mags[0], 'k-',

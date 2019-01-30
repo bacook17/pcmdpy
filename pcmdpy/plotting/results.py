@@ -105,7 +105,7 @@ class ResultsPlotter(object):
         if gal_model is not None:
             if model_is_truth:
                 self.true_model = self.gal_model
-                self.true_params = list(self.true_model._params)
+                self.true_params = np.array(self.true_model._params)
 
         else:  # If no model provided, must guess the model used
             cols = self.df.columns
@@ -170,9 +170,10 @@ class ResultsPlotter(object):
             sfhs = 10.**self.df[['logSFH{:d}'.format(i) for i in range(nbins)]]
             self.df['logNpix'] = np.log10(np.sum(sfhs.values, axis=1))
             self.params.append('logNpix')
-            self.labels.append(r'$\log_{10} N_\mathrm{pix}$')
+            self.labels.append(r'$\log N_\mathrm{pix}$')
             if self.true_params is not None:
-                self.true_params += [np.log10(self.true_model.sfh_model.Npix)]
+                self.true_params = np.append(self.true_params,
+                                             self.true_model.sfh_model.logNpix)
 
         self.n_params = len(self.params)
 
@@ -249,14 +250,13 @@ class ResultsPlotter(object):
                                   max_logl=max_logl)
         return np.exp(results['logwt'] - logsumexp(results['logwt']))
 
-    # @property
-    # def samples(self):
-    #     return self.get_chains().values
+    def get_equal_samples(self, burn=0, trim=0, max_logl=None):
+        results = self.as_dynesty(burn=burn, trim=trim,
+                                  max_logl=max_logl)
+        samples = results['samples']
+        weights = np.exp(results['logwt'] - logsumexp(results['logwt']))
+        return dyfunc.resample_equal(samples, weights)
 
-    # @property
-    # def weights(self):
-    #     return self.df['weights'].values
-    
     def get_chains(self):
         return self.df[self.params]
 
@@ -291,9 +291,7 @@ class ResultsPlotter(object):
 
     @property
     def best_model(self):
-        from ..galaxy.galaxy import CustomGalaxy
-        gal = CustomGalaxy(self.metal_model, self.dust_model, self.sfh_model,
-                           self.distance_model)
+        gal = self.gal_model.copy()
         gal.set_params(self.best_params)
         return gal
 
@@ -391,9 +389,10 @@ class ResultsPlotter(object):
             axes[0].set_title(title)
         return axes
 
-    def plot_corner(self, burn=0, trim=0, max_logl=None, axes=None, title=None,
-                    smooth=0.02, show_truth=True, full_range=False,
-                    sig_levels=[1, 2, 3], **corner_kwargs):
+    def plot_corner(self, burn=0, trim=0, max_logl=None, axes=None,
+                    show_titles=True, smooth=0.02, show_truth=True,
+                    full_range=False, sig_levels=[1, 2, 3],
+                    filled=True, **corner_kwargs):
         """
         
         Returns
@@ -409,204 +408,133 @@ class ResultsPlotter(object):
                   'truths': self.true_params if show_truth else None,
                   'fig': None,
                   'span': None,
-                  'show_titles': True}
+                  'show_titles': show_titles}
         levels = 1.0 - np.exp(-0.5 * np.array(sig_levels)**2)
+        kwargs['hist_kwargs'] = kwargs.get('hist_kwargs', {})
         kwargs['hist2d_kwargs'] = kwargs.get('hist2d_kwargs', {})
         kwargs['hist2d_kwargs']['levels'] = levels
+        kwargs['hist2d_kwargs']['plot_density'] = kwargs['hist2d_kwargs'].get('plot_density', False)
+        kwargs['hist2d_kwargs']['no_fill_contours'] = kwargs['hist2d_kwargs'].get('no_fill_contours', False)
+        if not filled:
+            kwargs['hist2d_kwargs']['fill_contours'] = False
+            kwargs['hist_kwargs']['histtype'] = 'step'
+        datamins = [results['samples'][:, i].min() for i in range(self.n_params)]
+        datamaxs = [results['samples'][:, i].max() for i in range(self.n_params)]
+        means = self.means(**dynesty_kwargs)
+        stds = self.stds(**dynesty_kwargs)
+        postmins = [means[i] - max(5*stds[i], 1e-1) for i in range(self.n_params)]
+        postmaxs = [means[i] + max(5*stds[i], 1e-1) for i in range(self.n_params)]
+
         if full_range:
-            kwargs['span'] = [[results['samples'][:, i].min(),
-                               results['samples'][:, i].max()] for i in range(self.n_params)]
+            kwargs['span'] = [[a, b] for a,b in zip(datamins, datamaxs)]
         else:
-            means = self.means(**dynesty_kwargs)
-            stds = self.stds(**dynesty_kwargs)
-            kwargs['span'] = [[means[i] - max(5*stds[i], 1e-1),
-                               means[i] + max(5*stds[i], 1e-1)] for i in range(self.n_params)]
+            kwargs['span'] = [[max(a,c), min(b,d)] for a,b,c,d in zip(datamins, datamaxs,
+                                                                      postmins, postmaxs)]
         kwargs.update(corner_kwargs)
         if (axes is not None) and (axes.shape == (self.n_params,
                                                   self.n_params)):
             kwargs['fig'] = (axes.flatten()[0].get_figure(), axes)
         fig, axes = dyplot.cornerplot(results, **kwargs)
         return fig, axes
-        
-
-    # def plot_corner(self, fig=None, title=None, burn=0, trim=0, bins=30,
-    #                 include_live=True, smooth_frac=.01, smooth1d=0.,
-    #                 weight=False, full_range=False,
-    #                 show_prior=False, plot_density=False, fill_contours=True,
-    #                 sig_levels=None, plot_datapoints=True, show_truth=True,
-    #                 **corner_kwargs):
-    #     if trim > 0:
-    #         df_temp = self.df.iloc[burn:-trim]
-    #     else:
-    #         df_temp = self.df.iloc[burn:]
-    #     if not include_live:
-    #         df_temp = df_temp[~df_temp['live']]
-    #     vals = df_temp[self.params].values
-    #     smooth = smooth_frac * bins
-    #     if sig_levels is None:
-    #         sig_levels = np.arange(1, 4)
-    #     # convert from sigma to 2d CDF (equivalent of 68-95-99.7 rule)
-    #     levels = 1. - np.exp(-0.5 p* sig_levels**2.)
-    #     if full_range:
-    #         lims = []
-    #         for p in self.params:
-    #             lims += [[self.df[p].min(), self.df[p].max()]]
-    #     else:
-    #         lims = None
-    #     if corner_kwargs is None:
-    #         corner_kwargs = {}
-    #     else:
-    #         corner_kwargs = dict(corner_kwargs)
-    #     if weight:
-    #         corner_kwargs['weights'] = df_temp['weights'].values
-    #     else:
-    #         corner_kwargs['weights'] = None
-    #     truths = self.true_params if show_truth else None
-    #     corner_kwargs.update({'labels': self.labels,
-    #                           'truths': truths, 'fig': fig,
-    #                           'bins': bins, 'smooth': smooth,
-    #                           'plot_density': plot_density,
-    #                           'fill_contours': fill_contours,
-    #                           'levels': levels,
-    #                           'range': lims,
-    #                           'smooth1d': smooth1d,
-    #                           'plot_datapoints': plot_datapoints})
-    #     fig = corner(vals, **corner_kwargs)
-    #     axes = np.array(fig.get_axes()).reshape(self.n_params, self.n_params)
-    #     if show_prior:
-    #         for i in range(self.n_params):
-    #             a = axes[i, i]
-    #             lower, upper = a.get_ylim()
-    #             y = len(df_temp) / bins
-    #             if weight:
-    #                 y *= np.mean(corner_kwargs['weights'])
-    #             a.axhline(y=y, ls=':')
-    #     if title is None:
-    #         fig.suptitle(self.run_name)
-    #     else:
-    #         fig.suptitle(title)
-    #     return (fig, axes)
 
     def plot_sfr(self, width=68., ax=None, title=None,
-                 burn=0, stop_after=None, show_prior=False, **plot_kwargs):
+                 burn=0, trim=0, max_logl=None, color='k', alpha=0.3,
+                 show_truth=True, truth_ls='--', truth_color='r', **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
         if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
-        cols = self.sfh_model._param_names
-        take = slice(burn, stop_after)
-        vals = self.df[cols].values[take]
-        edges = self.sfh_model.default_edges
-        lookback_gyr = 10.**(edges - 9.)
-        logdt = np.log10(np.diff(lookback_gyr * 1e9))
-        sfr = np.array([self.sfh_model.set_params(v).logSFH - logdt
-                        for v in vals])
-        if self.true_model is not None:
-            p_sfh = self.sfh_model._num_params
-            p_dist = self.distance_model._num_params
-            if p_dist > 0:
-                vals_true = self.true_model._params[-p_sfh-p_dist:-p_dist]
-            else:
-                vals_true = self.true_model._params[-p_sfh:]
-            true_sfr = self.sfh_model.set_params(vals_true).logSFH - logdt
-
+        if not isinstance(self.sfh_model, NonParam):
+            raise NotImplementedError('Only NonParam Implemented as of now')
+        sfh_indices = np.array([self.params.index(k) for k in self.sfh_model._param_names])
+        samples = self.get_equal_samples(burn=burn, trim=trim,
+                                         max_logl=max_logl)
+        SFHs = 10.**samples[:, sfh_indices]
+        denom = self.sfh_model._deltat_sfh * 1e9 / self.gal_model.meanmass
+        SFRs = SFHs / denom
+        edges = self.sfh_model.sfh_edges
+        ages = 0.5*(edges[1:] + edges[:-1])
         if ax is None:
             fig, ax = plt.subplots()
-        med = np.percentile(sfr, 50., axis=0)
-        upper = np.percentile(sfr, 50. + 0.5*width, axis=0)
-        lower = np.percentile(sfr, 50. - 0.5*width, axis=0)
-        color = plot_kwargs.pop('color', 'k')
-        alpha = plot_kwargs.pop('alpha', 0.3)
-        step_plot(lookback_gyr, med, ax=ax, ls='-', color=color, **plot_kwargs)
-        step_fill(lookback_gyr, y1=lower, y2=upper, ax=ax,
-                  alpha=alpha, color=color,
-                  **plot_kwargs)
-        if self.true_model is not None:
-            step_plot(lookback_gyr, true_sfr, ax=ax, ls='--',
-                      color='r', **plot_kwargs)
-        ax.set_yscale('linear')
+        med = np.percentile(SFRs, 50., axis=0)
+        upper = np.percentile(SFRs, 50. + 0.5*width, axis=0)
+        lower = np.percentile(SFRs, 50. - 0.5*width, axis=0)
+        kwargs = {'color': 'k',
+                  'capsize': 10,
+                  'marker': 'o',
+                  'ms': 8}
+        kwargs.update(plot_kwargs)
+        ax.errorbar(x=ages, y=med, yerr=[med-lower, upper-med], **kwargs)
+        kwargs.pop('capsize')
+        kwargs.pop('marker')
+        kwargs.pop('ms')
+        kwargs['alpha'] = alpha
+        kwargs['lw'] = plot_kwargs.get('lw', 0)
+        ax.fill_between(x=ages, y1=lower, y2=upper, **kwargs)
+        if show_truth and (self.true_model is not None):
+            true_sfh = 10.**np.array(self.true_params[sfh_indices])
+            true_sfr = true_sfh / denom
+            kwargs = {'color': truth_color,
+                      'ls': truth_ls}
+            ax.plot(ages, true_sfr, **kwargs)
+        ax.set_yscale('log')
         if title is None:
             ax.set_title(self.run_name)
-        else:
+        elif title is not False:
             ax.set_title(title)
-        ax.set_xlabel('Lookback Time (Gyr)')
-        ax.set_ylabel('Log Instantaneous SFR')
-        if show_prior:
-            if self.prior is None:
-                self.plot_sfr(burn=0, stop_after=500, ax=ax, width=width,
-                              color='b', alpha=0.1, zorder=-1,
-                              show_prior=False, title=title, **plot_kwargs)
-            else:
-                if p_dist > 0:
-                    lower_p = self.prior.lower_bounds[-p_sfh-p_dist:-p_dist]
-                    upper_p = self.prior.upper_bounds[-p_sfh-p_dist:-p_dist]
-                else:
-                    lower_p = self.prior.lower_bounds[-p_sfh:]
-                    upper_p = self.prior.upper_bounds[-p_sfh:]
-                lower = self.sfh_model.set_params(lower_p).logSFH - logdt
-                upper = self.sfh_model.set_params(upper_p).logSFH - logdt
-                step_fill(lookback_gyr, y1=lower, y2=upper, ax=ax, alpha=0.1,
-                          color='b', zorder=-1, **plot_kwargs)
+        ax.set_xlabel('Log age (yr)')
+        ax.set_ylabel(r'Log SFR ($\mathrm{M_{\star}\;yr^{-1}\;pix^{-1}}$)')
         return ax
     
     def plot_cum_sfh(self, width=68., ax=None, title=None,
-                     burn=0, stop_after=None, show_prior=False, **plot_kwargs):
+                     burn=0, trim=0, max_logl=None, color='k', alpha=0.3,
+                     show_truth=True, truth_ls='--', truth_color='r',
+                     **plot_kwargs):
         assert (0. <= width <= 100.), "width must be between 0 and 100"
         if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
             return
-        cols = self.sfh_model._param_names
-        take = slice(burn, stop_after)
-        vals = self.df[cols].values[take]
-        cum_sfh = np.array([self.sfh_model.set_params(v).get_cum_sfh()
-                            for v in vals])
-        if self.true_model is not None:
-            p_sfh = self.sfh_model._num_params
-            p_dist = self.distance_model._num_params
-            if p_dist > 0:
-                vals_true = self.true_model._params[-p_sfh-p_dist:-p_dist]
-            else:
-                vals_true = self.true_model._params[-p_sfh:]
-            true_cum_sfh = self.sfh_model.set_params(vals_true).get_cum_sfh()
-        edges = self.sfh_model.default_edges
-        # time_gyr = 10.**(edges[-1] - 9.) - 10.**(edges - 9.)
-        time_gyr = 10.**(edges - 9.)
+        if not isinstance(self.sfh_model, NonParam):
+            raise NotImplementedError('Only NonParam Implemented as of now')
+        sfh_indices = np.array([self.params.index(k) for k in self.sfh_model._param_names])
+        samples = self.get_equal_samples(burn=burn, trim=trim,
+                                         max_logl=max_logl)
+        SFHs = 10.**samples[:, sfh_indices]
+        cum_sfhs = np.cumsum(SFHs, axis=1)
+        cum_sfhs /= np.mean(cum_sfhs[:, -1])  # normalize to mean 1
+        edges = self.sfh_model.sfh_edges
+        ages = 0.5*(edges[1:] + edges[:-1])
         if ax is None:
             fig, ax = plt.subplots()
-        med = np.percentile(cum_sfh, 50., axis=0)
-        upper = np.percentile(cum_sfh, 50. + 0.5*width, axis=0)
-        lower = np.percentile(cum_sfh, 50. - 0.5*width, axis=0)
-        color = plot_kwargs.pop('color', 'k')
-        alpha = plot_kwargs.pop('alpha', 0.3)
-        ax.plot(time_gyr, med, ls='-', color=color, **plot_kwargs)
-        ax.fill_between(time_gyr, y1=lower, y2=upper, alpha=alpha,
-                        color=color, **plot_kwargs)
-        if self.true_model is not None:
-            ax.plot(time_gyr, true_cum_sfh, ls='--', color='r',
-                    **plot_kwargs)
-        ax.set_yscale('linear')
+        med = np.percentile(cum_sfhs, 50., axis=0)
+        upper = np.percentile(cum_sfhs, 50. + 0.5*width, axis=0)
+        lower = np.percentile(cum_sfhs, 50. - 0.5*width, axis=0)
+        kwargs = {'color': 'k',
+                  'capsize': 10,
+                  'marker': 'o',
+                  'ms': 8}
+        kwargs.update(plot_kwargs)
+        ax.errorbar(x=ages, y=med, yerr=[med-lower, upper-med], **kwargs)
+        kwargs.pop('capsize')
+        kwargs.pop('marker')
+        kwargs.pop('ms')
+        kwargs['alpha'] = alpha
+        kwargs['lw'] = plot_kwargs.get('lw', 0)
+        ax.fill_between(x=ages, y1=lower, y2=upper, **kwargs)
+        if show_truth and (self.true_model is not None):
+            true_sfh = 10.**np.array(self.true_params[sfh_indices])
+            cum_sfh = np.cumsum(true_sfh)
+            cum_sfh /= cum_sfh[-1]
+            kwargs = {'color': truth_color,
+                      'ls': truth_ls}
+            ax.plot(ages, cum_sfh, **kwargs)
+        ax.set_yscale('log')
         if title is None:
             ax.set_title(self.run_name)
-        else:
+        elif title is not False:
             ax.set_title(title)
-        ax.set_xlabel('Lookback Time (Gyr)')
-        ax.set_ylabel('cumulative SFH')
-        if show_prior:
-            if self.prior is None:
-                self.plot_cum_sfh(burn=0, stop_after=500, ax=ax, width=width,
-                                  color='b', alpha=0.1, zorder=-1,
-                                  show_prior=False, title=title, **plot_kwargs)
-            else:
-                if p_dist > 0:
-                    lower_p = self.prior.lower_bounds[-p_sfh-p_dist:-p_dist]
-                    upper_p = self.prior.upper_bounds[-p_sfh-p_dist:-p_dist]
-                else:
-                    lower_p = self.prior.lower_bounds[-p_sfh:]
-                    upper_p = self.prior.upper_bounds[-p_sfh:]
-                lower = self.sfh_model.set_params(lower_p).get_cum_sfh()
-                upper = self.sfh_model.set_params(upper_p).get_cum_sfh()
-                ax.fill_between(time_gyr, y1=lower, y2=upper, alpha=0.1,
-                                color='b', zorder=-1, **plot_kwargs)
+        ax.set_xlabel('Log age (yr)')
+        ax.set_ylabel('Log Cumulative SFH')
         return ax
 
     def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
