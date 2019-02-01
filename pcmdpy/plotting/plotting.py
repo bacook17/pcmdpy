@@ -79,14 +79,12 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
 
 
 def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
-                       title=None, keep_limits=False, color='k', alpha=1.0,
+                       title=None, keep_limits=False, color=None, alpha=1.0,
                        fill_contours=False, **hist_kwargs):
     """
-    
     Returns
     -------
     fig, ax
-
     """
     n_bands = pcmd.shape[0]
     if ax is None:
@@ -96,6 +94,8 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
     if n_bands == 2:
         ax = [ax]
     levels = 1.0 - np.exp(-0.5 * np.array(sig_levels)**2)
+    if color is None:
+        color = plt.rcParams.get('lines.color', 'k')
     kwargs = {'ax': ax[0],
               'levels': levels,
               'smooth': smooth,
