@@ -83,10 +83,7 @@ def get_sampler(gal_model, driv, Nim, prior=None, dynamic=False,
     if prior is None:
         prior = gal_model.get_flat_prior()
     ndim = gal_model._num_params
-    logl_args = {'driv': driv,
-                 'Nim': Nim,
-                 'lnprior_func': prior.lnprior,
-                 'gal_model': gal_model}
+    logl_args = (driv, Nim, prior.lnprior, gal_model)
     logl_kwargs['downsample'] = logl_kwargs.get('downsample', 5)
     logl_kwargs['mag_system'] = logl_kwargs.get('mag_system', 'vega')
 
