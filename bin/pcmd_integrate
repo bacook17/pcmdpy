@@ -41,7 +41,7 @@ if __name__ == "__main__":
                         type=str, required=True)
     args = parser.parse_args()
     
-    # external config file
+    # import an external config file
     try:
         config_file = args.config
         config_mod = config_file.strip('.py').rpartition('/')[-1]

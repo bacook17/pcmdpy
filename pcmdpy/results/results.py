@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.special import logsumexp
-from .plotting import step_plot, step_fill
+from ..plotting.plotting import step_plot, step_fill
 from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
 from ..galaxy.dustmodels import all_dust_models
 from ..galaxy.distancemodels import all_distance_models
@@ -16,10 +16,13 @@ from dynesty.results import Results
 class ResultsPlotter(object):
     def __init__(self, df_file, live_file=None, gal_model=None,
                  model_is_truth=False, run_name=None):
-        try:
-            self.df = pd.read_csv(df_file)
-        except UnicodeDecodeError:
-            self.df = pd.read_csv(df_file, compression='gzip')
+        self.df = pd.read_csv(df_file, comment='#')
+        with open(df_file, 'r') as f:
+            line = f.readline().strip()
+        if 'max_logl' in line:
+            self.max_logl = float(line.split(': ')[-1])
+        else:
+            self.max_logl = None
         self.df['live'] = False
 
         if live_file is not None:
@@ -211,6 +214,8 @@ class ResultsPlotter(object):
         return self.gal_model.distance_model
 
     def as_dynesty(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         if trim > 0:
             sub_df = self.df.iloc[burn:-trim]
             samples = self.get_chains().values[burn:-trim]
@@ -231,7 +236,8 @@ class ResultsPlotter(object):
             ('logvol', sub_df.logvol.values),
             ('logz', sub_df.logz.values),
             ('logzerr', sub_df.logzerr.values),
-            ('information', sub_df.h.values)]
+            ('information', sub_df.h.values),
+            ('delta_logz', sub_df.delta_logz.values)]
 
         results = Results(results)
         if max_logl is not None:
@@ -239,18 +245,26 @@ class ResultsPlotter(object):
             new_logl[new_logl >= max_logl] = max_logl
             results = dyfunc.reweight_run(results,
                                           logp_new=new_logl)
+            logz_remain = results['logvol'] + max_logl
+            results['delta_logz'] = np.logaddexp(results['logz'], logz_remain) - results['logz']
         return results
 
     def get_samples(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         results = self.as_dynesty(burn=burn, trim=trim)
         return results['samples']
 
     def get_weights(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         results = self.as_dynesty(burn=burn, trim=trim,
                                   max_logl=max_logl)
         return np.exp(results['logwt'] - logsumexp(results['logwt']))
 
     def get_equal_samples(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         results = self.as_dynesty(burn=burn, trim=trim,
                                   max_logl=max_logl)
         samples = results['samples']
@@ -261,6 +275,8 @@ class ResultsPlotter(object):
         return self.df[self.params]
 
     def means(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         kwargs = {'burn': burn,
                   'trim': trim,
                   'max_logl': max_logl}
@@ -270,6 +286,8 @@ class ResultsPlotter(object):
         return means
 
     def cov(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         kwargs = {'burn': burn,
                   'trim': trim,
                   'max_logl': max_logl}
@@ -279,6 +297,8 @@ class ResultsPlotter(object):
         return cov
 
     def stds(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
         cov = self.cov(burn=burn, trim=trim, max_logl=max_logl)
         return np.sqrt([cov[i, i] for i in range(self.n_params)])
 
@@ -303,6 +323,8 @@ class ResultsPlotter(object):
         -------
         fig, axes
         """
+        if max_logl is None:
+            max_logl = self.max_logl
         dynesty_kwargs = {'burn': burn,
                           'trim': trim,
                           'max_logl': max_logl}
@@ -399,6 +421,8 @@ class ResultsPlotter(object):
         -------
         fig, axes
         """
+        if max_logl is None:
+            max_logl = self.max_logl
         dynesty_kwargs = {'burn': burn,
                           'trim': trim,
                           'max_logl': max_logl}
@@ -450,6 +474,8 @@ class ResultsPlotter(object):
                  true_model=None, show_prior=True, legend=True,
                  line_kwargs={}, error_kwargs={}, fill_kwargs={},
                  truth_kwargs={}, prior_kwargs={}):
+        if max_logl is None:
+            max_logl = self.max_logl
         assert (0. <= width <= 100.), "width must be between 0 and 100"
         if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
@@ -480,6 +506,8 @@ class ResultsPlotter(object):
         kwargs = {'color': color,
                   'alpha': 0.6 if is_dark else 0.3,
                   'linewidth': 0}
+        if fill_kwargs.pop('no_fill', False):
+            kwargs.pop('color')
         kwargs.update(fill_kwargs)
         fill = ax.fill_between(x=ages, y1=lower, y2=upper, **kwargs)
         kwargs = {'color': color,
@@ -523,9 +551,13 @@ class ResultsPlotter(object):
                       'title': False,
                       'line_kwargs': {'alpha': 0.},
                       'error_kwargs': {'alpha': 0.},
-                      'fill_kwargs': {'alpha': 0.7 if is_dark else 0.1,
-                                      'color': 'c' if is_dark else 'b',
-                                      'zorder': -10}}
+                      'fill_kwargs': {'alpha': 1.0,
+                                      'no_fill': True,
+                                      'facecolor': 'k' if is_dark else 'w',
+                                      'zorder': -10,
+                                      'linestyle': ':',
+                                      'linewidth': 2,
+                                      'edgecolors': 'w' if is_dark else 'k'}}
             kwargs.update(prior_kwargs)
             _, lines = self.plot_sfr(show_prior=False, ax=ax, **kwargs)
             prior = lines[2]
@@ -545,6 +577,8 @@ class ResultsPlotter(object):
                      show_truth=True, true_model=None, show_prior=True,
                      line_kwargs={}, error_kwargs={}, fill_kwargs={},
                      truth_kwargs={}, prior_kwargs={}):
+        if max_logl is None:
+            max_logl = self.max_logl
         assert (0. <= width <= 100.), "width must be between 0 and 100"
         if isinstance(self.sfh_model, SSPModel):
             print('Cannot plot cumulative SFH for SSP')
@@ -575,6 +609,8 @@ class ResultsPlotter(object):
         kwargs = {'color': color,
                   'alpha': 0.6 if is_dark else 0.3,
                   'linewidth': 0}
+        if fill_kwargs.pop('no_fill', False):
+            kwargs.pop('color')
         kwargs.update(fill_kwargs)
         fill = ax.fill_between(x=ages, y1=lower, y2=upper, **kwargs)
         kwargs = {'color': color,
@@ -619,9 +655,13 @@ class ResultsPlotter(object):
                       'title': False,
                       'line_kwargs': {'alpha': 0.},
                       'error_kwargs': {'alpha': 0.},
-                      'fill_kwargs': {'alpha': 0.7 if is_dark else 0.1,
-                                      'color': 'c' if is_dark else 'b',
-                                      'zorder': -10}}
+                      'fill_kwargs': {'alpha': 1.0,
+                                      'no_fill': True,
+                                      'facecolor': 'k' if is_dark else 'w',
+                                      'zorder': -10,
+                                      'linestyle': ':',
+                                      'linewidth': 2,
+                                      'edgecolors': 'w' if is_dark else 'k'}}
             kwargs.update(prior_kwargs)
             _, lines = self.plot_cum_sfh(show_prior=False, ax=ax, **kwargs)
             prior = lines[2]

@@ -11,7 +11,8 @@ from .galaxy import (galaxy, metalmodels, dustmodels, sfhmodels,
                      distancemodels)
 from .sampling import (fit_model, priors, logging)
 from .utils import (utils)
-from .plotting import (plotting, results)
+from .plotting import (plotting)
+from .results import (results)
 
 GPU_AVAIL = gpu_utils._GPU_AVAIL
 GPU_ACTIVE = gpu_utils._GPU_ACTIVE
