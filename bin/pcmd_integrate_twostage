@@ -94,7 +94,7 @@ if __name__ == "__main__":
     gal_final = config.params.pop('final_gal_model')
     prior_init = config.params.pop('init_prior')
 
-    required_keys = ['filters', 'N_im', 'gal_model',
+    required_keys = ['filters', 'Nim', 'gal_model',
                      'prior']
     
     # Load all parameters from configuration file
