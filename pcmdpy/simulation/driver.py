@@ -82,7 +82,7 @@ class Driver:
         combined_var = (self.err_data**2. + err_model**2.)
         hess_diff = (hess_model - self.hess_data)
         if like_mode == 1:  # Poisson model
-            hess_model[hess_model == 0.] = 0.25 / pcmd.shape[1]  # add 0.25 fake counts in each empty model bin
+            hess_model[(counts_model == 0) & (self.counts_data > 0)] = 0.1 / pcmd.shape[1]  # add 0.1 fake counts in each empty model bin
             loglike = poisson.logpmf(self.counts_data,
                                      mu=(hess_model * self.n_data))
         elif like_mode == 2:  # Gaussian model (no variance term included)
