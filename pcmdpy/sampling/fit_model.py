@@ -5,7 +5,6 @@ import numpy as np
 from ..isochrones import Isochrone_Model
 from ..simulation.driver import Driver
 from .logging import ResultsLogger
-from ..results.results import ResultsPlotter
 import dynesty
 
 
@@ -63,6 +62,7 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
         out_df.to_csv(out_file, index=False, float_format='%.4e')
 
     if continue_run and (live_file is not None):
+        from ..results.results import ResultsPlotter
         # Load the most recently saved live points and continue running from there
         try:
             live_df = pd.read_csv(live_file)
@@ -96,7 +96,8 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
 
     if compute_maxlogl:
         print('-Computing Max Logl')
-        best_params = sampler.results['samples'][-1]
+        logl = sampler.results['logl']
+        best_params = sampler.results['samples'][logl.argmax()]
         logl_kwargs.pop('fixed_seed', False)
         logls = [lnlike(best_params, driv, Nim, prior.lnprior,
                         gal_model, fixed_seed=False, **logl_kwargs) for _ in range(100)]

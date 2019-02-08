@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from os.path import expanduser
 from scipy.special import logsumexp
 from ..plotting.plotting import step_plot, step_fill
 from ..galaxy.sfhmodels import all_sfh_models, NonParam, SSPModel
@@ -14,15 +15,17 @@ from dynesty.results import Results
 
 
 class ResultsPlotter(object):
-    def __init__(self, df_file, live_file=None, gal_model=None,
+    def __init__(self, df_file, max_logl=None, live_file=None, gal_model=None,
                  model_is_truth=False, run_name=None):
         self.df = pd.read_csv(df_file, comment='#')
-        with open(df_file, 'r') as f:
+        with open(expanduser(df_file), 'r') as f:
             line = f.readline().strip()
         if 'max_logl' in line:
-            self.max_logl = float(line.split(': ')[-1])
+            self._max_logl = float(line.split(': ')[-1])
         else:
-            self.max_logl = None
+            self._max_logl = None
+        if max_logl is not None:
+            self._max_logl = max_logl
         self.df['live'] = False
 
         if live_file is not None:
@@ -196,7 +199,19 @@ class ResultsPlotter(object):
             self.df['logfeh'] = self.df.logzh
         except AttributeError:
             pass
+        self._dynesty = self.as_dynesty()
+        self._equal_samples = self.get_equal_samples()
 
+    @property
+    def max_logl(self):
+        return self._max_logl
+
+    @max_logl.setter
+    def max_logl(self, max_logl):
+        self._max_logl = max_logl
+        self._dynesty = self.as_dynesty()
+        self._equal_samples = self.get_equal_samples()
+        
     @property
     def metal_model(self):
         return self.gal_model.metal_model
@@ -212,6 +227,10 @@ class ResultsPlotter(object):
     @property
     def distance_model(self):
         return self.gal_model.distance_model
+
+    @property
+    def dynesty(self):
+        return self._dynesty
 
     def as_dynesty(self, burn=0, trim=0, max_logl=None):
         if max_logl is None:
@@ -262,6 +281,15 @@ class ResultsPlotter(object):
                                   max_logl=max_logl)
         return np.exp(results['logwt'] - logsumexp(results['logwt']))
 
+    @property
+    def samples(self):
+        return self.dynesty['samples']
+
+    @property
+    def weights(self):
+        results = self.dynesty
+        return np.exp(results['logwt'] - logsumexp(results['logwt']))
+
     def get_equal_samples(self, burn=0, trim=0, max_logl=None):
         if max_logl is None:
             max_logl = self.max_logl
@@ -271,10 +299,18 @@ class ResultsPlotter(object):
         weights = np.exp(results['logwt'] - logsumexp(results['logwt']))
         return dyfunc.resample_equal(samples, weights)
 
+    @property
+    def equal_samples(self):
+        return self._equal_samples
+
     def get_chains(self):
         return self.df[self.params]
 
-    def means(self, burn=0, trim=0, max_logl=None):
+    @property
+    def means(self):
+        return dyfunc.mean_and_cov(self.samples, self.weights)[0]
+    
+    def get_means(self, burn=0, trim=0, max_logl=None):
         if max_logl is None:
             max_logl = self.max_logl
         kwargs = {'burn': burn,
@@ -285,7 +321,11 @@ class ResultsPlotter(object):
         means, _ = dyfunc.mean_and_cov(samples, weights)
         return means
 
-    def cov(self, burn=0, trim=0, max_logl=None):
+    @property
+    def cov(self):
+        return dyfunc.mean_and_cov(self.samples, self.weights)[1]
+
+    def get_cov(self, burn=0, trim=0, max_logl=None):
         if max_logl is None:
             max_logl = self.max_logl
         kwargs = {'burn': burn,
@@ -296,11 +336,48 @@ class ResultsPlotter(object):
         _, cov = dyfunc.mean_and_cov(samples, weights)
         return cov
 
-    def stds(self, burn=0, trim=0, max_logl=None):
+    @property
+    def stds(self):
+        cov = self.cov
+        return np.sqrt([cov[i, i] for i in range(self.n_params)])
+    
+    def get_stds(self, burn=0, trim=0, max_logl=None):
         if max_logl is None:
             max_logl = self.max_logl
-        cov = self.cov(burn=burn, trim=trim, max_logl=max_logl)
+        cov = self.get_cov(burn=burn, trim=trim, max_logl=max_logl)
         return np.sqrt([cov[i, i] for i in range(self.n_params)])
+
+    @property
+    def medians(self):
+        samples = self.equal_samples
+        return np.percentile(samples, 50., axis=0)
+    
+    def get_medians(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
+        kwargs = {'burn': burn,
+                  'trim': trim,
+                  'max_logl': max_logl}
+        samples = self.get_equal_samples(**kwargs)
+        return np.percentile(samples, 50., axis=0)
+
+    @property
+    def lower_upper(self):
+        samples = self.equal_samples
+        upper = np.percentile(samples, 84., axis=0)
+        lower = np.percentile(samples, 16., axis=0)
+        return lower, upper
+
+    def get_lower_upper(self, burn=0, trim=0, max_logl=None):
+        if max_logl is None:
+            max_logl = self.max_logl
+        kwargs = {'burn': burn,
+                  'trim': trim,
+                  'max_logl': max_logl}
+        samples = self.get_equal_samples(**kwargs)
+        upper = np.percentile(samples, 84., axis=0)
+        lower = np.percentile(samples, 16., axis=0)
+        return lower, upper
 
     @property
     def best_params(self):
@@ -339,8 +416,8 @@ class ResultsPlotter(object):
             kwargs['span'] = [[results['samples'][:, i].min(),
                                results['samples'][:, i].max()] for i in range(self.n_params)]
         else:
-            means = self.means(**dynesty_kwargs)
-            stds = self.stds(**dynesty_kwargs)
+            means = self.get_means(**dynesty_kwargs)
+            stds = self.get_stds(**dynesty_kwargs)
             kwargs['span'] = [[means[i] - max(5*stds[i], 1e-3),
                                means[i] + max(5*stds[i], 1e-3)] for i in range(self.n_params)]
         kwargs.update(traceplot_kwargs)
@@ -452,8 +529,8 @@ class ResultsPlotter(object):
             kwargs['hist_kwargs']['histtype'] = 'step'
         datamins = [results['samples'][:, i].min() for i in range(self.n_params)]
         datamaxs = [results['samples'][:, i].max() for i in range(self.n_params)]
-        means = self.means(**dynesty_kwargs)
-        stds = self.stds(**dynesty_kwargs)
+        means = self.get_means(**dynesty_kwargs)
+        stds = self.get_stds(**dynesty_kwargs)
         postmins = [means[i] - max(5*stds[i], 1e-1) for i in range(self.n_params)]
         postmaxs = [means[i] + max(5*stds[i], 1e-1) for i in range(self.n_params)]
 
@@ -482,6 +559,8 @@ class ResultsPlotter(object):
             return
         sfh_indices = np.array([self.params.index(k) for k in self.sfh_model._param_names])
         if (burn == 0) and (trim == 0) and (max_logl is None):
+            samples = self.get_samples()
+        elif np.isclose(width, 100.) and (show_prior is False):
             samples = self.get_samples()
         else:
             samples = self.get_equal_samples(burn=burn, trim=trim,
@@ -586,6 +665,8 @@ class ResultsPlotter(object):
         sfh_indices = np.array([self.params.index(k) for k in self.sfh_model._param_names])
         if (burn == 0) and (trim == 0) and (max_logl is None):
             samples = self.get_samples()
+        elif np.isclose(width, 100.) and (show_prior is False):
+            samples = self.get_samples()
         else:
             samples = self.get_equal_samples(burn=burn, trim=trim,
                                              max_logl=max_logl)
@@ -676,6 +757,61 @@ class ResultsPlotter(object):
             ax.legend(((line, fill), prior, truth), ('Posterior', 'Prior', 'Truth'), loc=0)
         return ax, (line, error, fill, truth, prior)
 
+    def plot_errorbars(self, axes, trim=0, burn=0, max_logl=None,
+                       x=0, medians=True, offsets=None, **error_kwargs):
+        if len(axes) < self.n_params:
+            axes = list(axes) + [None]*(self.n_params - len(axes))
+        if offsets is None:
+            offsets = np.array([0.]*self.n_params)
+        if len(offsets) < self.n_params:
+            offsets = np.append(offsets, [0.]*len(self.n_params, len(offsets)))
+        kwargs = {'marker': 'o',
+                  'ms': 10,
+                  'capsize': 6,
+                  'ls': ''}
+        kwargs.update(error_kwargs)
+        if medians:
+            ys = self.get_medians(trim=trim, burn=burn, max_logl=max_logl)
+            yerrs = list(self.get_lower_upper(trim=trim, burn=burn,
+                                              max_logl=max_logl))
+            yerrs[0] = ys - yerrs[0]
+            yerrs[1] = yerrs[1] - ys
+            ys -= offsets
+        else:
+            ys = self.get_means(trim=trim, burn=burn, max_logl=max_logl) - offsets
+            yerrs = [self.get_stds(trim=trim, burn=burn, max_logl=max_logl)]*2
+        for i, a in enumerate(axes):
+            if a is None:
+                continue
+            a.errorbar(x=[x], y=[ys[i]], yerr=[[yerrs[0][i]], [yerrs[1][i]]],
+                       **kwargs)
+        return axes
+
+    def plot_violin(self, axes, trim=0, burn=0, max_logl=None,
+                    x=0, offsets=None, color=None, **violin_kwargs):
+        if len(axes) < self.n_params:
+            axes = list(axes) + [None]*(self.n_params - len(axes))
+        if offsets is None:
+            offsets = np.array([0.]*self.n_params)
+        if len(offsets) < self.n_params:
+            offsets = np.append(offsets, [0.]*len(self.n_params, len(offsets)))
+        kwargs = {'showmedians': True,
+                  'showmeans': False,
+                  'showextrema': False,
+                  'points': 100,
+                  'widths': 0.5}
+        kwargs.update(violin_kwargs)
+        ys = self.equal_samples
+        for i, a in enumerate(axes):
+            if a is None:
+                continue
+            violins = a.violinplot([ys[:, i] - offsets[i]], positions=[x],
+                                   **kwargs)
+            if color is not None:
+                for pc in violins['bodies']:
+                    pc.set_color(color)
+        return axes
+    
     def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
                         corner_kwargs=None, **all_kwargs):
         if chain_kwargs is None:
