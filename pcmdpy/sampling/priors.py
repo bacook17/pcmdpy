@@ -139,8 +139,6 @@ class FlatPrior(object):
             raise ValueError('len(params) must '
                              'equal {0:d}. Instead is '
                              '{1:d}'.format(self.ndim, len(params)))
-        if np.any(params < self.lower_bounds) or np.any(params > self.upper_bounds):
-            raise ValueError('Parameters outside acceptable range')
         return (params - self.lower_bounds) / self.widths
         
 

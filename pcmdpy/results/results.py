@@ -12,7 +12,7 @@ from ..galaxy.galaxy import CustomGalaxy
 from dynesty import utils as dyfunc
 from dynesty import plotting as dyplot
 from dynesty.results import Results
-from dynesty import DynamicNestedSampler
+from dynesty.dynamicsampler import DynamicSampler
 
 
 class ResultsPlotter(object):
@@ -28,6 +28,7 @@ class ResultsPlotter(object):
         if max_logl is not None:
             self._max_logl = max_logl
         self.df['live'] = False
+        self.live_included = False
 
         if live_file is not None:
             try:
@@ -833,7 +834,7 @@ class ResultsPlotter(object):
         return (chain_axes, axes, (corner_fig, corner_axes))
         
     def restart_sampler(self, sampler, pri_inv_trans):
-        dynamic = isinstance(sampler, DynamicNestedSampler)
+        dynamic = isinstance(sampler, DynamicSampler)
         N = int(np.sum(~self.df.live))
         N_live = int(np.sum(self.df.live))
         sampler.it = N
@@ -841,8 +842,10 @@ class ResultsPlotter(object):
         sampler.ubound_eff = 0.0
         sampler.ubound_ncall = 0
         sampler.saved_id = [0 for _ in range(N)]
-        sampler.saved_u = [pri_inv_trans(v) for v in self.samples[:N]]
-        sampler.saved_v = list(self.samples[:N])
+        N_p = self.gal_model._num_params
+        params = self.params[:N_p]
+        sampler.saved_v = list(self.df[params][~self.df.live].values)
+        sampler.saved_u = [pri_inv_trans(v) for v in sampler.saved_v]
         sampler.saved_logl = list(self.df.logl[~self.df.live])
         sampler.saved_logvol = list(self.df.logvol[~self.df.live])
         sampler.saved_logwt = list(self.df.logwt[~self.df.live])
@@ -874,6 +877,3 @@ class ResultsPlotter(object):
             sampler.base_n = [N_live for _ in range(N)]
             sampler.base_bounditer = sampler.saved_bounditer
             sampler.base_scale = sampler.saved_scale
-            
-            
-            

@@ -90,8 +90,22 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
     if continue_run:
         from ..results.results import ResultsPlotter
         original_res = ResultsPlotter(out_file, live_file=live_file,
-                                      max_logl=-np.inf)
+                                      max_logl=np.inf)
         original_res.restart_sampler(sampler, prior.inverse_prior_transform)
+        # Remove live points from results, if already saved
+        N_live = len(live_df)
+        df_prev = pd.read_csv(out_file, comment='#')
+        with open(out_file, 'r') as f:
+            max_logl_line = f.readline()
+        if (df_prev.nc.tail(N_live) == 1.0).mean() >= 0.95:
+            df_prev.to_csv(out_file, mode='w', index=False,
+                           float_format='%.4e')
+            if 'max_logl' in max_logl_line:
+                with open(out_file, 'r') as f:
+                    text = f.read()
+                with open(out_file, 'w') as f:
+                    f.write(max_logl_line)
+                    f.write(text)
 
     logger = ResultsLogger(sampler, out_file, out_df=out_df,
                            live_file=live_file,
