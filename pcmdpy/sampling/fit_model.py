@@ -68,7 +68,11 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
             samples_v = live_df[param_names].values
             samples_u = np.array([prior.inverse_prior_transform(v) for v in samples_v])
             logls = live_df[['logl']].values
-            sampler_kwargs['live_points'] = [samples_u, samples_v, logls]
+            if dynamic:
+                run_kwargs['live_points'] = [samples_u, samples_v, logls]
+                run_kwargs['reset_on_start'] = False
+            else:
+                sampler_kwargs['live_points'] = [samples_u, samples_v, logls]
             print('Restarting from Existing File')
         except FileNotFoundError:
             continue_run = False
@@ -144,6 +148,8 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
 def get_sampler(gal_model, driv, Nim, prior=None, dynamic=False,
                 sampler_seed=1234, sampler_kwargs={}, **logl_kwargs):
     ndim = gal_model._num_params
+    if prior is None:
+        prior = gal_model.get_flat_prior()
     logl_args = (driv, Nim, prior.lnprior, gal_model)
     logl_kwargs['downsample'] = logl_kwargs.get('downsample', 5)
     logl_kwargs['mag_system'] = logl_kwargs.get('mag_system', 'vega')
