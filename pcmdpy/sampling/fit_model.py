@@ -5,6 +5,7 @@ import numpy as np
 from ..isochrones import Isochrone_Model
 from ..simulation.driver import Driver
 from .logging import ResultsLogger
+import pandas as pd
 import dynesty
 
 
@@ -65,9 +66,10 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
         try:
             live_df = pd.read_csv(live_file)
             samples_v = live_df[param_names].values
-            samples_u = np.array([prior.prior_transform(v) for v in samples_v])
+            samples_u = np.array([prior.inverse_prior_transform(v) for v in samples_v])
             logls = live_df[['logl']].values
             sampler_kwargs['live_points'] = [samples_u, samples_v, logls]
+            print('Restarting from Existing File')
         except FileNotFoundError:
             continue_run = False
 
