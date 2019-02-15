@@ -57,12 +57,10 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
     if prior is None:
         prior = gal_model.get_flat_prior()
 
-    if (out_df is not None) and (out_file is not None) and not continue_run:
-        print('-Saving initial results dataframe')
-        out_df.to_csv(out_file, index=False, float_format='%.4e')
-
-    if continue_run and (live_file is not None):
-        from ..results.results import ResultsPlotter
+    if (live_file is None) or (out_file is None):
+        continue_run = False
+        
+    if continue_run:
         # Load the most recently saved live points and continue running from there
         try:
             live_df = pd.read_csv(live_file)
@@ -71,7 +69,12 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
             logls = live_df[['logl']].values
             sampler_kwargs['live_points'] = [samples_u, samples_v, logls]
         except FileNotFoundError:
-            pass
+            continue_run = False
+
+    if (out_df is not None) and (out_file is not None):
+        if (not continue_run):
+            print('-Saving initial results dataframe')
+            out_df.to_csv(out_file, index=False, float_format='%.4e')
 
     logl_kwargs['downsample'] = downsample
     logl_kwargs['mag_system'] = mag_system
@@ -81,6 +84,12 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
                           sampler_seed=sampler_seed,
                           sampler_kwargs=sampler_kwargs,
                           **logl_kwargs)
+
+    if continue_run:
+        from ..results.results import ResultsPlotter
+        original_res = ResultsPlotter(out_file, live_file=live_file,
+                                      max_logl=-np.inf)
+        original_res.restart_sampler(sampler, prior.inverse_prior_transform)
 
     logger = ResultsLogger(sampler, out_file, out_df=out_df,
                            live_file=live_file,

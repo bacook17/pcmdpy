@@ -12,6 +12,7 @@ from ..galaxy.galaxy import CustomGalaxy
 from dynesty import utils as dyfunc
 from dynesty import plotting as dyplot
 from dynesty.results import Results
+from dynesty import DynamicNestedSampler
 
 
 class ResultsPlotter(object):
@@ -831,3 +832,48 @@ class ResultsPlotter(object):
         corner_fig, corner_axes = self.plot_corner(**corner_kwargs)
         return (chain_axes, axes, (corner_fig, corner_axes))
         
+    def restart_sampler(self, sampler, pri_inv_trans):
+        dynamic = isinstance(sampler, DynamicNestedSampler)
+        N = int(np.sum(~self.df.live))
+        N_live = int(np.sum(self.df.live))
+        sampler.it = N
+        sampler.ncall = int(self.df.nc[~self.df.live].sum())
+        sampler.ubound_eff = 0.0
+        sampler.ubound_ncall = 0
+        sampler.saved_id = [0 for _ in range(N)]
+        sampler.saved_u = [pri_inv_trans(v) for v in self.samples[:N]]
+        sampler.saved_v = list(self.samples[:N])
+        sampler.saved_logl = list(self.df.logl[~self.df.live])
+        sampler.saved_logvol = list(self.df.logvol[~self.df.live])
+        sampler.saved_logwt = list(self.df.logwt[~self.df.live])
+        sampler.saved_logz = list(self.df.logz[~self.df.live])
+        sampler.saved_logzvar = list(self.df.logzerr[~self.df.live]**2)
+        sampler.saved_h = list(self.df.h[~self.df.live])
+        sampler.saved_nc = list(self.df.nc[~self.df.live].astype(int))
+        sampler.saved_boundidx = [0 for _ in range(N)]
+        sampler.saved_it = [0 for _ in range(N)]
+        sampler.saved_bounditer = [0 for _ in range(N)]
+        sampler.saved_scale = [1. for _ in range(N)]
+        if dynamic:
+            sampler.base = False
+            sampler.saved_batch = [0 for _ in range(N)]
+            sampler.saved_batch_nlive = [N_live]
+            sampler.saved_batch_bounds = [(-np.inf, np.inf)]
+            sampler.base_id = sampler.saved_id
+            sampler.base_u = sampler.saved_u
+            sampler.base_v = sampler.saved_v
+            sampler.base_logl = sampler.saved_logl
+            sampler.base_logvol = sampler.saved_logvol
+            sampler.base_logwt = sampler.saved_logwt
+            sampler.base_logz = sampler.saved_logz
+            sampler.base_logzvar = sampler.saved_logzvar
+            sampler.base_h = sampler.saved_h
+            sampler.base_nc = sampler.saved_nc
+            sampler.base_boundix = sampler.saved_boundidx
+            sampler.base_it = sampler.saved_it
+            sampler.base_n = [N_live for _ in range(N)]
+            sampler.base_bounditer = sampler.saved_bounditer
+            sampler.base_scale = sampler.saved_scale
+            
+            
+            
