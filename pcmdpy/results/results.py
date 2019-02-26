@@ -839,8 +839,9 @@ class ResultsPlotter(object):
         N_live = int(np.sum(self.df.live))
         sampler.it = N
         sampler.ncall = int(self.df.nc[~self.df.live].sum())
-        sampler.ubound_eff = 0.0
-        sampler.ubound_ncall = 0
+        sampler.ubound_eff = 1e5
+        sampler.ubound_ncall = -1
+        sampler.since_update = sampler.ncall
         sampler.saved_id = [0 for _ in range(N)]
         N_p = self.gal_model._num_params
         params = self.params[:N_p]
