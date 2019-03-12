@@ -4,6 +4,7 @@
 import numpy as np
 from scipy.misc import logsumexp
 from astropy.io import fits
+import os, sys
 
 
 # A module to create various utility functions
@@ -134,3 +135,40 @@ class DataSet(object):
         return images, (ymin, ymax, xmin, xmax)
 
     
+class PrintRedirect:
+    """
+    Returns a context within which all stdout is redirected
+    """
+    
+    def __init__(self, logfile=None):
+        self._original_stdout = sys.stdout
+        if logfile is None:
+            self.logfile = os.devnull
+        else:
+            self.logfile = logfile
+            
+    def __enter__(self):
+        sys.stdout = open(self.logfile, 'a')
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
+
+
+class RegularPrint:
+    """
+    Context within print behaves as usual
+    """
+
+    def __init__(self):
+        pass
+    
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+
+

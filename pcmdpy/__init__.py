@@ -1,7 +1,7 @@
 __all__ = ['priors', 'logging', 'gpu_utils', 'utils', 'driver',
            'fit_model', 'galaxy', 'instrument', 'isochrones', 'plotting',
            'results', 'metalmodels', 'agemodels', 'dustmodels',
-           'distancemodels', 'sfhmodels', '__version__']
+           'distancemodels', 'sfhmodels', 'data', '__version__']
 
 from .simulation import gpu_utils
 from . import instrument
@@ -13,6 +13,7 @@ from .sampling import (fit_model, priors, logging)
 from .utils import (utils)
 from .plotting import (plotting)
 from .results import (results)
+from . import data
 
 GPU_AVAIL = gpu_utils._GPU_AVAIL
 GPU_ACTIVE = gpu_utils._GPU_ACTIVE

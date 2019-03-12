@@ -5,6 +5,7 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
            'ACS_WFC_F814W', 'ACS_WFC_F850LP',
            'm31_filter_sets', 'm49_filter_sets', 'm51_filter_sets',
            'default_m31_filters', 'default_m49_filters', 'default_m51_filters',
+           'default_NGC3377_filters', 'AVAILABLE_FILTERS',
            'm31_summer_filters', 'm31_winter_filters']
 
 """Define classes for Filters and other similar objects"""
@@ -236,7 +237,16 @@ class ACS_WFC_F850LP(Filter):
         args.update(kwargs)
         super().__init__(**args)
 
+        
+AVAILABLE_FILTERS = {
+    'F435W': ACS_WFC_F435W,
+    'F475W': ACS_WFC_F475W,
+    'F555W': ACS_WFC_F555W,
+    'F814W': ACS_WFC_F814W,
+    'F850LP': ACS_WFC_F850LP,
+}
 
+        
 m31_filter_sets = [ACS_WFC_F814W, ACS_WFC_F475W]
 m51_filter_sets = [ACS_WFC_F814W, ACS_WFC_F555W, ACS_WFC_F435W]
 m49_filter_sets = [ACS_WFC_F850LP, ACS_WFC_F475W]
@@ -272,6 +282,20 @@ def default_m49_filters():
     filts += [ACS_WFC_F475W(exposure=375., zpt_vega=26.1746,
                             zpt_ab=26.0820, zpt_st=25.7713)]
     return filts
+
+
+def default_NGC3377_filters():
+    red = ACS_WFC_F850LP(
+        exposure=3005.0,
+        zpt_vega=24.3512,
+        zpt_ab=24.8770,
+        zpt_st=25.9650)
+    blue = ACS_WFC_F475W(
+        exposure=1380.0,
+        zpt_vega=26.1702,
+        zpt_ab=26.0776,
+        zpt_st=25.7668)
+    return [red, blue]
 
 
 def m31_narrow_psf(alpha_F814W=1.147, alpha_F475W=1.109):
