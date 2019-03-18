@@ -2,9 +2,11 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
+           'ACS_WFC_F606W',
            'ACS_WFC_F814W', 'ACS_WFC_F850LP',
            'm31_filter_sets', 'm49_filter_sets', 'm51_filter_sets',
            'default_m31_filters', 'default_m49_filters', 'default_m51_filters',
+           'default_m87_filters', 'default_NGC4993_filters',
            'default_NGC3377_filters', 'AVAILABLE_FILTERS',
            'm31_summer_filters', 'm31_winter_filters']
 
@@ -191,6 +193,29 @@ class ACS_WFC_F555W(Filter):
         super().__init__(**args)
 
 
+class ACS_WFC_F606W(Filter):
+    """Return a Filter with HST F606W default params
+    Arguments:
+    Output: Filter with default F606W attributes
+    """
+    def __init__(self, **kwargs):
+        args = {}
+        # set defaults
+        args['exposure'] = 3500.
+        args['zpt_vega'] = 26.4187  # see filter_setup.ipynb
+        args['zpt_ab'] = 26.5116
+        args['zpt_st'] = 26.6808
+        args['red_per_ebv'] = 2.471
+        args['psf'] = PSF_Model.from_fits('ACS_WFC_F606W')
+        args['name'] = "F606W"
+        args['tex_name'] = r"V$_{606}$"
+        args['MIST_column'] = "ACS_WFC_F606W"
+        args['MIST_column_alt'] = "Vmag"
+        # update with manual entries
+        args.update(kwargs)
+        super().__init__(**args)
+
+
 class ACS_WFC_F814W(Filter):
     """Return a Filter with HST F814W default params
     Arguments:
@@ -242,6 +267,7 @@ AVAILABLE_FILTERS = {
     'F435W': ACS_WFC_F435W,
     'F475W': ACS_WFC_F475W,
     'F555W': ACS_WFC_F555W,
+    'F606W': ACS_WFC_F606W,
     'F814W': ACS_WFC_F814W,
     'F850LP': ACS_WFC_F850LP,
 }
@@ -278,10 +304,31 @@ def default_m51_filters():
 
 
 def default_m49_filters():
-    filts = [ACS_WFC_F850LP()]
-    filts += [ACS_WFC_F475W(exposure=375., zpt_vega=26.1746,
-                            zpt_ab=26.0820, zpt_st=25.7713)]
-    return filts
+    red = ACS_WFC_F850LP(
+        exposure=1120.,
+        zpt_vega=24.3530,
+        zpt_ab=24.8788,
+        zpt_st=25.9668)
+    blue = ACS_WFC_F475W(
+        exposure=750.,
+        zpt_vega=26.1746,
+        zpt_ab=26.0820,
+        zpt_st=25.7713)
+    return [red, blue]
+
+
+def default_m87_filters():
+    red = ACS_WFC_F814W(
+        exposure=2880.,
+        zpt_vega=25.5274,
+        zpt_ab=25.9556,
+        zpt_st=26.7919)
+    blue = ACS_WFC_F606W(
+        exposure=3500.,
+        zpt_vega=26.4187,
+        zpt_ab=26.5116,
+        zpt_st=26.6808)
+    return [red, blue]
 
 
 def default_NGC3377_filters():
@@ -295,6 +342,20 @@ def default_NGC3377_filters():
         zpt_vega=26.1702,
         zpt_ab=26.0776,
         zpt_st=25.7668)
+    return [red, blue]
+
+
+def default_NGC4993_filters():
+    red = ACS_WFC_F850LP(
+        exposure=680.
+        zpt_vega=24.3316,
+        zpt_ab=24.8573,
+        zpt_st=25.9444)
+    blue = ACS_WFC_F475W(
+        exposure=1395.,
+        zpt_vega=26.1477,
+        zpt_ab=26.0552,
+        zpt_st=25.7448)
     return [red, blue]
 
 

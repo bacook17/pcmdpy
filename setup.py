@@ -62,7 +62,8 @@ setup(
     cmdclass={'clean': CleanCommand},
     install_requires=[
         'numpy', 'scipy', 'pandas', 'matplotlib', 'astropy', 'dynesty',
-        'corner', 'sklearn', 'memory_profiler'
+        'corner', 'sklearn', 'memory_profiler', 'pyregion', 'drizzlepac',
+        'tqdm', 'sep'
     ],
     python_requires='>=3',
     extras_require={"GPU": ['pycuda']},

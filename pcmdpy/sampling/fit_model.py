@@ -37,6 +37,7 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
                      dynamic=False, out_df=None, out_file=None, live_file=None,
                      save_every=10, param_names=None, prior=None,
                      compute_maxlogl=True, continue_run=False,
+                     save_final_pcmd=True,
                      sampler_seed=1234, sampler_kwargs={}, run_kwargs={},
                      downsample=5, mag_system='vega', **logl_kwargs):
     # Default sampler arguments
@@ -123,10 +124,10 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
         print('-Saving final results dataframe')
         logger.flush_to_csv()
 
+    logl = sampler.results['logl']
+    best_params = sampler.results['samples'][logl.argmax()]
     if compute_maxlogl:
         print('-Computing Max Logl')
-        logl = sampler.results['logl']
-        best_params = sampler.results['samples'][logl.argmax()]
         logl_kwargs.pop('fixed_seed', False)
         logls = [lnlike(best_params, driv, Nim, prior.lnprior,
                         gal_model, fixed_seed=False, **logl_kwargs) for _ in range(100)]
@@ -141,6 +142,13 @@ def nested_integrate(pcmd, filters, Nim, gal_model,
             with open(out_file, 'w') as f:
                 f.write('# max_logl : {:.3e}\n'.format(logl_max))
                 f.write(text)
+
+    if save_final_pcmd:
+        gal_model.set_params(best_params)
+        pcmd, _ = driv.simulate(gal_model, Nim, fixed_seed=False,
+                                **logl_kwargs)
+        np.savetxt(out_file.replace('.csv', '.pcmd'), pcmd.T, fmt='%.6f',
+                   delimiter=' ')
 
     return sampler
 
