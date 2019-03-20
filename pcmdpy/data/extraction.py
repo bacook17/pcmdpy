@@ -8,14 +8,16 @@ from .utils import filter_from_fits
 from ..instrument.filter import Filter
 
 
-def compute_regions(image_file, region_file):
+def compute_regions(image_file, region_file, xc=None, yc=None):
     with fits.open(image_file) as hdulist:
         header = hdulist[0].header
         shape = hdulist['SCI'].shape
         Y, X = np.mgrid[:shape[0], :shape[1]]
         d = hdulist['SCI'].data
-        [yc], [xc] = np.where(d == np.max(d[~np.isnan(d)]))
         good_pixels = (hdulist['FLAGS'].data == 0)
+        max_val = np.max(d[~np.isnan(d) & good_pixels])
+        if (xc is None) or (yc is None):
+            [yc], [xc] = np.where(d == max_val)
     Q1 = (Y >= yc) & (X >= xc)
     Q2 = (Y >= yc) & (X < xc)
     Q3 = (Y < yc) & (X < xc)
@@ -37,10 +39,11 @@ def compute_regions(image_file, region_file):
 
 
 def add_regions(input_dict, region_file,
-                base_filter=None):
+                base_filter=None, xc=None, yc=None):
     all_filters = list(input_dict.keys())
     filt = base_filter or all_filters[0]
-    regions_matrix = compute_regions(input_dict[filt], region_file)
+    regions_matrix = compute_regions(input_dict[filt], region_file,
+                                     xc=xc, yc=yc)
     reg_hdu = fits.ImageHDU(data=regions_matrix)
     reg_hdu.header['EXTNAME'] = 'REGIONS'
     h = reg_hdu.header
@@ -51,9 +54,10 @@ def add_regions(input_dict, region_file,
         with fits.open(input_dict[f], mode='update') as h:
             h[0].header['REGIONS'] = 'COMPLETE'
             h.insert(2, reg_hdu)
-
+    return regions_matrix
 
 def save_pcmds(input_dict, red_filter, blue_filter,
+               min_points=1,
                mag_system='vega', path='./', name_append='region_'):
     if path[-1] != '/':
         path += '/'
@@ -81,10 +85,11 @@ def save_pcmds(input_dict, red_filter, blue_filter,
         mag = red_mags[mask]
         color = blue_mags[mask] - mag
         to_use = (~np.isnan(mag)) & (~np.isnan(color))
-        pcmds[i] = np.array([mag[to_use], color[to_use]])
-        header = '{:s} mags\n# Region {:d}\n'.format(mag_system, i)
-        header += '{:s} {:s}-{:s}\n'.format(red.name, blue.name, red.name)
-        filename = path + name_append + '_{:d}.pcmd'.format(i)
-        np.savetxt(filename, pcmds[i].T, fmt='%.6f', delimiter=' ',
-                   header=header)
+        if np.sum(to_use) >= min_points:
+            pcmds[i] = np.array([mag[to_use], color[to_use]])
+            header = '{:s} mags\n# Region {:d}\n'.format(mag_system, i)
+            header += '{:s} {:s}-{:s}\n'.format(red.name, blue.name, red.name)
+            filename = path + name_append + '_{:d}.pcmd'.format(i)
+            np.savetxt(filename, pcmds[i].T, fmt='%.6f', delimiter=' ',
+                       header=header)
     return pcmds

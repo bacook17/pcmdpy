@@ -324,7 +324,7 @@ def default_m87_filters():
         zpt_ab=25.9556,
         zpt_st=26.7919)
     blue = ACS_WFC_F606W(
-        exposure=3500.,
+        exposure=3000.,
         zpt_vega=26.4187,
         zpt_ab=26.5116,
         zpt_st=26.6808)

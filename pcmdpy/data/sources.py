@@ -26,7 +26,7 @@ def estimate_background(image_file, bkg_kwargs={}):
     bkg_hdu.header['EXTNAME'] = 'BKGD'
     rms_hdu = fits.ImageHDU(data=bkg.rms())
     rms_hdu.header['EXTNAME'] = 'BKGDRMS'
-    sub_hdu = fits.ImageHDU(data=(image - bkg.back()))
+    sub_hdu = fits.ImageHDU(data=(image / bkg.back()))
     sub_hdu.header['EXTNAME'] = 'BKGDSUB'
     for h in [bkg_hdu.header, rms_hdu.header, sub_hdu.header, hdulist['FLAGS'].header]:
         h.add_history('SExtractor Background Params:')
