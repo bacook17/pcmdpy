@@ -8,7 +8,8 @@ from .utils import filter_from_fits
 from ..instrument.filter import Filter
 
 
-def compute_regions(image_file, region_file, xc=None, yc=None):
+def compute_regions(image_file, region_file, xc=None, yc=None,
+                    do_quadrants=True):
     with fits.open(image_file) as hdulist:
         header = hdulist[0].header
         shape = hdulist['SCI'].shape
@@ -24,26 +25,29 @@ def compute_regions(image_file, region_file, xc=None, yc=None):
     Q4 = (Y < yc) & (X >= xc)
     regions = pyregion.open(region_file).as_imagecoord(header=header)
     matrix = np.zeros(shape, dtype=np.float32)
-    for i in tqdm(range(len(regions) - 1)):
+    for i in tqdm(range(len(regions))):
         mask = regions[i:i+1].get_mask(shape=shape)
         matrix[mask] += 1.0
-    matrix[Q2] += 0.25
-    matrix[Q3] += 0.5
-    matrix[Q4] += 0.75
-    matrix *= 4.0
-    matrix = np.round(matrix, decimals=0).astype(np.int32)
-    matrix -= 3
+    if do_quadrants:
+        matrix[Q2] += 0.25
+        matrix[Q3] += 0.5
+        matrix[Q4] += 0.75
+        matrix *= 4.0
+        matrix = np.round(matrix, decimals=0).astype(np.int32)
+        matrix -= 3
+    else:
+        matrix = np.round(matrix, decimals=0).astype(np.int32)
     matrix[matrix <= 0] = 0
     matrix[~good_pixels] = -1
     return matrix
 
 
 def add_regions(input_dict, region_file,
-                base_filter=None, xc=None, yc=None):
+                base_filter=None, xc=None, yc=None, do_quadrants=True):
     all_filters = list(input_dict.keys())
     filt = base_filter or all_filters[0]
     regions_matrix = compute_regions(input_dict[filt], region_file,
-                                     xc=xc, yc=yc)
+                                     xc=xc, yc=yc, do_quadrants=do_quadrants)
     reg_hdu = fits.ImageHDU(data=regions_matrix)
     reg_hdu.header['EXTNAME'] = 'REGIONS'
     h = reg_hdu.header

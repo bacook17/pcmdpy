@@ -7,7 +7,8 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
            'm31_filter_sets', 'm49_filter_sets', 'm51_filter_sets',
            'default_m31_filters', 'default_m49_filters', 'default_m51_filters',
            'default_m87_filters', 'default_ngc4993_filters',
-           'default_ngc3377_filters', 'AVAILABLE_FILTERS',
+           'default_ngc3377_filters', 'default_df2_filters',
+           'AVAILABLE_FILTERS',
            'm31_summer_filters', 'm31_winter_filters']
 
 """Define classes for Filters and other similar objects"""
@@ -356,6 +357,20 @@ def default_ngc4993_filters():
         zpt_vega=26.1477,
         zpt_ab=26.0552,
         zpt_st=25.7448)
+    return [red, blue]
+
+
+def default_df2_filters():
+    red = ACS_WFC_F814W(
+        exposure=2320.,
+        zpt_vega=25.5163,
+        zpt_ab=25.9442,
+        zpt_st=26.7998)
+    blue = ACS_WFC_F606W(
+        exposure=2180.,
+        zpt_vega=26.4044,
+        zpt_ab=26.4977,
+        zpt_st=26.6679)
     return [red, blue]
 
 
