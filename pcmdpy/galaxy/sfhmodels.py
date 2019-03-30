@@ -301,6 +301,7 @@ class SSPModel(BaseSFHModel):
         """
         if initial_params is None:
             initial_params = np.array([0.0, 10.0])
+        self.iso_step = iso_step
         self.set_params(initial_params)
         super().__init__()
         
