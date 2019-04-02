@@ -159,6 +159,7 @@ def seed_getter_fixed(N, value=None):
 
 def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
                     dust_mean, dust_std, d_states, fixed_seed=False, tolerance=0,
+                    fudge_mag=0.0,
                     d_block=_MAX_2D_BLOCK_DIM, **kwargs):
     assert _GPU_ACTIVE, (
         "Can\'t use GPU implementation: _GPU_ACTIVE set to False, "
@@ -182,9 +183,12 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
     block_dim = (int(d_block), int(d_block), 1)
     grid_dim = (int(Nim//d_block + 1), int(Nim//d_block + 1))
 
+    Npix_fudge_factor = 10.**(fudge_mag) - 1.0
+    
     # draw stars behind dust screen
     poisson_sum_gpu(d_states, d_expected_nums, d_fluxes, np.float32(dust_frac),
                     np.int32(N_bands), np.int32(N_bins), np.int32(Nim),
+                    np.float32(Npix_fudge_factor),
                     cuda.Out(result_behind), block=block_dim, grid=grid_dim)
 
     # draw stars in front of dust screen
@@ -192,6 +196,7 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
         poisson_sum_gpu(d_states, d_expected_nums, d_fluxes,
                         np.float32(1. - dust_frac), np.int32(N_bands),
                         np.int32(N_bins), np.int32(Nim),
+                        np.float32(Npix_fudge_factor),
                         cuda.Out(result_front), block=block_dim, grid=grid_dim)
 
     if fixed_seed:
@@ -206,7 +211,7 @@ def _draw_image_gpu(expected_nums, fluxes, Nim, filters, dust_frac,
 
 
 def _draw_image_numpy(expected_nums, fluxes, Nim, filters, dust_frac,
-                      dust_mean, dust_std, d_states=None, fixed_seed=False, tolerance=-1., **kwargs):
+                      dust_mean, dust_std, fudge_mag=0.0, d_states=None, fixed_seed=False, tolerance=-1., **kwargs):
     N_bins = len(expected_nums)
     assert (N_bins == fluxes.shape[1]), (
         "fluxes.shape[1] should match number of bins")
@@ -221,7 +226,12 @@ def _draw_image_numpy(expected_nums, fluxes, Nim, filters, dust_frac,
 
     realiz_front = np.zeros((Nim, Nim, N_bins))
     realiz_behind = np.zeros((Nim, Nim, N_bins))
-    if not np.isinf(upper_lim):
+    if fudge_mag >= 1e-5:
+        fudge_Npix = 10.**(0.4*fudge_mag)
+        random_Npix = np.random.uniform(1.0, fudge_Npix, size=(Nim, Nim, 1))
+        expected_nums = (expected_nums * random_Npix)
+        assert expected_nums.shape == (Nim, Nim, N_bins)
+    if np.isinf(upper_lim):
         realiz_front = np.random.poisson(lam=expected_nums*(1. - dust_frac), size=(Nim, Nim, N_bins))
         realiz_behind = np.random.poisson(lam=expected_nums*dust_frac, size=(Nim, Nim, N_bins))
     else:

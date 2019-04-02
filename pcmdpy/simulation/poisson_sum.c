@@ -1,8 +1,9 @@
 #include <curand_kernel.h>
+#include <math.h>
 
 extern "C"
 {
-  __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float multiplier, const int num_bands, const int num_bins, const int Nim, float *pixels)
+  __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float multiplier, const int num_bands, const int num_bins, const int Nim,const float Npix_fudge, float *pixels)
   {
     /* Initialize variables */
     int id_imx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -21,9 +22,13 @@ extern "C"
     
     float flux;
     int count;
+    float Npix_factor;
     
     if ((id_imx < Nim) && (id_imy < Nim)) {
       local_state = global_state[id_pix];
+      /* Generate random number from 1 to Npix_fudge_factor */
+      Npix_factor = 1.0 + (curand_uniform(&local_state) * Npix_fudge);
+      multiplier *= Npix_factor;
       for (int i = 0; i < num_bins; i++){
 	count = curand_poisson(&local_state, exp_nums[i] * multiplier);
 	for (int f = 0; f < num_bands; f++){
