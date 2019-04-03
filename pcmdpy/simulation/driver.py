@@ -134,6 +134,7 @@ class Driver:
             
     def simulate(self, gal_model, Nim, psf=True, fixed_seed=False,
                  shot_noise=True, sky_noise=None, downsample=5,
+                 fudge_mag=0.0,
                  mag_system='vega', lum_cut=np.inf, **kwargs):
         if self.gpu_on:
             if Nim > self.max_Nim:
@@ -155,6 +156,7 @@ class Driver:
 
         images = gpu_utils.draw_image(IMF, fluxes, Nim, self.filters,
                                       dust_frac, dust_mean, dust_std,
+                                      fudge_mag=fudge_mag,
                                       d_states=states, gpu=self.gpu_on,
                                       fixed_seed=fixed_seed,
                                       **kwargs)
