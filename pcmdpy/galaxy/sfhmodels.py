@@ -92,13 +92,16 @@ class NonParam(BaseSFHModel):
     _params = np.array([None, None, None, None, None])
 
     def __init__(self, initial_params=None, iso_step=0.2,
-                 sfh_edges=None):
+                 sfh_edges=None, iso_edges=None):
         self.iso_step = iso_step
-        if iso_step > 0:
-            # construct list of ages, given isochrone spacing
-            self.iso_edges = np.arange(6.0, 10.3, iso_step)
+        if iso_edges is None:
+            if iso_step > 0:
+                # construct list of ages, given isochrone spacing
+                self.iso_edges = np.arange(6.0, 10.3, iso_step)
+            else:
+                self.iso_edges = self.default_SFH_edges
         else:
-            self.iso_edges = self.default_SFH_edges
+            self.iso_edges = iso_edges
         self.update_sfh_edges(sfh_edges if sfh_edges is not None else self.default_SFH_edges)
         assert np.all(np.isclose(self.overlap_matrix.sum(axis=1), 1.0)), (
             "The sums over the overlap matrix should all be near 1")
@@ -110,7 +113,8 @@ class NonParam(BaseSFHModel):
     def copy(self):
         return NonParam(initial_params=self._params,
                         iso_step=self.iso_step,
-                        sfh_edges=self.sfh_edges)
+                        sfh_edges=self.sfh_edges,
+                        iso_edges=self.iso_edges)
     
     @property
     def _deltat_sfh(self):
@@ -150,11 +154,13 @@ class NonParam(BaseSFHModel):
         self.sfh_edges = new_edges
         self.overlap_matrix = _build_overlap_matrix(10.**self.sfh_edges,
                                                     10.**self.iso_edges)
+        self.set_params(np.zeros(self._num_params))
         
     def update_edges(self, new_edges):
         self.iso_edges = new_edges
         self.overlap_matrix = _build_overlap_matrix(10.**self.sfh_edges,
                                                     10.**self.iso_edges)
+        self.set_params(self._params)
         
     def as_NonParam(self):
         # transform current SFH into original SFH bins
