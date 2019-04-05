@@ -117,6 +117,7 @@ class Isochrone_Model:
                    and array of metallicities.
     """
     def __init__(self, filters, MIST_path=None, iso_append=".iso.cmd",
+                 rotating=False,
                  mag_system='vega', dm_interp=-1):
         """Creates a new Isochrone_Model, given a list of Filter objects
         
@@ -130,7 +131,10 @@ class Isochrone_Model:
 
         # Locate MIST files
         if MIST_path is None:
-            MIST_path = resource_filename('pcmdpy', 'isochrones/MIST_v1.2/')
+            if rotating:
+                MIST_path = resource_filename('pcmdpy', 'isochrones/MIST_v1.2_rot/')
+            else:
+                MIST_path = resource_filename('pcmdpy', 'isochrones/MIST_v1.2/')
         
         # Import all MIST model files into Pandas dataframe
         self.MIST_df = pd.DataFrame()

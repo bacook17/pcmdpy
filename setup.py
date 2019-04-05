@@ -55,6 +55,7 @@ setup(
     description="""Tools for modelling crowded-field photometry using the
        Pixel Color-Magnitude Diagram technique""",
     package_data={'pcmdpy': ['isochrones/MIST_v1.2/*',
+                             'isochrones/MIST_v1.2_rot/*',
                              'instrument/PSFs/*.fits', 'simulation/*.c']},
     scripts=['bin/run_pcmdpy', 'bin/run_pcmdpy_twostage',
              'bin/pcmd_integrate', 'bin/pcmd_integrate_twostage'],

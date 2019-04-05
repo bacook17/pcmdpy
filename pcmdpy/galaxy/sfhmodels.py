@@ -106,7 +106,7 @@ class NonParam(BaseSFHModel):
         assert np.all(np.isclose(self.overlap_matrix.sum(axis=1), 1.0)), (
             "The sums over the overlap matrix should all be near 1")
         if initial_params is None:
-            initial_params = np.zeros(self._num_params)
+            initial_params = np.zeros(self._num_params, dtype=float)
         self.set_params(initial_params)
         super().__init__()
 
@@ -142,6 +142,7 @@ class NonParam(BaseSFHModel):
         assert is_valid, ('sfh_params must be an array or list of length '
                           '{:d}, not {:d}'.format(self._num_params,
                                                   len(sfh_params)))
+        sfh_params = sfh_params.astype(float)
         self.SFH = np.dot(10.**sfh_params, self.overlap_matrix)
         assert np.isclose(self.Npix, np.sum(10.**sfh_params))
         self._params = sfh_params
@@ -202,7 +203,7 @@ class ConstantSFR(BaseSFHModel):
                                                       "ConstantSFR should be "
                                                       "length {:d}, not {:d}".format(self._num_params, len(sfh_params)))
             logNpix = logNpix[0]
-        self._params = np.array([logNpix])
+        self._params = np.array([logNpix], dtype=float)
 
     @property
     def SFH(self):
@@ -283,7 +284,7 @@ class RisingTau(BaseSFHModel):
         assert is_valid, ('sfh_params must be an array or list of length '
                           '{:d}, not {:d}'.format(self._num_params,
                                                   len(sfh_params)))
-        self._params = sfh_params
+        self._params = sfh_params.astype(float)
         
     @property
     def SFH(self):
@@ -324,7 +325,7 @@ class SSPModel(BaseSFHModel):
         Npix = 10.**sfh_params[0]
         self.SFH = np.array([Npix])
         self.iso_edges = np.array([-0.1, 0.1]) + sfh_params[1]
-        self._params = sfh_params
+        self._params = sfh_params.astype(float)
 
 
 all_sfh_models = [NonParam, TauModel, RisingTau,

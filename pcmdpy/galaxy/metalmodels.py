@@ -83,7 +83,7 @@ class SingleFeH(BaseMetalModel):
 
     @property
     def _params(self):
-        return np.array([self.feh_mean])
+        return np.array([self.feh_mean], dtype=float)
             
     def set_params(self, feh_params):
         if isinstance(feh_params, float) or isinstance(feh_params, int):
@@ -115,7 +115,7 @@ class NormMDF(BaseMetalModel):
 
     @property
     def _params(self):
-        return np.array([self.feh_mean, self.feh_sig])
+        return np.array([self.feh_mean, self.feh_sig], dtype=float)
 
     def set_params(self, feh_params):
         assert len(feh_params) == self._num_params, (
@@ -153,7 +153,7 @@ class FixedWidthNormMDF(NormMDF):
 
     @property
     def _params(self):
-        return np.array([self.feh_mean])
+        return np.array([self.feh_mean], dtype=float)
 
     def set_params(self, feh_params):
         if isinstance(feh_params, float) or isinstance(feh_params, int):
