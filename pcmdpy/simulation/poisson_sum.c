@@ -3,7 +3,7 @@
 
 extern "C"
 {
-  __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, const float multiplier, const int num_bands, const int num_bins, const int Nim,const float Npix_fudge, float *pixels)
+  __global__ void poisson_sum(curandState *global_state, const float *exp_nums, const float *fluxes, float multiplier, const int num_bands, const int num_bins, const int Nim, const float Npix_fudge, float *pixels)
   {
     /* Initialize variables */
     int id_imx = blockIdx.x*blockDim.x + threadIdx.x;

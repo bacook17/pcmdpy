@@ -267,7 +267,7 @@ class CustomGalaxy:
 
     @property
     def _num_params(self):
-        return len(self._params)
+        return self.p_total
 
     @property
     def _param_names(self):

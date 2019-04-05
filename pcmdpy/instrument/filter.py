@@ -8,6 +8,7 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
            'default_m31_filters', 'default_m49_filters', 'default_m51_filters',
            'default_m87_filters', 'default_ngc4993_filters',
            'default_ngc3377_filters', 'default_df2_filters',
+           'lowexp_m87_filters',
            'AVAILABLE_FILTERS',
            'm31_summer_filters', 'm31_winter_filters']
 
@@ -326,6 +327,20 @@ def default_m87_filters():
         zpt_st=26.7919)
     blue = ACS_WFC_F606W(
         exposure=3000.,
+        zpt_vega=26.4187,
+        zpt_ab=26.5116,
+        zpt_st=26.6808)
+    return [red, blue]
+
+
+def lowexp_m87_filters():
+    red = ACS_WFC_F814W(
+        exposure=2880.*0.95,
+        zpt_vega=25.5274,
+        zpt_ab=25.9556,
+        zpt_st=26.7919)
+    blue = ACS_WFC_F606W(
+        exposure=3000.*0.95,
         zpt_vega=26.4187,
         zpt_ab=26.5116,
         zpt_st=26.6808)
