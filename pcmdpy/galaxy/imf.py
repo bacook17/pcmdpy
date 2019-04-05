@@ -32,6 +32,7 @@ def kroupa_num(alpha_lower=-1.3, alpha_upper=-2.3, min_mass=0.1,
                  np.power(min_mass, alpha_lower+1)) / (alpha_lower + 1)
     num_upper = (np.power(max_mass, alpha_upper+1) -
                  np.power(break_mass, alpha_upper+1)) / (alpha_upper+1)
+    num_upper *= (break_mass)**(alpha_lower - alpha_upper)  # scale terms to equal at break_mass
     return num_lower + num_upper
 
 
@@ -53,7 +54,7 @@ def salpeter_IMF(mass, alpha=-2.35, lower=0.1, upper=300.,
     return imf
 
 
-def kroupa_IMF(mass, alpha_lower=-1.3, alpha_upper=-2.3, lower=0.08,
+def kroupa_IMF(mass, alpha_lower=-1.3, alpha_upper=-2.3, lower=0.1,
                upper=300., break_mass=0.5, norm_by_mass=False, **kwargs):
     mids = 0.5 * (mass[1:] + mass[:-1])  # midpoints between masses
     m_low = np.append([mass[0]], mids)  # (lowest bin stays same)
@@ -62,7 +63,9 @@ def kroupa_IMF(mass, alpha_lower=-1.3, alpha_upper=-2.3, lower=0.08,
                  np.power(m_low, alpha_lower+1)) / (alpha_lower + 1)
     imf_upper = (np.power(m_high, alpha_upper+1) -
                  np.power(m_low, alpha_upper+1)) / (alpha_upper + 1)
+    imf_upper *= (break_mass)**(alpha_lower - alpha_upper)  # scale terms to equal at break_mass
     imf = imf_lower
+    
     imf[mass >= break_mass] = imf_upper[mass >= break_mass]
     imf[mass < lower] = 0.
     min_mass = max(lower, mass[0])

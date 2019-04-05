@@ -548,9 +548,10 @@ class ResultsPlotter(object):
         fig, axes = dyplot.cornerplot(results, **kwargs)
         return fig, axes
 
-    def plot_sfr(self, width=68., ax=None, title=False, all_ages=True,
+    def plot_sfr(self, width=68., ax=None, title=False, all_ages=False,
                  burn=0, trim=0, max_logl=None, show_truth=True,
                  true_model=None, show_prior=True, legend=True,
+                 color=None, show_bars=False,
                  line_kwargs={}, error_kwargs={}, fill_kwargs={},
                  truth_kwargs={}, prior_kwargs={}):
         if max_logl is None:
@@ -582,7 +583,7 @@ class ResultsPlotter(object):
         med = np.percentile(SFRs, 50., axis=0)
         upper = np.percentile(SFRs, 50. + 0.5*width, axis=0)
         lower = np.percentile(SFRs, 50. - 0.5*width, axis=0)
-        color = plt.rcParams.get('lines.color', 'k')
+        color = color or plt.rcParams.get('lines.color', 'k')
         is_dark = (color == 'w')
         kwargs = {'color': color,
                   'alpha': 0.6 if is_dark else 0.3,
@@ -595,6 +596,7 @@ class ResultsPlotter(object):
                   'capsize': 10,
                   'marker': '',
                   'ms': 8,
+                  'alpha': (1.0 if show_bars else 0.0),
                   'ls': ''}
         kwargs.update(error_kwargs)
         error = ax.errorbar(x=ages, y=med, yerr=[med-lower, upper-med], **kwargs)
@@ -654,9 +656,10 @@ class ResultsPlotter(object):
             ax.legend(((line, fill), prior, truth), ('Posterior', 'Prior', 'Truth'), loc=0)
         return ax, (line, error, fill, truth, prior)
     
-    def plot_cum_sfh(self, width=68., ax=None, title=False, all_ages=True,
+    def plot_cum_sfh(self, width=68., ax=None, title=False, all_ages=False,
                      burn=0, trim=0, max_logl=None, legend=True,
                      show_truth=True, true_model=None, show_prior=True,
+                     color=None, show_bars=False,
                      line_kwargs={}, error_kwargs={}, fill_kwargs={},
                      truth_kwargs={}, prior_kwargs={}):
         if max_logl is None:
@@ -688,7 +691,7 @@ class ResultsPlotter(object):
         med = np.percentile(cum_sfhs, 50., axis=0)
         upper = np.percentile(cum_sfhs, 50. + 0.5*width, axis=0)
         lower = np.percentile(cum_sfhs, 50. - 0.5*width, axis=0)
-        color = plt.rcParams.get('lines.color', 'k')
+        color = color or plt.rcParams.get('lines.color', 'k')
         is_dark = (color == 'w')
         kwargs = {'color': color,
                   'alpha': 0.6 if is_dark else 0.3,
@@ -700,6 +703,7 @@ class ResultsPlotter(object):
         kwargs = {'color': color,
                   'capsize': 10,
                   'marker': '',
+                  'alpha': (1.0 if show_bars else 0.0),
                   'ms': 8,
                   'ls': ''}
         kwargs.update(error_kwargs)

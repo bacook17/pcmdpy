@@ -54,7 +54,7 @@ class SingleDust(BaseDustModel):
     
     @property
     def _params(self):
-        return np.array([self.mu_dust])
+        return np.array([self.mu_dust], dtype=float)
 
     def set_params(self, dust_params):
         if isinstance(dust_params, float) or isinstance(dust_params, int):
@@ -83,7 +83,7 @@ class LogNormDust(BaseDustModel):
 
     @property
     def _params(self):
-        return np.array([self.mu_dust, self.sig_dust])
+        return np.array([self.mu_dust, self.sig_dust], dtype=float)
 
     def set_params(self, dust_params):
         assert len(dust_params) == self._num_params, (
@@ -112,7 +112,7 @@ class FixedWidthLogNormDust(LogNormDust):
 
     @property
     def _params(self):
-        return np.array([self.mu_dust])
+        return np.array([self.mu_dust], dtype=float)
 
     def set_params(self, dust_params):
         if isinstance(dust_params, float) or isinstance(dust_params, int):

@@ -4,6 +4,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.lines as mlines
 from ..utils.utils import make_hess
 from ..simulation.driver import Driver
 from dynesty.plotting import _hist2d as dyhist
@@ -80,7 +81,7 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
 
 def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
                        title=None, keep_limits=False, color=None, alpha=1.0,
-                       fill_contours=False, **hist_kwargs):
+                       fill_contours=False, label=None, **hist_kwargs):
     """
     Returns
     -------
@@ -107,6 +108,11 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
     kwargs['contour_kwargs'] = hist_kwargs.pop('contour_kwargs', {})
     kwargs['contour_kwargs']['alpha'] = alpha
     kwargs.update(hist_kwargs)
+    legend_line = mlines.Line2D(
+        [], [], color=color, ls=kwargs['contour_kwargs'].get('ls', '-'),
+        alpha=kwargs['contour_kwargs'].get('alpha', 1.0),
+        label=label,
+    )
     for i, a in enumerate(ax):
         xl = a.get_xlim()
         yl = a.get_ylim()
@@ -117,6 +123,8 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
         if keep_limits:
             a.set_xlim([min(xl), max(xl)])
             a.set_ylim([max(yl), min(yl)])
+        if label is not None:
+            a.lines.append(legend_line)
     if title is not None:
         ax[0].set_title(title)
     return (fig, ax)
@@ -182,7 +190,9 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
 
 
 def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
-                   mag_system=None, update_axes=True, downsample=5, **kwargs):
+                   mag_system=None, update_axes=True, downsample=5,
+                   label=False,
+                   **kwargs):
     if axes is None:
         import matplotlib.pyplot as plt
         fig, axes = plt.subplots(ncols=(iso_model.num_filters-1), sharey=True)
@@ -192,12 +202,18 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
                               dmod=dmod)
     names = iso_model.filter_names
     for age, feh, _, d_mod in gal_model.iter_SSPs():
+        if (label is True):
+            a_label = f'age:{age:.1f}, feh:{feh:.1f}'
+        elif (label is False):
+            a_label = None
+        else:
+            a_label = label
         mags, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system,
                                              downsample=downsample)
         mags += d_mod
         if iso_model.num_filters == 2:
             axes.plot(mags[1]-mags[0], mags[0], 'k-',
-                      label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
+                      label=a_label,
                       **kwargs)
             if update_axes:
                 axes.set_xlabel('{0:s} - {1:s}'.format(names[1], names[0]),
@@ -208,7 +224,7 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
         else:
             for i, ax in enumerate(axes):
                 ax.plot(mags[i+1]-mags[i], mags[0], 'k-',
-                        label='age:{0:.1f}, feh:{1:.1f}'.format(age, feh),
+                        label=label,
                         **kwargs)
                 if update_axes:
                     ax.set_xlabel('{0:s} - {1:s}'.format(names[i+1], names[i]),
