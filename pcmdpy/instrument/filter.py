@@ -304,45 +304,63 @@ def default_m51_filters():
     return [f() for f in m51_filter_sets]
 
 
-def default_m49_filters():
+def default_m49_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
+    psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
+                                     narrow_alpha=alpha_F850LP)
+    psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
+                                    narrow_alpha=alpha_F475W)
     red = ACS_WFC_F850LP(
         exposure=1120.,
         zpt_vega=24.3530,
         zpt_ab=24.8788,
-        zpt_st=25.9668)
+        zpt_st=25.9668,
+        psf=psf_f850lp)
     blue = ACS_WFC_F475W(
         exposure=750.,
         zpt_vega=26.1746,
         zpt_ab=26.0820,
-        zpt_st=25.7713)
+        zpt_st=25.7713,
+        psf=psf_f475w)
     return [red, blue]
 
 
-def default_m87_filters():
+def default_m87_filters(alpha_F814W=1.0, alpha_F606W=1.0):
+    psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
+                                    narrow_alpha=alpha_F814W)
+    psf_f606w = PSF_Model.from_fits('ACS_WFC_F606W',
+                                    narrow_alpha=alpha_F606W)
     red = ACS_WFC_F814W(
         exposure=2880.,
         zpt_vega=25.5274,
         zpt_ab=25.9556,
-        zpt_st=26.7919)
+        zpt_st=26.7919,
+        psf=psf_f814w)
     blue = ACS_WFC_F606W(
         exposure=3000.,
         zpt_vega=26.4187,
         zpt_ab=26.5116,
-        zpt_st=26.6808)
+        zpt_st=26.6808,
+        psf=psf_f606w)
     return [red, blue]
 
 
-def default_ngc3377_filters():
+def default_ngc3377_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
+    psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
+                                     narrow_alpha=alpha_F850LP)
+    psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
+                                    narrow_alpha=alpha_F475W)
     red = ACS_WFC_F850LP(
         exposure=3005.0,
         zpt_vega=24.3512,
         zpt_ab=24.8770,
-        zpt_st=25.9650)
+        zpt_st=25.9650,
+        psf=psf_f850lp)
     blue = ACS_WFC_F475W(
         exposure=1380.0,
         zpt_vega=26.1702,
         zpt_ab=26.0776,
-        zpt_st=25.7668)
+        zpt_st=25.7668,
+        psf=psf_f475w)
     return [red, blue]
 
 
@@ -383,5 +401,3 @@ def m31_narrow_psf(alpha_F814W=1.147, alpha_F475W=1.109):
     filts.append(ACS_WFC_F814W(exposure=3235., psf=psf_f814w))
     filts.append(ACS_WFC_F475W(exposure=3620., psf=psf_f475w))
     return filts
-
-
