@@ -86,6 +86,10 @@ class BaseSFHModel:
     def update_edges(self, new_edges):
         self.iso_edges = new_edges
 
+    @property
+    def mean_age(self):
+        return np.average(self.ages, weights=self.SFH)
+    
 
 class NonParam(BaseSFHModel):
 

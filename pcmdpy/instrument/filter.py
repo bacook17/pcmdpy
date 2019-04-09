@@ -305,19 +305,20 @@ def default_m51_filters():
     return [f() for f in m51_filter_sets]
 
 
-def default_m49_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
+def default_m49_filters(exp_ratio=0.95,
+                        alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
     psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
                                     narrow_alpha=alpha_F475W)
     red = ACS_WFC_F850LP(
-        exposure=1120.,
+        exposure=1120.*exp_ratio,
         zpt_vega=24.3530,
         zpt_ab=24.8788,
         zpt_st=25.9668,
         psf=psf_f850lp)
     blue = ACS_WFC_F475W(
-        exposure=750.,
+        exposure=750.*exp_ratio,
         zpt_vega=26.1746,
         zpt_ab=26.0820,
         zpt_st=25.7713,
@@ -325,19 +326,20 @@ def default_m49_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
     return [red, blue]
 
 
-def default_m87_filters(alpha_F814W=1.0, alpha_F606W=1.0):
+def default_m87_filters(exp_ratio=0.95,
+        alpha_F814W=1.0, alpha_F606W=1.0):
     psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
                                     narrow_alpha=alpha_F814W)
     psf_f606w = PSF_Model.from_fits('ACS_WFC_F606W',
                                     narrow_alpha=alpha_F606W)
     red = ACS_WFC_F814W(
-        exposure=2880.,
+        exposure=2880.*exp_ratio,
         zpt_vega=25.5274,
         zpt_ab=25.9556,
         zpt_st=26.7919,
         psf=psf_f814w)
     blue = ACS_WFC_F606W(
-        exposure=3000.,
+        exposure=3000.*exp_ratio,
         zpt_vega=26.4187,
         zpt_ab=26.5116,
         zpt_st=26.6808,
@@ -345,33 +347,34 @@ def default_m87_filters(alpha_F814W=1.0, alpha_F606W=1.0):
     return [red, blue]
 
 
-def lowexp_m87_filters():
-    red = ACS_WFC_F814W(
-        exposure=2880.*0.95,
-        zpt_vega=25.5274,
-        zpt_ab=25.9556,
-        zpt_st=26.7919)
-    blue = ACS_WFC_F606W(
-        exposure=3000.*0.95,
-        zpt_vega=26.4187,
-        zpt_ab=26.5116,
-        zpt_st=26.6808)
-    return [red, blue]
+# def lowexp_m87_filters():
+#     red = ACS_WFC_F814W(
+#         exposure=2880.*0.95,
+#         zpt_vega=25.5274,
+#         zpt_ab=25.9556,
+#         zpt_st=26.7919)
+#     blue = ACS_WFC_F606W(
+#         exposure=3000.*0.95,
+#         zpt_vega=26.4187,
+#         zpt_ab=26.5116,
+#         zpt_st=26.6808)
+#     return [red, blue]
 
 
-def default_ngc3377_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
+def default_ngc3377_filters(exp_ratio=0.95,
+        alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
     psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
                                     narrow_alpha=alpha_F475W)
     red = ACS_WFC_F850LP(
-        exposure=3005.0,
+        exposure=3005.0*exp_ratio,
         zpt_vega=24.3512,
         zpt_ab=24.8770,
         zpt_st=25.9650,
         psf=psf_f850lp)
     blue = ACS_WFC_F475W(
-        exposure=1380.0,
+        exposure=1380.0*exp_ratio,
         zpt_vega=26.1702,
         zpt_ab=26.0776,
         zpt_st=25.7668,
@@ -379,28 +382,28 @@ def default_ngc3377_filters(alpha_F850LP=1.0, alpha_F475W=1.0):
     return [red, blue]
 
 
-def default_ngc4993_filters():
+def default_ngc4993_filters(exp_ratio=0.95,):
     red = ACS_WFC_F850LP(
-        exposure=680.,
+        exposure=680.*exp_ratio,
         zpt_vega=24.3316,
         zpt_ab=24.8573,
         zpt_st=25.9444)
     blue = ACS_WFC_F475W(
-        exposure=1395.,
+        exposure=1395.*exp_ratio,
         zpt_vega=26.1477,
         zpt_ab=26.0552,
         zpt_st=25.7448)
     return [red, blue]
 
 
-def default_df2_filters():
+def default_df2_filters(exp_ratio=0.95):
     red = ACS_WFC_F814W(
-        exposure=2320.,
+        exposure=2320.*exp_ratio,
         zpt_vega=25.5163,
         zpt_ab=25.9442,
         zpt_st=26.7998)
     blue = ACS_WFC_F606W(
-        exposure=2180.,
+        exposure=2180.*exp_ratio,
         zpt_vega=26.4044,
         zpt_ab=26.4977,
         zpt_st=26.6679)

@@ -159,11 +159,12 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         bins = np.append([mag_bins], [color_bins for _ in range(1, n_bands)])
     driv_temp.initialize_data(pcmd_model, bins=bins)
     if like_mode in [1, 2, 3]:
-        loglike = driv_temp.loglike_map(pcmd_compare, like_mode=like_mode)
+        loglike = driv_temp.loglike_map(pcmd_compare, like_mode=like_mode,
+                                        signed=True)
     else:
         counts_compare, _, _ = make_hess(pcmd_compare, bins)
         loglike = driv_temp.counts_data - counts_compare
-    loglike_max = np.max(loglike)
+    loglike_max = np.max(np.abs(loglike))
     if norm is None:
         kwargs = {'linthresh': 10.}
         kwargs.update(cbar_kwargs)
@@ -185,7 +186,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         if keep_limits:
             a.set_xlim([min(xl), max(xl)])
             a.set_ylim([max(yl), min(yl)])
-        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(loglike)))
+        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(np.abs(loglike))))
     return ax, loglike, bins, norm
 
 
