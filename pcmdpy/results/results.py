@@ -17,16 +17,16 @@ from dynesty.dynamicsampler import DynamicSampler
 
 class ResultsPlotter(object):
     def __init__(self, df_file, max_logl=None, live_file=None, gal_model=None,
-                 model_is_truth=False, run_name=None):
+                 model_is_truth=False, run_name=None, dmod_true=None):
         self.df = pd.read_csv(df_file, comment='#')
         with open(expanduser(df_file), 'r') as f:
             line = f.readline().strip()
         if 'max_logl' in line:
             self._max_logl = float(line.split(': ')[-1])
+        elif max_logl is not None:
+            self._max_logl = max_logl
         else:
             self._max_logl = None
-        if max_logl is not None:
-            self._max_logl = max_logl
         self.df['live'] = False
         self.live_included = False
 
@@ -101,6 +101,8 @@ class ResultsPlotter(object):
                     live_df['niter'] = np.arange(n_live) + self.df['niter'].max() + 1
                     self.df = self.df.append(live_df, ignore_index=True,
                                              sort=False)
+        if self.max_logl is None:
+            self._max_logl = self.df.logl.values[-10]
 
         self.gal_model = gal_model
         self.true_model = None
@@ -109,11 +111,12 @@ class ResultsPlotter(object):
         self.n_live = self.df['live'].sum()
         self.n_dead = self.n_iter - self.n_live
         self.true_params = None
-
+        
         if gal_model is not None:
             if model_is_truth:
                 self.true_model = self.gal_model
                 self.true_params = np.array(self.true_model._params)
+                self.dmod_true = self.true_model.dmod
 
         else:  # If no model provided, must guess the model used
             cols = self.df.columns
@@ -184,6 +187,13 @@ class ResultsPlotter(object):
                                              self.true_model.sfh_model.logNpix)
 
         self.n_params = len(self.params)
+        if (self.true_params is None) and (dmod_true is not None):
+            try:
+                dmod_index = self.params.index('dmod')
+                self.true_params = [None]*self.n_params
+                self.true_params[dmod_index] = dmod_true
+            except ValueError:
+                pass
 
         # weights defined by Dynesty
         self.df['log_weights'] = (self.df.logwt.values -
@@ -395,7 +405,8 @@ class ResultsPlotter(object):
         return gal
 
     def plot_trace(self, axes=None, burn=0, trim=0, max_logl=None, smooth=0.02,
-                   show_truth=True, full_range=False, **traceplot_kwargs):
+                   show_truth=True, full_range=False, tight=True,
+                   **traceplot_kwargs):
         """
         
         Returns
@@ -426,10 +437,12 @@ class ResultsPlotter(object):
         if (axes is not None) and (axes.shape == (self.n_params, 2)):
             kwargs['fig'] = (axes.flatten()[0].get_figure(), axes)
         fig, axes = dyplot.traceplot(results, **kwargs)
+        if tight:
+            fig.tight_layout();
         return fig, axes
 
     def plot_chains(self, axes=None, burn=0, title=None, dlogz=0.5,
-                    include_live=True, show_prior=True, chains_only=False,
+                    include_live=True, show_prior=False, chains_only=False,
                     plot_kwargs=None):
         nr = self.n_params + 3
         if chains_only:
@@ -481,7 +494,6 @@ class ResultsPlotter(object):
                                 ls=':')
                 axes[i].axhline(y=self.prior.upper_bounds[i], color='k',
                                 ls=':')
-
         if burn > 0:
             for ax in axes:
                 ax.axvline(x=burn, ls=':', color='k')
