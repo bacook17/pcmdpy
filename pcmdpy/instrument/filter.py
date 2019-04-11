@@ -8,7 +8,8 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
            'default_m31_filters', 'default_m49_filters', 'default_m51_filters',
            'default_m87_filters', 'default_ngc4993_filters',
            'default_ngc3377_filters', 'default_df2_filters',
-           'lowexp_m87_filters',
+           # 'lowexp_m87_filters',
+           'm87_filters_v2',
            'AVAILABLE_FILTERS',
            'm31_summer_filters', 'm31_winter_filters']
 
@@ -347,6 +348,27 @@ def default_m87_filters(exp_ratio=0.95,
     return [red, blue]
 
 
+def m87_filters_v2(exp_ratio=0.95,
+                   alpha_F814W=1.0, alpha_F475W=1.0):
+    psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
+                                    narrow_alpha=alpha_F814W)
+    psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
+                                    narrow_alpha=alpha_F475W)
+    red = ACS_WFC_F814W(
+        exposure=2880.*exp_ratio,
+        zpt_vega=25.5274,
+        zpt_ab=25.9556,
+        zpt_st=26.7919,
+        psf=psf_f814w)
+    blue = ACS_WFC_F475W(
+        exposure=750.*exp_ratio,
+        zpt_vega=26.1753,
+        zpt_ab=26.0828,
+        zpt_st=25.7720,
+        psf=psf_f475w)
+    return [red, blue]
+
+
 # def lowexp_m87_filters():
 #     red = ACS_WFC_F814W(
 #         exposure=2880.*0.95,
@@ -362,7 +384,7 @@ def default_m87_filters(exp_ratio=0.95,
 
 
 def default_ngc3377_filters(exp_ratio=0.95,
-        alpha_F850LP=1.0, alpha_F475W=1.0):
+                            alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
     psf_f475w = PSF_Model.from_fits('ACS_WFC_F475W',
