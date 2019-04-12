@@ -302,8 +302,25 @@ def m31_winter_filters(exp_F814W=3430.0,
     return filts
 
 
-def default_m51_filters():
-    return [f() for f in m51_filter_sets]
+def default_m51_filters(exp_ratio=1.0,
+                        alpha_F814W=1.0, alpha_F435W=1.0):
+    psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
+                                    narrow_alpha=alpha_F814W)
+    psf_f435w = PSF_Model.from_fits('ACS_WFC_F435W',
+                                    narrow_alpha=alpha_F435W)
+    red = ACS_WFC_F814W(
+        exposure=1360.*exp_ratio,
+        zpt_vega=25.5286,
+        zpt_ab=25.9568,
+        zpt_st=26.7930,
+        psf=psf_f814w)
+    blue = ACS_WFC_F435W(
+        exposure=2720.*exp_ratio,
+        zpt_vega=25.7889,
+        zpt_ab=25.6907,
+        zpt_st=25.1805,
+        psf=psf_f435w)
+    return [red, blue]
 
 
 def default_m49_filters(exp_ratio=0.95,
