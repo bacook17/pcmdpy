@@ -847,13 +847,13 @@ class ResultsPlotter(object):
             fig, axes = plt.subplots(ncols=self.n_params, nrows=self.n_params,
                                      figsize=(2*self.n_params, 2*self.n_params))
         fig, axes = self.plot_corner(axes=axes, **corner_kwargs)
-        gs = axes[0,0].get_gridspec()
+        gs = axes[0, 0].get_gridspec()
         for i in range(self.n_params):
             for j in range(self.n_params):
                 if j > i:
                     axes[i, j].remove()
         y = (self.n_params // 2) + 1
-        x = (self.n_params - 1 // 2)
+        x = (self.n_params - 1) // 2
         axbig = fig.add_subplot(gs[:x, y:])
         axbig, lines = self.plot_sfr(ax=axbig, **sfr_kwargs)
         return fig, axes, axbig, lines

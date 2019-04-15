@@ -2,6 +2,7 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 __all__ = ['BaseMetalModel', 'SingleFeH', 'NormMDF', 'FixedWidthNormMDF',
+           'ClosedBoxMDF',
            'get_metal_model', 'all_metal_models']
 
 import numpy as np
@@ -15,10 +16,12 @@ def get_metal_model(name, *args, **kwargs):
         return FixedWidthNormMDF(*args, **kwargs)
     elif name.lower() == 'norm':
         return NormMDF(*args, **kwargs)
+    elif 'closed' in name.lower():
+        return ClosedBoxMDF(*args, **kwargs)
     else:
         raise NotImplementedError(
             "given name {} not an acceptable metal model. Choose one of:\n"
-            "{}".format(name.lower(), ['single', 'fixedwidth', 'norm']))
+            "{}".format(name.lower(), ['single', 'fixedwidth', 'norm', 'closedbox']))
 
 
 class BaseMetalModel:
@@ -34,37 +37,6 @@ class BaseMetalModel:
     def _num_fehs(self):
         return len(self.fehs)
     
-    @classmethod
-    def compute_mdf(cls, feh_mean, feh_sig, etol=1e-2):
-        if feh_sig <= 0.:
-            return np.array([feh_mean]), np.array([1.])
-        else:
-            lower_feh = feh_mean - 1.0
-            upper_feh = feh_mean + 1.0
-            in_range = np.logical_and(cls.default_fehs >= lower_feh,
-                                      cls.default_fehs <= upper_feh)
-            assert (np.sum(in_range) > 0), (
-                "logfeh0 out of range (+/- 1 dex) of given fehs.")
-            fehs = cls.default_fehs[in_range]
-            weights = norm.pdf(fehs, loc=feh_mean,
-                               scale=feh_sig)
-            # this can happen if feh_sig is much smaller than default_fehs spacing
-            if np.isclose(np.sum(weights), 0.):
-                fehs = np.array([feh_mean])
-                weights = np.array([1.])
-            else:
-                weights /= np.sum(weights)
-                # remove bins with negligible weight
-                too_small = (weights < etol)
-                fehs = fehs[~too_small]
-                weights = weights[~too_small]
-                weights /= np.sum(weights)
-            assert len(fehs) == len(weights)
-            if len(fehs) <= 1:
-                return np.array([feh_mean]), np.array([1.])
-            else:
-                return fehs, weights
-
 
 class SingleFeH(BaseMetalModel):
 
@@ -123,13 +95,43 @@ class NormMDF(BaseMetalModel):
             "should be length {:d}".format(len(feh_params), self._num_params))
         self.feh_mean, self.feh_sig = feh_params
 
+    def _compute_mdf(self, etol=1e-2):
+        if self.feh_sig <= 0.:
+            return np.array([self.feh_mean]), np.array([1.])
+        else:
+            lower_feh = self.feh_mean - 1.0
+            upper_feh = self.feh_mean + 1.0
+            in_range = np.logical_and(self.default_fehs >= lower_feh,
+                                      self.default_fehs <= upper_feh)
+            assert (np.sum(in_range) > 0), (
+                "logfeh0 out of range (+/- 1 dex) of given fehs.")
+            fehs = self.default_fehs[in_range]
+            weights = norm.pdf(fehs, loc=self.feh_mean,
+                               scale=self.feh_sig)
+            # this can happen if feh_sig is much smaller than default_fehs spacing
+            if np.isclose(np.sum(weights), 0.):
+                fehs = np.array([self.feh_mean])
+                weights = np.array([1.])
+            else:
+                weights /= np.sum(weights)
+                # remove bins with negligible weight
+                too_small = (weights < etol)
+                fehs = fehs[~too_small]
+                weights = weights[~too_small]
+                weights /= np.sum(weights)
+            assert len(fehs) == len(weights)
+            if len(fehs) <= 1:
+                return np.array([self.feh_mean]), np.array([1.])
+            else:
+                return fehs, weights
+
     @property
     def fehs(self):
-        return self.compute_mdf(self.feh_mean, self.feh_sig)[0]
+        return self._compute_mdf()[0]
 
     @property
     def weights(self):
-        return self.compute_mdf(self.feh_mean, self.feh_sig)[1]
+        return self._compute_mdf()[1]
 
     def copy(self):
         return NormMDF(initial_params=[self.feh_mean, self.feh_sig])
@@ -166,5 +168,63 @@ class FixedWidthNormMDF(NormMDF):
     def copy(self):
         return FixedWidthNormMDF(initial_params=[self.feh_mean], sig=self.feh_sig)
 
+    
+class ClosedBoxMDF(BaseMetalModel):
+    _param_names = ['logfeh_scale']
+    _fancy_names = ['[Fe/H]']
+    _num_params = len(_param_names)
+    _default_prior_bounds = [[-3.0, 0.5]]
 
-all_metal_models = [SingleFeH, NormMDF, FixedWidthNormMDF]
+    feh_mean = None
+
+    def __init__(self, initial_params=None):
+        if initial_params is None:
+            initial_params = np.array([0.])
+        self.set_params(initial_params)
+
+    @property
+    def _params(self):
+        return np.array([self.feh_mean], dtype=float)
+
+    def set_params(self, feh_params):
+        if isinstance(feh_params, float) or isinstance(feh_params, int):
+            self.feh_mean = float(feh_params)
+        else:
+            assert len(feh_params) == self._num_params, (
+                'feh_params for ClosedBoxMDF is length {:d}, '
+                'should be length {:d}'.format(len(feh_params), self._num_params))
+        self.feh_mean = feh_params[0]
+
+    def _compute_mdf(self, etol=1e-2):
+        fehs = self.default_fehs
+        z = 10.**fehs
+        weights = z*np.exp(-z / 10.**self.feh_mean)
+        if np.isclose(np.sum(weights), 0.):
+            fehs = np.array([self.feh_mean])
+            weights = np.array([1.])
+        else:
+            weights /= np.sum(weights)
+            # remove bins with negligible weight
+            too_small = (weights < etol)
+            fehs = fehs[~too_small]
+            weights = weights[~too_small]
+            weights /= np.sum(weights)
+        assert len(fehs) == len(weights)
+        if len(fehs) <= 1:
+            return np.array([self.feh_mean]), np.array([1.])
+        else:
+            return fehs, weights
+        
+    @property
+    def fehs(self):
+        return self._compute_mdf()[0]
+
+    @property
+    def weights(self):
+        return self._compute_mdf()[1]
+
+    def copy(self):
+        return ClosedBoxMDF(initial_params=[self.feh_mean])
+    
+
+all_metal_models = [SingleFeH, NormMDF, FixedWidthNormMDF, ClosedBoxMDF]
