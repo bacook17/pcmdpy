@@ -831,6 +831,32 @@ class ResultsPlotter(object):
                 for pc in violins['bodies']:
                     pc.set_color(color)
         return axes
+
+    def plot_corner_sfr(self, axes=None, corner_kwargs={}, sfr_kwargs={}):
+        """
+        Plot corner plot with SFR in upper-right corner
+
+        Returns
+        -------
+        fig
+        axes
+        axbig (SFR)
+        lines (SFR)
+        """
+        if axes is None:
+            fig, axes = plt.subplots(ncols=self.n_params, nrows=self.n_params,
+                                     figsize=(2*self.n_params, 2*self.n_params))
+        fig, axes = self.plot_corner(axes=axes, **corner_kwargs)
+        gs = axes[0,0].get_gridspec()
+        for i in range(self.n_params):
+            for j in range(self.n_params):
+                if j > i:
+                    axes[i, j].remove()
+        y = (self.n_params // 2) + 1
+        x = (self.n_params - 1 // 2)
+        axbig = fig.add_subplot(gs[:x, y:])
+        axbig, lines = self.plot_sfr(ax=axbig, **sfr_kwargs)
+        return fig, axes, axbig, lines
     
     def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
                         corner_kwargs=None, **all_kwargs):
