@@ -81,7 +81,7 @@ def plot_pcmd(pcmd, bins=None, ax=None, norm=None, hist2d_kwargs={},
 
 def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
                        title=None, keep_limits=False, color=None, alpha=1.0,
-                       fill_contours=False, label=None, **hist_kwargs):
+                       fill_contours=False, label=None, ls='-', **hist_kwargs):
     """
     Returns
     -------
@@ -107,9 +107,10 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
               'color': color}
     kwargs['contour_kwargs'] = hist_kwargs.pop('contour_kwargs', {})
     kwargs['contour_kwargs']['alpha'] = alpha
+    kwargs['contour_kwargs']['linestyles'] = ls
     kwargs.update(hist_kwargs)
     legend_line = mlines.Line2D(
-        [], [], color=color, ls=kwargs['contour_kwargs'].get('ls', '-'),
+        [], [], color=color, ls=kwargs['contour_kwargs'].get('linestyles', '-'),
         alpha=kwargs['contour_kwargs'].get('alpha', 1.0),
         label=label,
     )
