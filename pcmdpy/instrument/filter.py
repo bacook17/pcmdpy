@@ -400,7 +400,7 @@ def m87_filters_v2(exp_ratio=0.95,
 #     return [red, blue]
 
 
-def default_ngc3377_filters(exp_ratio=0.95,
+def default_ngc3377_filters(exp_ratio=1.0,
                             alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
@@ -421,7 +421,7 @@ def default_ngc3377_filters(exp_ratio=0.95,
     return [red, blue]
 
 
-def default_ngc4993_filters(exp_ratio=0.95,):
+def default_ngc4993_filters(exp_ratio=1.0):
     red = ACS_WFC_F850LP(
         exposure=680.*exp_ratio,
         zpt_vega=24.3316,

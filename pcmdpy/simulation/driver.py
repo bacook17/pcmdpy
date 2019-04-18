@@ -134,7 +134,7 @@ class Driver:
             
     def simulate(self, gal_model, Nim, psf=True, fixed_seed=False,
                  shot_noise=True, sky_noise=None, downsample=5,
-                 fudge_mag=0.0, gain=1.0,
+                 fudge_mag=0.0, gain=1.0, dark_per_sec=0.0,
                  mag_system='vega', lum_cut=np.inf, **kwargs):
         if self.gpu_on:
             if Nim > self.max_Nim:
@@ -172,8 +172,11 @@ class Driver:
             else:
                 np.random.seed()
             # shot noise occurs at DN level, not e- level. Account for gain
+            dark_vals = np.array([f._exposure for f in self.filters]) * dark_per_sec
+            images = np.array([i + d for i,d in zip(images, dark_vals)])
             images = np.random.poisson(images / gain).astype(np.float32) * gain
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
+            images = np.array([i - d for i,d in zip(images, dark_vals)])
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
         pcmd = utils.make_pcmd(mags)
         
