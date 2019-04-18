@@ -421,7 +421,7 @@ def default_ngc3377_filters(exp_ratio=1.0,
     return [red, blue]
 
 
-def default_ngc4993_filters(exp_ratio=1.0,):
+def default_ngc4993_filters(exp_ratio=1.0):
     red = ACS_WFC_F850LP(
         exposure=680.*exp_ratio,
         zpt_vega=24.3316,
