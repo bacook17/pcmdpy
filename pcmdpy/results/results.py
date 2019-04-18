@@ -670,6 +670,7 @@ class ResultsPlotter(object):
     
     def plot_cum_sfh(self, width=68., ax=None, title=False, all_ages=False,
                      burn=0, trim=0, max_logl=None, legend=True,
+                     bulk_norm=False,
                      show_truth=True, true_model=None, show_prior=True,
                      color=None, show_bars=False,
                      line_kwargs={}, error_kwargs={}, fill_kwargs={},
@@ -697,7 +698,10 @@ class ResultsPlotter(object):
             model.set_params(samples[i, sfh_indices])
             SFHs.append(model.SFH)
         cum_sfhs = np.cumsum(SFHs, axis=1)
-        cum_sfhs /= np.mean(cum_sfhs[:, -1])  # normalize to mean 1
+        if bulk_norm:
+            cum_sfhs /= np.mean(cum_sfhs[:, -1])  # normalize to mean 1
+        else:
+            cum_sfhs = (cum_sfhs.T / cum_sfhs[:, -1]).T
         if ax is None:
             fig, ax = plt.subplots()
         med = np.percentile(cum_sfhs, 50., axis=0)
@@ -754,6 +758,7 @@ class ResultsPlotter(object):
                       'show_truth': False,
                       'title': False,
                       'legend': False,
+                      'bulk_norm': bulk_norm,
                       'line_kwargs': {'alpha': 0.},
                       'error_kwargs': {'alpha': 0.},
                       'fill_kwargs': {'alpha': 1.0,
@@ -832,8 +837,10 @@ class ResultsPlotter(object):
                     pc.set_color(color)
         return axes
 
-    def plot_corner_sfr(self, burn=0, trim=0, max_logl=None,
-                        axes=None, corner_kwargs={}, sfr_kwargs={}):
+    def plot_corner_sfh(self, burn=0, trim=0, max_logl=None,
+                        axes=None, cumulative=True,
+                        widths=[68., 95.],
+                        corner_kwargs={}, sfh_kwargs={}):
         """
         Plot corner plot with SFR in upper-right corner
 
@@ -841,8 +848,8 @@ class ResultsPlotter(object):
         -------
         fig
         axes
-        axbig (SFR)
-        lines (SFR)
+        axbig (SFH)
+        lines (SFH)
         """
         if axes is None:
             fig, axes = plt.subplots(ncols=self.n_params, nrows=self.n_params,
@@ -854,11 +861,19 @@ class ResultsPlotter(object):
             for j in range(self.n_params):
                 if j > i:
                     axes[i, j].remove()
-        y = (self.n_params // 2) + 1
-        x = (self.n_params - 1) // 2
-        axbig = fig.add_subplot(gs[:x, y:])
-        axbig, lines = self.plot_sfr(ax=axbig, burn=burn, trim=trim,
-                                     max_logl=max_logl, **sfr_kwargs)
+        x = (self.n_params // 2) + 1
+        y = (self.n_params // 2) - 1
+        axbig = fig.add_subplot(gs[:y, x:])
+        sfh_func = (self.plot_cum_sfh if cumulative else self.plot_sfr)
+        for w in widths:
+            kws = sfh_kwargs.copy()
+            if w != widths[-1]:
+                kws.update({
+                    'line_kwargs': {'alpha': 0.},
+                    'show_prior': False,
+                })
+            axbig, lines = sfh_func(ax=axbig, burn=burn, trim=trim,
+                                    max_logl=max_logl, width=w, **kws)
         return fig, axes, axbig, lines
     
     def plot_everything(self, chain_kwargs=None, cum_sfh_kwargs=None,
