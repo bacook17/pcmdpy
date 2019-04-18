@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.lines as mlines
-from ..utils.utils import make_hess
+from ..utils.utils import make_hess, mean_mags, make_pcmd, mean_mags_old
 from ..simulation.driver import Driver
 from dynesty.plotting import _hist2d as dyhist
 
@@ -133,6 +133,7 @@ def plot_pcmd_contours(pcmd, ax=None, smooth=0.01, sig_levels=[1, 2, 3, 4],
 
 def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
                        ax=None, norm=None, title='', keep_limits=False, im_kwargs={},
+                       old_ll=False,
                        cbar_kwargs={}):
     """
     Arguments
@@ -159,12 +160,26 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         color_bins = [np.min(combo[1:]), np.max(combo[1:])]
         bins = np.append([mag_bins], [color_bins for _ in range(1, n_bands)])
     driv_temp.initialize_data(pcmd_model, bins=bins)
+    if old_ll:
+        p1 = make_pcmd(mean_mags_old(pcmd_model))
+        p2 = make_pcmd(mean_mags_old(pcmd_compare))
+    else:
+        p1 = make_pcmd(mean_mags(pcmd_model))
+        p2 = make_pcmd(mean_mags(pcmd_compare))
+    var_mag = 0.05**2
+    var_color = 0.05**2
+    var_pcmd = np.append([var_mag],
+                         [var_color for _ in range(1, n_bands)])
+    mean_term = -1. * np.sum((p1 - p2)**2 /
+                             (2*var_pcmd))
     if like_mode in [1, 2, 3]:
         loglike = driv_temp.loglike_map(pcmd_compare, like_mode=like_mode,
                                         signed=True)
+        chi2 = np.sum(np.abs(loglike)) + mean_term
     else:
         counts_compare, _, _ = make_hess(pcmd_compare, bins)
         loglike = driv_temp.counts_data - counts_compare
+        chi2 = np.sum(np.abs(loglike))
     loglike_max = np.max(np.abs(loglike))
     if norm is None:
         kwargs = {'linthresh': 10.}
@@ -187,7 +202,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         if keep_limits:
             a.set_xlim([min(xl), max(xl)])
             a.set_ylim([max(yl), min(yl)])
-        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(np.sum(np.abs(loglike))))
+        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(chi2))
     return ax, loglike, bins, norm
 
 

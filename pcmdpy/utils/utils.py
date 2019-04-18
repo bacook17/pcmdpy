@@ -26,6 +26,13 @@ def pcmd_to_mags(pcmd):
 
 def mean_mags(pcmd):
     mags = pcmd_to_mags(pcmd)
+    mag_factor = 0.4 * np.log(10)  # convert from base 10 to base e
+    weights = float(1) / mags.shape[1]  # evenly weight each pixel
+    return logsumexp(mag_factor*mags, b=weights, axis=1)/mag_factor
+
+
+def mean_mags_old(pcmd):
+    mags = pcmd_to_mags(pcmd)
     mag_factor = -0.4 * np.log(10)  # convert from base 10 to base e
     weights = float(1) / mags.shape[1]  # evenly weight each pixel
     return logsumexp(mag_factor*mags, b=weights, axis=1)

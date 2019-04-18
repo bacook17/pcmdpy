@@ -323,7 +323,7 @@ def default_m51_filters(exp_ratio=1.0,
     return [red, blue]
 
 
-def default_m49_filters(exp_ratio=0.95,
+def default_m49_filters(exp_ratio=1.0,
                         alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
@@ -344,7 +344,7 @@ def default_m49_filters(exp_ratio=0.95,
     return [red, blue]
 
 
-def default_m87_filters(exp_ratio=0.95,
+def default_m87_filters(exp_ratio=1.0,
         alpha_F814W=1.0, alpha_F606W=1.0):
     psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
                                     narrow_alpha=alpha_F814W)
@@ -365,7 +365,7 @@ def default_m87_filters(exp_ratio=0.95,
     return [red, blue]
 
 
-def m87_filters_v2(exp_ratio=0.95,
+def m87_filters_v2(exp_ratio=1.0,
                    alpha_F814W=1.0, alpha_F475W=1.0):
     psf_f814w = PSF_Model.from_fits('ACS_WFC_F814W',
                                     narrow_alpha=alpha_F814W)
@@ -400,7 +400,7 @@ def m87_filters_v2(exp_ratio=0.95,
 #     return [red, blue]
 
 
-def default_ngc3377_filters(exp_ratio=0.95,
+def default_ngc3377_filters(exp_ratio=1.0,
                             alpha_F850LP=1.0, alpha_F475W=1.0):
     psf_f850lp = PSF_Model.from_fits('ACS_WFC_F850LP',
                                      narrow_alpha=alpha_F850LP)
@@ -421,7 +421,7 @@ def default_ngc3377_filters(exp_ratio=0.95,
     return [red, blue]
 
 
-def default_ngc4993_filters(exp_ratio=0.95,):
+def default_ngc4993_filters(exp_ratio=1.0,):
     red = ACS_WFC_F850LP(
         exposure=680.*exp_ratio,
         zpt_vega=24.3316,
@@ -435,7 +435,7 @@ def default_ngc4993_filters(exp_ratio=0.95,):
     return [red, blue]
 
 
-def default_df2_filters(exp_ratio=0.95):
+def default_df2_filters(exp_ratio=1.0):
     red = ACS_WFC_F814W(
         exposure=2320.*exp_ratio,
         zpt_vega=25.5163,

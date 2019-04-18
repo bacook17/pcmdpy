@@ -563,7 +563,7 @@ class ResultsPlotter(object):
     def plot_sfr(self, width=68., ax=None, title=False, all_ages=False,
                  burn=0, trim=0, max_logl=None, show_truth=True,
                  true_model=None, show_prior=True, legend=True,
-                 color=None, show_bars=False,
+                 color=None, show_bars=False, dark=False,
                  line_kwargs={}, error_kwargs={}, fill_kwargs={},
                  truth_kwargs={}, prior_kwargs={}):
         if max_logl is None:
@@ -596,9 +596,8 @@ class ResultsPlotter(object):
         upper = np.percentile(SFRs, 50. + 0.5*width, axis=0)
         lower = np.percentile(SFRs, 50. - 0.5*width, axis=0)
         color = color or plt.rcParams.get('lines.color', 'k')
-        is_dark = (color == 'w')
         kwargs = {'color': color,
-                  'alpha': 0.6 if is_dark else 0.3,
+                  'alpha': 0.6 if dark else 0.3,
                   'linewidth': 0}
         if fill_kwargs.pop('no_fill', False):
             kwargs.pop('color')
@@ -649,11 +648,11 @@ class ResultsPlotter(object):
                       'error_kwargs': {'alpha': 0.},
                       'fill_kwargs': {'alpha': 1.0,
                                       'no_fill': True,
-                                      'facecolor': 'k' if is_dark else 'w',
+                                      'facecolor': 'k' if dark else 'w',
                                       'zorder': -10,
                                       'linestyle': ':',
                                       'linewidth': 2,
-                                      'edgecolors': 'w' if is_dark else 'k'}}
+                                      'edgecolors': 'w' if dark else 'k'}}
             kwargs.update(prior_kwargs)
             _, lines = self.plot_sfr(show_prior=False, ax=ax, **kwargs)
             prior = lines[2]
@@ -673,6 +672,7 @@ class ResultsPlotter(object):
                      bulk_norm=False,
                      show_truth=True, true_model=None, show_prior=True,
                      color=None, show_bars=False,
+                     dark=False, 
                      line_kwargs={}, error_kwargs={}, fill_kwargs={},
                      truth_kwargs={}, prior_kwargs={}):
         if max_logl is None:
@@ -708,9 +708,8 @@ class ResultsPlotter(object):
         upper = np.percentile(cum_sfhs, 50. + 0.5*width, axis=0)
         lower = np.percentile(cum_sfhs, 50. - 0.5*width, axis=0)
         color = color or plt.rcParams.get('lines.color', 'k')
-        is_dark = (color == 'w')
         kwargs = {'color': color,
-                  'alpha': 0.6 if is_dark else 0.3,
+                  'alpha': 0.6 if dark else 0.3,
                   'linewidth': 0}
         if fill_kwargs.pop('no_fill', False):
             kwargs.pop('color')
@@ -763,11 +762,11 @@ class ResultsPlotter(object):
                       'error_kwargs': {'alpha': 0.},
                       'fill_kwargs': {'alpha': 1.0,
                                       'no_fill': True,
-                                      'facecolor': 'k' if is_dark else 'w',
+                                      'facecolor': 'k' if dark else 'w',
                                       'zorder': -10,
                                       'linestyle': ':',
                                       'linewidth': 2,
-                                      'edgecolors': 'w' if is_dark else 'k'}}
+                                      'edgecolors': 'w' if dark else 'k'}}
             kwargs.update(prior_kwargs)
             _, lines = self.plot_cum_sfh(show_prior=False, ax=ax, **kwargs)
             prior = lines[2]
