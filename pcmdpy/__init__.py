@@ -22,4 +22,4 @@ GPU_ACTIVE = gpu_utils._GPU_ACTIVE
 gpu_utils._CUDAC_AVAIL = GPU_ACTIVE
 agemodels = sfhmodels
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
