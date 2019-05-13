@@ -72,6 +72,9 @@ class BaseSFHModel:
         cum_sfh = 1. - np.cumsum(normed_sfh)
         return np.append(1., cum_sfh)
 
+    def mass_frac_younger_than(self, age):
+        return np.sum(self.SFH[self.ages < age]) / self.Npix
+
     def as_NonParam(self):
         current_edges = self.iso_edges
         self.update_edges(self.default_SFH_edges)

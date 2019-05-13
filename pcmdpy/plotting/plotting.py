@@ -32,7 +32,7 @@ def plot_rgb_image(images, extent=None, ax=None,
     images[images <= 0.] = 0.
     images[images >= 1.] = 1.
     ax.imshow(images, origin='lower', aspect='equal',
-              extent=extent, interpolation='none')
+              extent=extent, interpolation='nearest')
     return ax
 
 
@@ -175,11 +175,11 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
     if like_mode in [1, 2, 3]:
         loglike = driv_temp.loglike_map(pcmd_compare, like_mode=like_mode,
                                         signed=True)
-        chi2 = np.sum(np.abs(loglike)) + mean_term
+        ll_total = np.sum(-np.abs(loglike)) + mean_term
     else:
         counts_compare, _, _ = make_hess(pcmd_compare, bins)
         loglike = driv_temp.counts_data - counts_compare
-        chi2 = np.sum(np.abs(loglike))
+        ll_total = np.sum(-np.abs(loglike))
     loglike_max = np.max(np.abs(loglike))
     if norm is None:
         kwargs = {'linthresh': 10.}
@@ -193,7 +193,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         # record original axis limits, in case overwritten by hist2d
         kwargs = {'cmap': 'bwr'}
         kwargs.update(im_kwargs)
-        plt.imshow(loglike[i], norm=norm, origin='lower',
+        plt.imshow(loglike[i], norm=norm, origin='lower', interpolation='nearest',
                    aspect='auto', extent=(bins[i+1][0], bins[i+1][-1],
                                           bins[0][0], bins[0][-1]),
                    **kwargs)
@@ -202,7 +202,7 @@ def plot_pcmd_residual(pcmd_model, pcmd_compare, like_mode=2, bins=None,
         if keep_limits:
             a.set_xlim([min(xl), max(xl)])
             a.set_ylim([max(yl), min(yl)])
-        a.set_title(title + r' $\chi^2= $' + '{:.2e}'.format(chi2))
+        a.set_title(title + r' $\mathcal{L} = $' + '{:.2e}'.format(ll_total))
     return ax, loglike, bins, norm
 
 
