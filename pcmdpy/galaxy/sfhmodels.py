@@ -249,7 +249,7 @@ class TauModel(BaseSFHModel):
         assert is_valid, ('sfh_params must be an array or list of length '
                           '{:d}, not {:d}'.format(self._num_params,
                                                   len(sfh_params)))
-        self._params = sfh_params
+        self._params = np.array(sfh_params).astype(float)
 
     @property
     def SFH(self):
@@ -291,7 +291,7 @@ class RisingTau(BaseSFHModel):
         assert is_valid, ('sfh_params must be an array or list of length '
                           '{:d}, not {:d}'.format(self._num_params,
                                                   len(sfh_params)))
-        self._params = sfh_params.astype(float)
+        self._params = np.array(sfh_params).astype(float)
         
     @property
     def SFH(self):

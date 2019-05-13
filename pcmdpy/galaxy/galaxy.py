@@ -59,11 +59,15 @@ class CustomGalaxy:
         self._imf_kwargs = imf_kwargs
         if imf.lower() == 'salpeter':
             self.imf_func = salpeter_IMF
-            self.meanmass = salpeter_meanmass(**imf_kwargs)
+            kws = imf_kwargs.copy()
+            kws.pop('norm_by_mass', False)
+            self.meanmass = salpeter_meanmass(**kws)
             self.imf_kwargs = imf_kwargs
         elif imf.lower() == 'kroupa':
             self.imf_func = kroupa_IMF
-            self.meanmass = kroupa_meanmass(**imf_kwargs)
+            kws = imf_kwargs.copy()
+            kws.pop('norm_by_mass', False)
+            self.meanmass = kroupa_meanmass(**kws)
             self.imf_kwargs = imf_kwargs
         else:
             raise NotImplementedError('Only salpeter and kroupa '
