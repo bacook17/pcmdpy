@@ -15,6 +15,27 @@ from pkg_resources import resource_filename
 # Useful Utilities
 
 
+def load_MIST_dir(dir_path, iso_append='.iso.cmd'):
+    df = pd.DataFrame()
+    for MIST_doc in glob.glob(os.path.join(dir_path, '*'+iso_append)):
+        try:
+            with open(MIST_doc, 'r') as f:
+                lines = [f.readline() for _ in range(13)]
+                colnames = lines[-1].strip('#\n').split()
+                assert ('EEP' in colnames)
+            dtypes = {c: float for c in colnames}
+            dtypes['EEP'] = int
+            new_df = pd.read_table(MIST_doc, names=colnames,
+                                   comment='#', delim_whitespace=True,
+                                   dtype=dtypes, na_values=['Infinity'])
+            new_df[new_df.isna()] = 100.
+            df = df.append([new_df], ignore_index=True)
+        except Exception:
+            warn('File not properly formatted: %s' % (MIST_doc))
+            sys.exit(1)
+    return df
+
+
 def _interp_arrays(arr1, arr2, f):
     """Linearly interpolate between two (potentially unequal length) arrays
     
@@ -137,7 +158,6 @@ class Isochrone_Model:
                 MIST_path = resource_filename('pcmdpy', 'isochrones/MIST_v1.2/')
         
         # Import all MIST model files into Pandas dataframe
-        self.MIST_df = pd.DataFrame()
         self.num_filters = len(filters)
 
         # Use optional conversions from VEGA to AB or ST, etc
@@ -152,41 +172,41 @@ class Isochrone_Model:
             "the given mag_system is not valid. Please choose one of: "
             "['vega', 'ab', 'st']")
         
-        _feh_arr = []
         self.filters = filters
         self.filter_names = [f.tex_name for f in self.filters]
-        self.colnames = pd.read_table(MIST_path + 'columns.dat',
-                                      delim_whitespace=True).columns
         # load all MIST files found in directory
-        for MIST_doc in glob.glob(os.path.join(MIST_path, '*'+iso_append)):
-            try:
-                feh_str = MIST_doc.split('feh_')[-1][:5]
-                feh = _feh_from_str(feh_str)
-                new_df = pd.read_table(MIST_doc, names=self.colnames,
-                                       comment='#', delim_whitespace=True,
-                                       dtype=float, na_values=['Infinity'])
-                new_df[new_df.isna()] = 100.
-                new_df['feh'] = feh
-                self.MIST_df = self.MIST_df.append([new_df], ignore_index=True)
-                _feh_arr.append(_feh_from_str(feh_str))
-            except Exception:
-                warn('File not properly formatted: %s' % (MIST_doc))
-                sys.exit(1)
-            
-        self._feh_arr = np.sort(_feh_arr)
-        self.MIST_df.rename(columns={'log10_isochrone_age_yr': 'age'},
+        if isinstance(MIST_path, str):
+            self.MIST_df = load_MIST_dir(MIST_path, iso_append=iso_append)
+        elif isinstance(MIST_path, list):
+            merge_cols = ['[Fe/H]_init', 'EEP', 'log10_isochrone_age_yr']
+            self.MIST_df = pd.DataFrame(columns=merge_cols)
+            # Merge multiple filter sets
+            for pth in MIST_path:
+                df_temp = load_MIST_dir(pth, iso_append=iso_append)
+                self.MIST_df = self.MIST_df.merge(df_temp,
+                                                  how='outer', on=merge_cols,
+                                                  suffixes=['', '_y'])
+                self.MIST_df.drop(
+                    [c for c in self.MIST_df.columns if c.endswith('_y')],
+                    axis=1, inplace=True)
+
+        self._feh_arr = self.MIST_df['[Fe/H]_init'].unique()
+        self.MIST_df.rename(columns={'log10_isochrone_age_yr': 'age',
+                                     '[Fe/H]_init': 'feh'},
                             inplace=True)
+        # This is deprecated
         if dm_interp > 0.:
             print('starting manual interpolation')
             self.MIST_df = _interp_df_by_mass(self.MIST_df, dm_interp)
             print('done with interpolation')
-        self.MIST_df = self.MIST_df.sort_values(by=['[Fe/H]_init', 'age',
+
+        self.MIST_df = self.MIST_df.sort_values(by=['feh', 'age',
                                                     'initial_mass'])
         self.MIST_df = self.MIST_df.reset_index(drop=True)
         self.ages = self.MIST_df.age.unique()
-        # The MIST columns that will be interpolated (mass, logIMF,
+        # The MIST columns that will be interpolated (initial, currentmass, EEP,
         # and all input filters)
-        self._interp_cols = ['initial_mass', 'star_mass']
+        self._interp_cols = ['initial_mass', 'star_mass', 'EEP']
         for f in self.filters:
             c = f.MIST_column
             c_alt = f.MIST_column_alt
@@ -198,7 +218,6 @@ class Isochrone_Model:
                 print((c, c_alt))
                 raise ValueError('Filter does not have a valid MIST_column')
         self.MIST_gb = self.MIST_df.groupby(['age', 'feh'])[self._interp_cols]
-        return None
     
     def get_isochrone(self, age, feh, downsample=5, mag_system=None):
         """Interpolate MIST isochrones for given age and metallicity
@@ -249,10 +268,11 @@ class Isochrone_Model:
             
         initial_mass = inter[::downsample, 0]
         current_mass = inter[::downsample, 1]
+        eep = inter[::downsample, 2]
 
-        mags = (inter[::downsample, 2:] + conversions).T
+        mags = (inter[::downsample, 3:] + conversions).T
         
-        return mags, initial_mass, current_mass
+        return mags, initial_mass, current_mass, eep
 
     def model_galaxy(self, galaxy, lum_cut=np.inf, mag_system=None,
                      downsample=5, return_mass=False):
@@ -260,17 +280,18 @@ class Isochrone_Model:
         magnitudes = np.empty((self.num_filters, 0), dtype=float)
         initial_mass = np.empty((1, 0), dtype=float)
         current_mass = np.empty((1, 0), dtype=float)
+        eeps = np.empty((1, 0), dtype=float)
         # Collect the isochrones from each bin
         for age, feh, sfh, d_mod in galaxy.iter_SSPs():
-            mags, i_mass, c_mass = self.get_isochrone(age, feh,
-                                                      mag_system=mag_system,
-                                                      downsample=downsample)
+            mags, i_mass, c_mass, eep = self.get_isochrone(
+                age, feh, mag_system=mag_system, downsample=downsample)
             imf = galaxy.imf_func(i_mass, **galaxy.imf_kwargs)
             weights = np.append(weights, imf*sfh)
             mags += d_mod
             magnitudes = np.append(magnitudes, mags, axis=-1)
             initial_mass = np.append(initial_mass, i_mass)
             current_mass = np.append(current_mass, c_mass)
+            eeps = np.append(eeps, eep)
         if not np.isinf(lum_cut):
             lum = np.power(10., -0.4*magnitudes)
             mean_lum = np.average(lum, weights=weights, axis=1)
@@ -279,12 +300,14 @@ class Isochrone_Model:
             magnitudes = magnitudes[:, to_keep]
             initial_mass = initial_mass[to_keep]
             current_mass = current_mass[to_keep]
+            eeps = eeps[to_keep]
         if return_mass:
-            return weights, magnitudes, initial_mass, current_mass
+            return weights, magnitudes, initial_mass, current_mass, eeps
         else:
             return weights, magnitudes
 
     def get_stellar_mass(self, galaxy, downsample=5):
-        imf, _, _, c_mass = self.model_galaxy(galaxy, downsample=downsample,
-                                              return_mass=True)
+        imf, _, _, c_mass, _ = self.model_galaxy(galaxy,
+                                                 downsample=downsample,
+                                                 return_mass=True)
         return (imf * c_mass).sum()
