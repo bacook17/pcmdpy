@@ -15,6 +15,7 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
 
 """Define classes for Filters and other similar objects"""
 
+import numpy as np
 from astropy.io import fits
 from .psf import PSF_Model
 from ..simulation.gpu_utils import gpu_log10 as log10
@@ -40,8 +41,9 @@ class Filter:
        __init__ -- default, manual entry of all parameters
     """
 
-    def __init__(self, exposure, zpt_vega, zpt_ab, zpt_st, red_per_ebv,
-                 psf, name="", tex_name="", MIST_column="", MIST_column_alt="",
+    def __init__(self,
+                 exposure=1.0, zpt_vega=0., zpt_ab=0., zpt_st=0., red_per_ebv=0.,
+                 psf=None, name="", tex_name="", MIST_column="", MIST_column_alt="",
                  **kwargs):
         """Create a new Filter, given input properties of observation
 
@@ -74,6 +76,8 @@ class Filter:
         if isinstance(psf, PSF_Model):
             self.psf_model = psf
         else:
+            if psf is None:
+                psf = np.ones((3, 3), dtype=float)
             self.psf_model = PSF_Model(psf,
                                        dither_by_default=kwargs.get('dither_by_default',
                                                                     False))
