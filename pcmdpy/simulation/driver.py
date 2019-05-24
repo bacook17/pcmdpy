@@ -171,12 +171,11 @@ class Driver:
                 np.random.seed(0)
             else:
                 np.random.seed()
-            # shot noise occurs at DN level, not e- level. Account for gain
-            dark_vals = np.array([f._exposure for f in self.filters]) * dark_per_sec
-            images = np.array([i + d for i,d in zip(images, dark_vals)])
-            images = np.random.poisson(images / gain).astype(np.float32) * gain
+            dark_images = np.array([np.ones_like(im)*f._exposure*dark_per_sec for f,im in zip(self.filters, images)])
+            images += dark_images
+            images = np.random.poisson(images).astype(np.float32)
+            images -= dark_images
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
-            images = np.array([i - d for i,d in zip(images, dark_vals)])
         mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
         pcmd = utils.make_pcmd(mags)
         
