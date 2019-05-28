@@ -185,9 +185,9 @@ class Isochrone_Model:
                 df_temp = load_MIST_dir(pth, iso_append=iso_append)
                 self.MIST_df = self.MIST_df.merge(df_temp,
                                                   how='outer', on=merge_cols,
-                                                  suffixes=['', '_y'])
+                                                  suffixes=['', '_repeat'])
                 self.MIST_df.drop(
-                    [c for c in self.MIST_df.columns if c.endswith('_y')],
+                    [c for c in self.MIST_df.columns if c.endswith('_repeat')],
                     axis=1, inplace=True)
 
         self._feh_arr = self.MIST_df['[Fe/H]_init'].unique()
