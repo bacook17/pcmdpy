@@ -225,8 +225,8 @@ def plot_isochrone(iso_model, dmod=30., gal_model=None, axes=None,
             a_label = None
         else:
             a_label = label
-        mags, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system,
-                                             downsample=downsample)
+        mags, _, _, _ = iso_model.get_isochrone(age, feh, mag_system=mag_system,
+                                                downsample=downsample)
         mags += d_mod
         if iso_model.num_filters == 2:
             axes.plot(mags[1]-mags[0], mags[0], 'k-',

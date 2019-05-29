@@ -132,7 +132,7 @@ class Driver:
 
         return log_like
             
-    def simulate(self, gal_model, Nim, psf=True, fixed_seed=False,
+    def simulate(self, gal_model, Nim, Nnoise=1, psf=True, fixed_seed=False,
                  shot_noise=True, sky_noise=None, downsample=5,
                  fudge_mag=0.0, gain=1.0, dark_per_sec=0.0,
                  mag_system='vega', lum_cut=np.inf, **kwargs):
@@ -147,6 +147,9 @@ class Driver:
                 states = self.random_states.gpudata
         else:
             states = None
+        Nnoise = int(Nnoise)
+        if Nnoise <= 0:
+            Nnoise = 1
         IMF, mags = self.iso_model.model_galaxy(
             gal_model, downsample=downsample, mag_system=mag_system,
             return_mass=False, lum_cut=lum_cut)
@@ -173,10 +176,10 @@ class Driver:
                 np.random.seed()
             dark_images = np.array([np.ones_like(im)*f._exposure*dark_per_sec for f,im in zip(self.filters, images)])
             images += dark_images
-            images = np.random.poisson(images).astype(np.float32)
+            images = np.random.poisson(images, size=((Nnoise,)+images.shape)).astype(np.float32)
             images -= dark_images
             images[images <= 0.] = 1e-3  # avoid nan issues by adding 0.001 counts
-        mags = np.array([f.counts_to_mag(im.flatten(), **kwargs) for f,im in zip(self.filters, images)])
+        mags = np.array([self.filters[i].counts_to_mag(images[:,i].flatten(), **kwargs) for i in range(len(self.filters))])
         pcmd = utils.make_pcmd(mags)
         
-        return pcmd, images
+        return pcmd, images[0]
