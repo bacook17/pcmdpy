@@ -2,7 +2,10 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
-from scipy.misc import logsumexp
+import matplotlib.pyplot as plt
+from scipy.special import logsumexp
+from scipy.ndimage import gaussian_filter as norm_kde
+import cv2
 from astropy.io import fits
 import os, sys
 
@@ -67,6 +70,114 @@ def make_hess(pcmd, bins, err_min=2.):
     
     return counts, hess, err
 
+
+def get_contours(pcmd, levels, smooth=0.01, span=None):
+    """
+    Copied mostly verbatim from Dynesty
+    """
+    y, x = pcmd
+    data = [x, y]
+    if span is None:
+        span = [0.999999426697 for i in range(2)]
+    span = list(span)
+    if len(span) != 2:
+        raise ValueError("Dimension mismatch between samples and span.")
+    for i, _ in enumerate(span):
+        try:
+            xmin, xmax = span[i]
+        except:
+            q = np.array([0.5 - 0.5 * span[i], 0.5 + 0.5 * span[i]])
+            span[i] = np.percentile(data[i], list(100.*q))
+    if (isinstance(smooth, int) or isinstance(smooth, float)):
+        smooth = [smooth, smooth]
+    bins, svalues = [], []
+    for s in smooth:
+        if isinstance(s, int):
+            bins.append(s)
+            svalues.append(0.)
+        else:
+            bins.append(int(round(2./s)))
+            svalues.append(2.)
+    H, X, Y = np.histogram2d(x.flatten(), y.flatten(), bins=bins,
+                             range=list(map(np.sort, span)))
+    if not np.all(svalues == 0.):
+        H = norm_kde(H, svalues)
+    Hflat = H.flatten()
+    inds = np.argsort(Hflat)[::-1]
+    Hflat = Hflat[inds]
+    sm = np.cumsum(Hflat)
+    sm /= sm[-1]
+    V = np.empty(len(levels))
+    for i, v0 in enumerate(levels):
+        try:
+            V[i] = Hflat[sm <= v0][-1]
+        except:
+            V[i] = Hflat[0]
+    V.sort()
+    m = (np.diff(V) == 0)
+    while np.any(m):
+        V[np.where(m)[0][0]] *= 1.0 - 1e-4
+        m = (np.diff(V) == 0)
+    V.sort()
+    # Compute the bin centers.
+    X1, Y1 = 0.5 * (X[1:] + X[:-1]), 0.5 * (Y[1:] + Y[:-1])
+    
+    # Extend the array for the sake of the contours at the plot edges.
+    H2 = H.min() + np.zeros((H.shape[0] + 4, H.shape[1] + 4))
+    H2[2:-2, 2:-2] = H
+    H2[2:-2, 1] = H[:, 0]
+    H2[2:-2, -2] = H[:, -1]
+    H2[1, 2:-2] = H[0]
+    H2[-2, 2:-2] = H[-1]
+    H2[1, 1] = H[0, 0]
+    H2[1, -2] = H[0, -1]
+    H2[-2, 1] = H[-1, 0]
+    H2[-2, -2] = H[-1, -1]
+    X2 = np.concatenate([X1[0] + np.array([-2, -1]) * np.diff(X1[:2]), X1,
+                         X1[-1] + np.array([1, 2]) * np.diff(X1[-2:])])
+    Y2 = np.concatenate([Y1[0] + np.array([-2, -1]) * np.diff(Y1[:2]), Y1,
+                         Y1[-1] + np.array([1, 2]) * np.diff(Y1[-2:])])
+    
+    fig, ax = plt.subplots()
+    contours = ax.contour(X2, Y2, H2.T, V)
+    plt.close(fig)
+    
+    return dict(zip(levels[::-1], contours.allsegs))
+        
+
+def in_contour(pcmd, contour, factor=1e8):
+    y, x = pcmd
+    assert len(x) == len(y)
+    if len(contour) == 0:
+        return np.array([False]*len(x))
+    d = len(contour)
+    if d == 1:
+        contour = contour[0]
+        n = len(contour)
+        cv2_contour = (contour.reshape((n, 1, 2))*factor).astype(int)
+        return np.array([cv2.pointPolygonTest(cv2_contour, (a,b), False) for a,b in zip(x*factor, y*factor)]) > 0
+    else:
+        n_points = len(x)
+        not_in = np.ones(n_points, dtype=bool)
+        for sub_contour in contour:
+            n = len(sub_contour)
+            cv2_contour = (sub_contour.reshape((n, 1, 2))*factor).astype(int)
+            not_in[not_in] = (np.array([cv2.pointPolygonTest(cv2_contour, (a,b), False) for a,b in zip(x[not_in]*factor, y[not_in]*factor)]) < 0)
+        return np.logical_not(not_in)
+
+
+def contour_fracs(pcmd, contours):
+    ys = {}
+    xs = np.array(sorted(contours.keys())[::-1])
+    is_good = np.array([True]*pcmd.shape[1])
+    # Check if a point is in each contour, decreasing in size
+    for k in xs:
+        cont = contours[k]
+        # Ignore all points that weren't in larger contours
+        is_good[is_good] = in_contour(pcmd[:, is_good], cont)
+        ys[k] = is_good.mean()
+    return xs, np.array([ys[k] for k in xs])
+        
 
 class DataSet(object):
     
@@ -175,7 +286,4 @@ class RegularPrint:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
-
-
-
 

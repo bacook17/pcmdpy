@@ -5,7 +5,7 @@ import numpy as np
 from ..utils import utils
 from . import gpu_utils
 import warnings
-from scipy.stats import multivariate_normal, poisson, norm
+from scipy.stats import multivariate_normal, poisson, norm, ksone
 from sys import stderr
 
 
@@ -48,7 +48,9 @@ class Driver:
         del self.fixed_states
         del self.random_states
         
-    def initialize_data(self, pcmd, bins=None, **kwargs):
+    def initialize_data(self, pcmd, bins=None,
+                        n_contours=20, smooth=0.01,
+                        **kwargs):
         if bins is None:
             magbins = np.arange(-12, 45, 0.05)
             colorbins = np.arange(-1.5, 5.6, 0.05)
@@ -75,6 +77,10 @@ class Driver:
         self.err_data = err
         self._data_init = True
         self.pcmd_data = pcmd
+
+        contour_levels = np.linspace(0.0, 1.0, n_contours)[1:-1]
+        self.contours_data = utils.get_contours(pcmd, contour_levels)
+        _, self.data_cdf = utils.contour_fracs(pcmd, self.contours_data)
 
     def loglike_map(self, pcmd, like_mode=2, signed=True):
         counts_model, hess_model, err_model = utils.make_hess(
@@ -127,9 +133,12 @@ class Driver:
         elif like_mode in [1, 2, 3]:
             llmap = self.loglike_map(pcmd, like_mode=like_mode, signed=False)
             log_like = mean_term + np.sum(llmap)
+        elif like_mode == 4:
+            _, model_cdf = utils.contour_fracs(pcmd, self.contours_data)
+            ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
+            log_like = mean_term + max(ksone.logsf(ks_stat, 20), -1e10)
         else:
             raise NotImplementedError('like_mode only defined for [0,1,2,3]')
-
         return log_like
             
     def simulate(self, gal_model, Nim, Nnoise=1, psf=True, fixed_seed=False,
