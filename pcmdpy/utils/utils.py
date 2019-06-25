@@ -2,6 +2,9 @@
 # Ben Cook (bcook@cfa.harvard.edu)
 
 import numpy as np
+import matplotlib
+matplotlib.use('pdf')
+
 import matplotlib.pyplot as plt
 from scipy.special import logsumexp
 from scipy.ndimage import gaussian_filter as norm_kde
