@@ -133,10 +133,12 @@ class Driver:
         elif like_mode in [1, 2, 3]:
             llmap = self.loglike_map(pcmd, like_mode=like_mode, signed=False)
             log_like = mean_term + np.sum(llmap)
-        elif like_mode == 4:
+        elif like_mode in [4, 5]:
             _, model_cdf = utils.contour_fracs(pcmd, self.contours_data)
             ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
-            log_like = mean_term + max(ksone.logsf(ks_stat, 20), -1e10)
+            log_like = max(ksone.logsf(ks_stat, 20), -1e10)
+        if like_mode == 5:
+            log_like += mean_term
         else:
             raise NotImplementedError('like_mode only defined for [0,1,2,3]')
         return log_like
