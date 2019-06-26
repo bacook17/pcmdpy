@@ -140,7 +140,7 @@ class Driver:
         if like_mode == 5:
             log_like += mean_term
         else:
-            raise NotImplementedError('like_mode only defined for [0,1,2,3]')
+            raise NotImplementedError('like_mode only defined for [0,1,2,3,4,5]')
         return log_like
             
     def simulate(self, gal_model, Nim, Nnoise=1, psf=True, fixed_seed=False,
