@@ -137,8 +137,8 @@ class Driver:
             _, model_cdf = utils.contour_fracs(pcmd, self.contours_data)
             ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
             log_like = max(ksone.logsf(ks_stat, 20), -1e10)
-        if like_mode == 5:
-            log_like += mean_term
+            if like_mode == 5:
+                log_like += mean_term
         else:
             raise NotImplementedError('like_mode only defined for [0,1,2,3,4,5]')
         return log_like
