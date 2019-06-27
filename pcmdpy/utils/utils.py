@@ -163,6 +163,8 @@ def in_contour(pcmd, contour, factor=1e8):
         n_points = len(x)
         not_in = np.ones(n_points, dtype=bool)
         for sub_contour in contour:
+            if np.sum(not_in) == 0:
+                break
             n = len(sub_contour)
             cv2_contour = (sub_contour.reshape((n, 1, 2))*factor).astype(int)
             not_in[not_in] = (np.array([cv2.pointPolygonTest(cv2_contour, (a,b), False) for a,b in zip(x[not_in]*factor, y[not_in]*factor)]) < 0)
@@ -172,7 +174,7 @@ def in_contour(pcmd, contour, factor=1e8):
 def contour_fracs(pcmd, contours):
     ys = {}
     xs = np.array(sorted(contours.keys())[::-1])
-    is_good = np.array([True]*pcmd.shape[1])
+    is_good = np.ones(pcmd.shape[1], dtype=bool)
     # Check if a point is in each contour, decreasing in size
     for k in xs:
         cont = contours[k]
