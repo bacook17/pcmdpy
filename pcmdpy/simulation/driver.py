@@ -78,7 +78,7 @@ class Driver:
         self._data_init = True
         self.pcmd_data = pcmd
 
-        contour_levels = np.linspace(0.0, 1.0, n_contours)[1:-1]
+        contour_levels = np.linspace(0.0, 1.0, n_contours+2)[1:-1]
         self.contours_data = utils.get_contours(pcmd, contour_levels)
         _, self.data_cdf = utils.contour_fracs(pcmd, self.contours_data)
 
