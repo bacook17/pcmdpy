@@ -148,7 +148,8 @@ def get_contours(pcmd, levels, smooth=0.01, span=None):
     return dict(zip(levels[::-1], contours.allsegs))
         
 
-def in_contour(pcmd, contour, factor=1e8):
+def in_contour(pcmd, contour):
+    ROUND_FACTOR = 1e4
     y, x = pcmd
     assert len(x) == len(y)
     if len(contour) == 0:
@@ -157,8 +158,9 @@ def in_contour(pcmd, contour, factor=1e8):
     if d == 1:
         contour = contour[0]
         n = len(contour)
-        cv2_contour = (contour.reshape((n, 1, 2))*factor).astype(int)
-        return np.array([cv2.pointPolygonTest(cv2_contour, (a,b), False) for a,b in zip(x*factor, y*factor)]) > 0
+        cv2_contour = (contour.reshape((n, 1, 2))*ROUND_FACTOR).astype(int)
+        return np.array([cv2.pointPolygonTest(cv2_contour, (a, b), False) for
+                         a, b in zip(x*ROUND_FACTOR, y*ROUND_FACTOR)]) > 0
     else:
         n_points = len(x)
         not_in = np.ones(n_points, dtype=bool)
@@ -166,8 +168,9 @@ def in_contour(pcmd, contour, factor=1e8):
             if np.sum(not_in) == 0:
                 break
             n = len(sub_contour)
-            cv2_contour = (sub_contour.reshape((n, 1, 2))*factor).astype(int)
-            not_in[not_in] = (np.array([cv2.pointPolygonTest(cv2_contour, (a,b), False) for a,b in zip(x[not_in]*factor, y[not_in]*factor)]) < 0)
+            cv2_contour = (sub_contour.reshape((n, 1, 2))*ROUND_FACTOR).astype(int)
+            not_in[not_in] = (np.array([cv2.pointPolygonTest(cv2_contour, (a, b), False) for
+                                        a, b in zip(x[not_in]*ROUND_FACTOR, y[not_in]*ROUND_FACTOR)]) < 0)
         return np.logical_not(not_in)
 
 
