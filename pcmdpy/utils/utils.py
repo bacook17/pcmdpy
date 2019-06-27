@@ -78,7 +78,7 @@ def get_contours(pcmd, levels, smooth=0.01, span=None):
     """
     Copied mostly verbatim from Dynesty
     """
-    y, x = pcmd
+    x, y = pcmd
     data = [x, y]
     if span is None:
         span = [0.999999426697 for i in range(2)]
@@ -150,7 +150,7 @@ def get_contours(pcmd, levels, smooth=0.01, span=None):
 
 def in_contour(pcmd, contour):
     ROUND_FACTOR = 1e4
-    y, x = pcmd
+    x, y = pcmd
     assert len(x) == len(y)
     if len(contour) == 0:
         return np.array([False]*len(x))

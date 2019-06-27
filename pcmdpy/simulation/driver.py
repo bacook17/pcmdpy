@@ -82,6 +82,13 @@ class Driver:
         self.contours_data = utils.get_contours(pcmd, contour_levels)
         _, self.data_cdf = utils.contour_fracs(pcmd, self.contours_data)
 
+        # Create a tanh fit to contours vs radius
+        conts = self.contours_data
+        self.data_center = self.mean_pcmd_data
+        probs = np.array(list(conts.keys()))
+        mean_radii = np.array([np.mean(np.sqrt(np.sum((np.concatenate(conts[p]) - self.data_center)**2, axis=1))) for p in probs])
+        self.tanh_slope, self.tanh_intercept = np.polyfit(mean_radii, np.arctanh(probs), 1)
+        
     def loglike_map(self, pcmd, like_mode=2, signed=True):
         counts_model, hess_model, err_model = utils.make_hess(
             pcmd, self.hess_bins)
@@ -135,8 +142,15 @@ class Driver:
             log_like = mean_term + np.sum(llmap)
         elif like_mode in [4, 5]:
             _, model_cdf = utils.contour_fracs(pcmd, self.contours_data)
-            ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
-            log_like = max(ksone.logsf(ks_stat, 20), -1e10)
+            if np.any(model_cdf):
+                ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
+            # If no model points lie within the contours, use the tanh extrapolation
+            else:
+                # distance between means of model & data pCMDs
+                r_mean = np.sqrt(np.sum((np.mean(pcmd, axis=1) - self.data_center)**2))
+                # Approximate the contour of model mean, using tanh extrapolation
+                ks_stat = np.tanh(self.tanh_intercept + self.tanh_slope*r_mean)
+            log_like = max(ksone.logsf(ks_stat, len(self.contours_data)), -1e4)
             if like_mode == 5:
                 log_like += mean_term
         else:
