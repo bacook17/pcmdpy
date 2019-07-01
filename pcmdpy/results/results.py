@@ -18,7 +18,7 @@ from dynesty.dynamicsampler import DynamicSampler
 class ResultsPlotter(object):
     def __init__(self, df_file, max_logl=None, live_file=None, gal_model=None,
                  model_is_truth=False, run_name=None, dmod_true=None,
-                 mean_age=False):
+                 mean_age=False, nlive=300, nlive_batch=100):
         self._input_args = [df_file]
         self._input_kwargs = {
             'max_logl': max_logl,
@@ -41,7 +41,12 @@ class ResultsPlotter(object):
         self.df['live'] = False
         self.live_included = False
 
-        if live_file is not None:
+        # Merge results from batch runs, if any
+        if self.df.logwt.isna().any():
+            self.live_included = True   # Skip adding live files
+            self.df = merge_batches(self.df, nlive, nlive_batch)
+
+        if (live_file is not None) and not self.live_included:
             try:
                 live_df = pd.read_csv(live_file)
             except FileNotFoundError:
@@ -1074,3 +1079,55 @@ class ResultsPlotter(object):
             sampler.base_n = [N_live for _ in range(N)]
             sampler.base_bounditer = sampler.saved_bounditer
             sampler.base_scale = sampler.saved_scale
+
+
+def merge_batches(df, nlive_init, nlive_batch):
+    ntot = len(df)
+    # Compute logvol for entire merged run
+    dlv_init = -np.log((nlive_init + 1.) / nlive_init)
+    dlv_batch = -np.log((nlive_init + nlive_batch + 1.) / (nlive_init + nlive_batch))
+    logvol = 0.
+    logvols = []
+    df_new = df.sort_values('logl').reset_index(drop=True)
+    is_batch = df_new.logvol.isna()
+    dlvs = np.ones(ntot, dtype=float)*dlv_init
+    dlvs[is_batch] = dlv_batch
+    logvols = np.cumsum(dlvs)
+    df_new.logvol = logvols
+    # Compute weights, h, lnz
+    h = 0.
+    logz = -1e300
+    loglstar = -1e300
+    logzvar = 0.
+    logvols_pad = np.concatenate(([0.], logvols))
+    logdvols = logsumexp(a=np.c_[logvols_pad[:-1], logvols_pad[1:]],
+                         axis=1, b=np.c_[np.ones(ntot), -np.ones(ntot)])
+    logdvols += np.log(0.5)
+    dlvs = logvols_pad[:-1] - logvols_pad[1:]
+    logwts = []
+    logzs = []
+    logzvars = []
+    hs = []
+    for i in range(ntot):
+        loglstar_new = df_new.logl[i]
+        logdvol, dlv = logdvols[i], dlvs[i]
+        logwt = np.logaddexp(loglstar_new, loglstar) + logdvol
+        logz_new = np.logaddexp(logz, logwt)
+        lzterm = (np.exp(loglstar - logz_new) * loglstar +
+                  np.exp(loglstar_new - logz_new) * loglstar_new)
+        h_new = (np.exp(logdvol) * lzterm +
+                 np.exp(logz - logz_new) * (h + logz) - logz_new)
+        dh = h_new - h
+        h = h_new
+        logz = logz_new
+        logzvar += 2.*dh*dlv
+        loglstar = loglstar_new
+        logwts.append(logwt)
+        logzs.append(logz)
+        logzvars.append(logzvar)
+        hs.append(h)
+    df_new.logwt = np.array(logwts)
+    df_new.logz = np.array(logzs)
+    df_new.logzerr = np.sqrt(np.array(logzvars))
+    df_new.h = np.array(hs)
+    return df_new
