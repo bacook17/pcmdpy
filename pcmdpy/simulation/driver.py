@@ -111,7 +111,7 @@ class Driver:
         else:
             return loglike
 
-    def loglike(self, pcmd, like_mode=2, **kwargs):
+    def loglike(self, pcmd, like_mode=2, ksneff=None, **kwargs):
         assert self._data_init, ('Cannot evaluate, as data has not been '
                                  'initialized (use driver.initialize_data)')
 
@@ -150,7 +150,9 @@ class Driver:
                 r_mean = np.sqrt(np.sum((np.mean(pcmd, axis=1) - self.data_center)**2))
                 # Approximate the contour of model mean, using tanh extrapolation
                 ks_stat = np.tanh(self.tanh_intercept + self.tanh_slope*r_mean)
-            log_like = max(ksone.logsf(ks_stat, len(self.contours_data)), -1e4)
+            if ksneff is None:
+                ksneff = len(self.contours_data)
+            log_like = max(ksone.logsf(ks_stat, ksneff), -1e4)
             if like_mode == 5:
                 log_like += mean_term
         else:
