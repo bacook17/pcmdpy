@@ -106,7 +106,7 @@ class ResultsLogger(object):
         self.out_df = self.out_df.append(row, ignore_index=True)
 
         # Save current live points, only if in initial run
-        if (((niter+1) % self.save_every == 0) and nbatch is None):
+        if (((niter+1) % self.save_every == 0)):
             self.flush_to_csv()
 
     def flush_to_csv(self):
