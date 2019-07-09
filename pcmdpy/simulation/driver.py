@@ -142,17 +142,17 @@ class Driver:
             log_like = mean_term + np.sum(llmap)
         elif like_mode in [4, 5]:
             _, model_cdf = utils.contour_fracs(pcmd, self.contours_data)
+            # distance between means of model & data pCMDs
+            r_mean = np.sqrt(np.sum((np.mean(pcmd, axis=1) - self.data_center)**2))
+            tanh_dist = self.tanh_intercept + self.tanh_slope*r_mean
             if np.any(model_cdf):
                 ks_stat = np.max(np.abs(model_cdf - self.data_cdf))
             # If no model points lie within the contours, use the tanh extrapolation
             else:
-                # distance between means of model & data pCMDs
-                r_mean = np.sqrt(np.sum((np.mean(pcmd, axis=1) - self.data_center)**2))
-                # Approximate the contour of model mean, using tanh extrapolation
-                ks_stat = np.tanh(self.tanh_intercept + self.tanh_slope*r_mean)
+                ks_stat = np.tanh(tanh_dist)
             if ksneff is None:
                 ksneff = len(self.contours_data)
-            log_like = max(ksone.logsf(ks_stat, ksneff), -1e4)
+            log_like = max(ksone.logsf(ks_stat, ksneff), -1e4*tanh_dist)
             if like_mode == 5:
                 log_like += mean_term
         else:
