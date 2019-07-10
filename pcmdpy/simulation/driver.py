@@ -152,7 +152,8 @@ class Driver:
                 ks_stat = np.tanh(tanh_dist)
             if ksneff is None:
                 ksneff = len(self.contours_data)
-            log_like = max(ksone.logsf(ks_stat, ksneff), -1e4*tanh_dist)
+            log_like = max(ksone.logsf(ks_stat, ksneff),
+                           -1e4*max(tanh_dist, 1.0))
             if like_mode == 5:
                 log_like += mean_term
         else:
