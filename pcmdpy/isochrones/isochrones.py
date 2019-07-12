@@ -190,7 +190,7 @@ class Isochrone_Model:
                     [c for c in self.MIST_df.columns if c.endswith('_y')],
                     axis=1, inplace=True)
 
-        self._feh_arr = self.MIST_df['[Fe/H]_init'].unique()
+        self._feh_arr = np.array(sorted(self.MIST_df['[Fe/H]_init'].unique()))
         self.MIST_df.rename(columns={'log10_isochrone_age_yr': 'age',
                                      '[Fe/H]_init': 'feh'},
                             inplace=True)
@@ -251,20 +251,21 @@ class Isochrone_Model:
             inter = self.MIST_gb.get_group((age, feh)).values
         # Interpolate/extrapolate for other metallicities
         else:
-            this_age = self.MIST_df[np.isclose(self.MIST_df.age.values, age)]
-            i = self._feh_arr.searchsorted(feh)
-            if (i == 0):
-                i = 1  # will extrapolate low
-            elif (i == len(self._feh_arr)):
-                i = -1  # will extrapolate high
-            fehlow, fehhigh = self._feh_arr[i-1:i+1]  # bounding metallicities
-            frac_between = (feh - fehlow) / (fehhigh - fehlow)
+            if feh < np.min(self._feh_arr):
+                fehlow = np.min(self._feh_arr)
+            else:
+                fehlow = np.max(self._feh_arr[self._feh_arr <= feh])
+            if feh > np.max(self._feh_arr):
+                fehhigh = np.max(self._feh_arr)
+            else:
+                fehhigh = np.min(self._feh_arr[self._feh_arr >= feh])
+            frac_between = (feh - fehlow) / np.abs(fehhigh - fehlow)
             if (frac_between >= 2) or (frac_between <= -1):
                 raise ValueError('Extrapolating metallicity more than one '
                                  'entire metallicity bin')
-            dflow = this_age[np.isclose(this_age.feh.values, fehlow)][self._interp_cols]
-            dfhigh = this_age[np.isclose(this_age.feh.values, fehhigh)][self._interp_cols]
-            inter = _interp_arrays(dflow.values, dfhigh.values, frac_between)
+            valslow = self.MIST_gb.get_group((age, fehlow)).values
+            valshigh = self.MIST_gb.get_group((age, fehhigh)).values
+            inter = _interp_arrays(valslow, valshigh, frac_between)
             
         initial_mass = inter[::downsample, 0]
         current_mass = inter[::downsample, 1]

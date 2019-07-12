@@ -12,7 +12,8 @@ from ..instrument.filter import Filter
 
 
 def compute_regions(image_file, region_file, xc=None, yc=None,
-                    do_quadrants=True, separate_regions=False):
+                    do_quadrants=True,
+                    n_angular=None, separate_regions=False):
     with fits.open(image_file) as hdulist:
         header = hdulist[0].header
         shape = hdulist['SCI'].shape
@@ -22,6 +23,7 @@ def compute_regions(image_file, region_file, xc=None, yc=None,
         max_val = np.max(d[~np.isnan(d) & good_pixels])
         if (xc is None) or (yc is None):
             [yc], [xc] = np.where(d == max_val)
+    theta = np.arctan2(Y-yc, X-xc)
     Q1 = (Y >= yc) & (X >= xc)
     Q2 = (Y >= yc) & (X < xc)
     Q3 = (Y < yc) & (X < xc)
@@ -34,13 +36,18 @@ def compute_regions(image_file, region_file, xc=None, yc=None,
             matrix[mask] = i+1
         else:
             matrix[mask] += 1.0
-    if (do_quadrants) and (not separate_regions):
+    if (n_angular is not None) and (isinstance(n_angular, int)):
+        for n in np.arange(1, n_angular):
+            phi = ((2.0*n/n_angular) - 1.0) * np.pi
+            matrix[theta >= phi] += 1./n_angular
+        matrix *= n_angular
+        matrix = np.round(matrix, decimals=0).astype(np.int32)
+    elif (do_quadrants) and (not separate_regions):
         matrix[Q2] += 0.25
         matrix[Q3] += 0.5
         matrix[Q4] += 0.75
         matrix *= 4.0
         matrix = np.round(matrix, decimals=0).astype(np.int32)
-        matrix -= 3
     else:
         matrix = np.round(matrix, decimals=0).astype(np.int32)
     matrix[matrix <= 0] = 0
@@ -50,11 +57,13 @@ def compute_regions(image_file, region_file, xc=None, yc=None,
 
 def add_regions(input_dict, region_file,
                 base_filter=None, xc=None, yc=None, do_quadrants=True,
+                n_angular=None,
                 separate_regions=False):
     all_filters = list(input_dict.keys())
     filt = base_filter or all_filters[0]
     regions_matrix = compute_regions(input_dict[filt], region_file,
                                      xc=xc, yc=yc, do_quadrants=do_quadrants,
+                                     n_angular=n_angular,
                                      separate_regions=separate_regions)
     reg_hdu = fits.ImageHDU(data=regions_matrix)
     reg_hdu.header['EXTNAME'] = 'REGIONS'
