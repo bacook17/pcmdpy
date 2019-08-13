@@ -61,8 +61,8 @@ setup(
     include_package_data=True,
     cmdclass={'clean': CleanCommand},
     install_requires=[
-        'numpy', 'scipy', 'pandas', 'matplotlib', 'astropy', 'dynesty',
-        'pyregion', 'drizzlepac',
+        'setuptools', 'numpy', 'scipy', 'pandas', 'matplotlib', 'astropy',
+        'dynesty', 'pyregion', 'drizzlepac',
         'sep', 'opencv-python', 'pysynphot'
     ],
     python_requires='>=3',
