@@ -57,8 +57,7 @@ setup(
     package_data={'pcmdpy': ['isochrones/MIST_v1.2/*',
                              'isochrones/MIST_v1.2_rot/*',
                              'instrument/PSFs/*.fits', 'simulation/*.c']},
-    scripts=['bin/run_pcmdpy', 'bin/run_pcmdpy_twostage',
-             'bin/pcmd_integrate', 'bin/pcmd_integrate_twostage'],
+    scripts=['bin/run_pcmdpy', 'bin/pcmd_integrate'],
     include_package_data=True,
     cmdclass={'clean': CleanCommand},
     install_requires=[
