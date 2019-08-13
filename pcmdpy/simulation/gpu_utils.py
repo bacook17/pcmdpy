@@ -4,7 +4,6 @@ import os
 import multiprocessing
 from pkg_resources import resource_filename
 from sys import stderr
-from time import sleep
 
 global _GPU_AVAIL, _GPU_ACTIVE, _MAX_THREADS_PER_BLOCK, _MAX_2D_BLOCK_DIM
 _GPU_AVAIL = False

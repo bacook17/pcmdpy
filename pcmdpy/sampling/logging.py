@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from corner import corner
 import pandas as pd
 from scipy.special import logsumexp
 import sys

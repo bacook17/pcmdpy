@@ -10,8 +10,8 @@ from scipy.special import logsumexp
 from scipy.ndimage import gaussian_filter as norm_kde
 import cv2
 from astropy.io import fits
-import os, sys
-
+import os
+import sys
 
 # A module to create various utility functions
 def make_pcmd(mags):

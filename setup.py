@@ -48,7 +48,7 @@ setup(
     name='pcmdpy',
     version=find_version('pcmdpy', '__init__.py'),
     author='Ben Cook',
-    author_email='bcook@cfa.harvard.edu',
+    author_email='bacook17@gmail.com',
     packages=find_packages(),
     url='https://github.com/bacook17/pcmdpy',
     license='LICENSE',
@@ -62,8 +62,8 @@ setup(
     cmdclass={'clean': CleanCommand},
     install_requires=[
         'numpy', 'scipy', 'pandas', 'matplotlib', 'astropy', 'dynesty',
-        'corner', 'sklearn', 'memory_profiler', 'pyregion', 'drizzlepac',
-        'tqdm', 'sep'
+        'pyregion', 'drizzlepac',
+        'sep', 'opencv-python', 'pysynphot'
     ],
     python_requires='>=3',
     extras_require={"GPU": ['pycuda']},

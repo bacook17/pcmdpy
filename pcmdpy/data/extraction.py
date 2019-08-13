@@ -3,8 +3,6 @@
 import numpy as np
 import pyregion
 from astropy.io import fits
-from tqdm import tqdm
-import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from .utils import filter_from_fits
@@ -30,7 +28,7 @@ def compute_regions(image_file, region_file, xc=None, yc=None,
     Q4 = (Y < yc) & (X >= xc)
     regions = pyregion.open(region_file).as_imagecoord(header=header)
     matrix = np.zeros(shape, dtype=np.float32)
-    for i in tqdm(range(len(regions))):
+    for i in range(len(regions)):
         mask = regions[i:i+1].get_mask(shape=shape)
         if separate_regions:
             matrix[mask] = i+1
@@ -104,7 +102,7 @@ def save_pcmds(input_dict, red_filter, blue_filter,
         blue_mags = blue.counts_to_mag(h['SCI'].data,
                                        mag_system=mag_system)
     pcmds = {}
-    for i in tqdm(range(1, regions.max()+1)):
+    for i in range(1, regions.max()+1):
         mask = (regions == i) & (flags == 0)
         mag = red_mags[mask]
         color = blue_mags[mask] - mag
@@ -278,33 +276,33 @@ class EllipticalFit:
         plt.colorbar()
         return ax
     
-    def plot_radial_gradient(self, values, mask=None, ax=None, n_bins=10, **kwargs):
-        if mask is None:
-            mask = self.mask
-        R, Theta = self.transform(mask)
-        y = values[mask]
-        kw = {'x_estimator': np.median,
-              'x_bins': n_bins,
-              'x_ci': 'sd'}
-        kw.update(kwargs)
-        if ax is None:
-            fig, ax = plt.subplots()
-        sns.regplot(x=R, y=y, ax=ax, **kw)
-        return ax
+    # def plot_radial_gradient(self, values, mask=None, ax=None, n_bins=10, **kwargs):
+    #     if mask is None:
+    #         mask = self.mask
+    #     R, Theta = self.transform(mask)
+    #     y = values[mask]
+    #     kw = {'x_estimator': np.median,
+    #           'x_bins': n_bins,
+    #           'x_ci': 'sd'}
+    #     kw.update(kwargs)
+    #     if ax is None:
+    #         fig, ax = plt.subplots()
+    #     sns.regplot(x=R, y=y, ax=ax, **kw)
+    #     return ax
 
-    def plot_angular_gradient(self, values, mask=None, ax=None, n_bins=10, **kwargs):
-        if mask is None:
-            mask = self.mask
-        R, Theta = self.transform(mask)
-        y = values[mask]
-        kw = {'x_estimator': np.median,
-              'x_bins': n_bins,
-              'x_ci': 'sd'}
-        kw.update(kwargs)
-        if ax is None:
-            fig, ax = plt.subplots()
-        sns.regplot(x=Theta, y=y, ax=ax, **kw)
-        return ax
+    # def plot_angular_gradient(self, values, mask=None, ax=None, n_bins=10, **kwargs):
+    #     if mask is None:
+    #         mask = self.mask
+    #     R, Theta = self.transform(mask)
+    #     y = values[mask]
+    #     kw = {'x_estimator': np.median,
+    #           'x_bins': n_bins,
+    #           'x_ci': 'sd'}
+    #     kw.update(kwargs)
+    #     if ax is None:
+    #         fig, ax = plt.subplots()
+    #     sns.regplot(x=Theta, y=y, ax=ax, **kw)
+    #     return ax
     
     def delta_val(self, values, mask=None, n_bins=10, func=np.median,
                   subtract=True):

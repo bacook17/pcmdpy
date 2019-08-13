@@ -4,7 +4,6 @@
 import numpy as np
 from astropy.io import fits
 import sep
-import pyregion
 from .utils import ALL_FLAGS, regions_to_mask, _add_masked
 from .alignment import _add_flag
 

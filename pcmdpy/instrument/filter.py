@@ -16,10 +16,8 @@ __all__ = ['Filter', 'ACS_WFC_F435W', 'ACS_WFC_F475W', 'ACS_WFC_F555W',
 """Define classes for Filters and other similar objects"""
 
 import numpy as np
-from astropy.io import fits
 from .psf import PSF_Model
 from ..simulation.gpu_utils import gpu_log10 as log10
-from pkg_resources import resource_filename
 from warnings import warn
 
 
