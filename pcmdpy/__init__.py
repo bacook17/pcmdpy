@@ -9,10 +9,10 @@ from .simulation import driver
 from .isochrones import isochrones
 from .galaxy import (galaxy, metalmodels, dustmodels, sfhmodels,
                      distancemodels)
-from .sampling import (fit_model, priors, logging)
+from .sampling import (fit_model, priors, logging, results)
 from .utils import (utils)
 from .plotting import (plotting)
-from .results import (results)
+# from .results import (results)
 from . import data
 
 GPU_AVAIL = gpu_utils._GPU_AVAIL
