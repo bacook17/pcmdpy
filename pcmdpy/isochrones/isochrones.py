@@ -246,7 +246,7 @@ class Isochrone_Model:
         # Find closest age in MIST database
         age = self.ages[np.abs(self.ages - age).argmin()]
         nearest_feh = self._feh_arr[np.abs(self._feh_arr - feh).argmin()]
-        if np.isclose(nearest_feh, feh, atol=0.05):
+        if np.isclose(nearest_feh, feh, atol=0.01):
             feh = nearest_feh
             inter = self.MIST_gb.get_group((age, feh)).values
         # Interpolate/extrapolate for other metallicities

@@ -729,11 +729,14 @@ class ResultsPlotter(object):
                 width=width, all_ages=all_ages, burn=burn, trim=trim,
                 max_logl=max_logl)
         ages += xshift
-        is_good = np.array([True]*len(ages))
-        is_bad = ~is_good
-        if show_uppers:
+        if show_uppers is True:
             is_bad = self.sfr_is_upper(factor=upper_factor)
             is_good = ~is_bad
+        elif type(show_uppers) in [list, np.ndarray]:
+            is_bad = np.array(show_uppers)
+        else:
+            is_bad = np.array([False]*len(ages))
+        is_good = ~is_bad
         if ax is None:
             fig, ax = plt.subplots()
         color = color or plt.rcParams.get('lines.color', 'k')
